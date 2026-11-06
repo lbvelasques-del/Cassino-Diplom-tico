@@ -4,7 +4,7 @@ import { supabase } from './supabaseClient';
 import { 
   Shield, Coins, Sparkles, User, LogOut, 
   Wallet, CheckCircle2, XCircle, 
-  RefreshCw, Zap, UserPlus, Trash2, Flame, UserCheck, PlusCircle, MinusCircle
+  RefreshCw, Zap, UserPlus, Trash2, Flame, UserCheck, PlusCircle, MinusCircle, History, Bell
 } from 'lucide-react';
 
 const SYMBOLS = [
@@ -21,11 +21,11 @@ const SYMBOLS = [
 const BET_LEVELS = [30000, 60000, 100000, 300000, 500000, 1000000, 3000000, 5000000];
 
 const PAYLINES = [
-  { id: 0, name: 'Linha Superior', coords: [0, 1, 2], style: 'top-8' },
+  { id: 0, name: 'Linha Superior', coords: [0, 1, 2], style: 'top-10' },
   { id: 1, name: 'Linha Central', coords: [3, 4, 5], style: 'top-1/2 -translate-y-1/2' },
-  { id: 2, name: 'Linha Inferior', coords: [6, 7, 8], style: 'bottom-8' },
-  { id: 3, name: 'Diagonal Principal', coords: [0, 4, 8], style: 'rotate-45' },
-  { id: 4, name: 'Diagonal Invertida', coords: [2, 4, 6], style: '-rotate-45' }
+  { id: 2, name: 'Linha Inferior', coords: [6, 7, 8], style: 'bottom-10' },
+  { id: 3, name: 'Diagonal Principal', coords: [0, 4, 8], style: 'rotate-45 scale-125' },
+  { id: 4, name: 'Diagonal Invertida', coords: [2, 4, 6], style: '-rotate-45 scale-125' }
 ];
 
 const MULTIPLIER_WHEEL = [
@@ -69,6 +69,7 @@ function App() {
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [newBalanceInput, setNewBalanceInput] = useState('');
   const [adminActionAmount, setAdminActionAmount] = useState('');
+  const [showStatementModal, setShowStatementModal] = useState(false);
 
   const [createNickInput, setCreateNickInput] = useState('');
   const [createPassInput, setCreatePassInput] = useState('');
@@ -108,7 +109,7 @@ function App() {
         })));
       }
     } catch (err) {
-      console.error('Erro ao sincronizar dados:', err);
+      console.error('Erro ao sincronizar dados da nuvem:', err);
     }
   };
 
@@ -117,6 +118,8 @@ function App() {
     const interval = setInterval(fetchCloudData, 2000);
     return () => clearInterval(interval);
   }, [user.username]);
+
+  const hasPendingTransactions = transactions.some(t => t.status === 'pending');
     const handleAuthSubmit = async (e) => {
     e.preventDefault();
     const cleanNick = loginUsername.trim().replace('@', '');
@@ -140,13 +143,13 @@ function App() {
 
       const { error } = await supabase.from('users').insert([newUserObj]);
       if (error) {
-        alert('Erro ao registar conta na nuvem.');
+        alert('Erro ao criar conta na nuvem.');
         return;
       }
 
       const localObj = { username: cleanNick, password: loginPassword, balance: 0, isAdmin: false, totalDeposited: 0, totalWon: 0 };
       setUser(localObj);
-      alert(`Conta @${cleanNick} criada com sucesso! Solicite um depósito para começar.`);
+      alert(`Conta @${cleanNick} criada com sucesso! Solicite um depósito.`);
     } else {
       let currentUserData = usersDB[cleanNick];
       if (!currentUserData) {
@@ -347,8 +350,8 @@ function App() {
       }
     });
 
-    const spinDuration = isTurbo ? 50 : 130;
-    const maxSteps = isTurbo ? 6 : 16;
+    const spinDuration = isTurbo ? 45 : 110;
+    const maxSteps = isTurbo ? 5 : 15;
     let currentInterval = 0;
 
     const spinTimer = setInterval(async () => {
@@ -475,27 +478,26 @@ function App() {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(val);
   };
     return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans relative overflow-x-hidden selection:bg-amber-500 selection:text-slate-950">
-      {/* HEADER */}
-      <header className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800/80 sticky top-0 z-40 px-4 py-3 flex items-center justify-between shadow-lg">
+    <div className="min-h-screen bg-black text-amber-100 flex flex-col font-sans relative overflow-x-hidden selection:bg-amber-500 selection:text-black">
+      {/* HEADER ELEGANTE PRETO E DOURADO */}
+      <header className="bg-gradient-to-r from-neutral-950 via-zinc-900 to-neutral-950 border-b border-amber-500/30 sticky top-0 z-40 px-4 py-3 flex items-center justify-between shadow-[0_4px_20px_rgba(217,119,6,0.15)]">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-300 flex items-center justify-center shadow-lg shadow-amber-500/20 border border-amber-300/30">
-            <Coins className="w-6 h-6 text-slate-950 font-black" />
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-600 via-amber-400 to-yellow-200 flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.4)] border border-amber-200/40">
+            <Coins className="w-6 h-6 text-black font-black" />
           </div>
           <div>
-            <h1 className="font-black text-base sm:text-lg tracking-wider bg-gradient-to-r from-amber-400 via-yellow-200 to-amber-500 bg-clip-text text-transparent drop-shadow">
-              REDE PAMPAS CASINO
+            <h1 className="font-serif text-lg sm:text-xl tracking-widest bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-500 bg-clip-text text-transparent font-bold drop-shadow-md">
+              REDE PAMPAS CASSINO
             </h1>
-            <p className="text-[11px] text-slate-400 flex items-center gap-1.5 font-medium">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              Supabase Sincronizado
+            <p className="text-[10px] text-amber-400/80 font-mono tracking-wider uppercase">
+              Plataforma Oficial Sincronizada
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2.5">
           {user.username !== 'Visitante' ? (
-            <div className="flex items-center gap-2.5 bg-slate-900/90 border border-slate-700/80 rounded-2xl px-3 py-1.5 shadow-inner">
+            <div className="flex items-center gap-2.5 bg-neutral-900 border border-amber-500/40 rounded-2xl px-3.5 py-1.5 shadow-inner">
               <div className="text-right hidden sm:block">
                 <p className="text-[11px] text-amber-400 font-bold">@{user.username}</p>
                 <p className="text-xs font-black tracking-tight text-white">{formatCurrency(user.balance)}</p>
@@ -505,14 +507,21 @@ function App() {
               </div>
               <button 
                 onClick={() => { setShowWalletModal(true); setWalletTab('deposit'); }}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white p-2 rounded-xl transition shadow-md flex items-center justify-center active:scale-95"
+                className="bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black font-extrabold p-2 rounded-xl transition shadow-md flex items-center justify-center active:scale-95"
                 title="Carteira / Depósito"
               >
                 <Wallet className="w-4 h-4" />
               </button>
               <button 
+                onClick={() => setShowStatementModal(true)}
+                className="bg-neutral-800 hover:bg-neutral-700 text-amber-300 p-2 rounded-xl transition active:scale-95"
+                title="Meu Extrato"
+              >
+                <History className="w-4 h-4" />
+              </button>
+              <button 
                 onClick={() => setUser({ username: 'Visitante', balance: 0, isAdmin: false, totalDeposited: 0, totalWon: 0 })}
-                className="bg-slate-800 hover:bg-red-600/80 text-slate-300 hover:text-white p-2 rounded-xl transition active:scale-95"
+                className="bg-neutral-800 hover:bg-red-950 text-amber-300 hover:text-red-400 p-2 rounded-xl transition active:scale-95"
                 title="Terminar Sessão"
               >
                 <LogOut className="w-4 h-4" />
@@ -521,7 +530,7 @@ function App() {
           ) : (
             <button 
               onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
-              className="bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 text-slate-950 font-extrabold px-4 py-2.5 rounded-2xl text-xs sm:text-sm shadow-lg transition active:scale-95 flex items-center gap-2"
+              className="bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-400 text-black font-extrabold px-4 py-2.5 rounded-2xl text-xs sm:text-sm shadow-[0_0_15px_rgba(245,158,11,0.3)] transition active:scale-95 flex items-center gap-2"
             >
               <User className="w-4 h-4" />
               Entrar / Registar
@@ -531,81 +540,91 @@ function App() {
           {user.isAdmin && (
             <button 
               onClick={() => setShowAdminPanel(true)}
-              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-extrabold px-3 py-2.5 rounded-2xl text-xs sm:text-sm shadow-lg transition active:scale-95 flex items-center gap-1.5"
+              className="relative bg-gradient-to-r from-purple-900 to-indigo-900 border border-purple-500/50 text-white font-extrabold px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm shadow-lg transition active:scale-95 flex items-center gap-1.5"
             >
-              <Shield className="w-4 h-4" />
+              <Shield className="w-4 h-4 text-amber-400" />
               <span className="hidden sm:inline">Admin</span>
+              {hasPendingTransactions && (
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full animate-ping shadow-[0_0_8px_#10b981]" />
+              )}
+              {hasPendingTransactions && (
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full shadow-[0_0_8px_#10b981]" />
+              )}
             </button>
           )}
         </div>
       </header>
 
-      {/* SLOT MACHINE COM QUEDA DE CIMA PARA BAIXO E LINHAS FECHADAS */}
+      {/* SLOT MACHINE ESTILO FORTUNE TIGER COM QUEDA DE CIMA PARA BAIXO */}
       <main className="flex-1 max-w-lg w-full mx-auto p-4 flex flex-col justify-center items-center">
-        <div className="w-full bg-slate-900/90 border border-slate-800/80 rounded-3xl p-5 sm:p-6 shadow-2xl relative backdrop-blur-xl">
-          <div className="flex justify-between items-center mb-4 text-xs text-slate-400 bg-slate-950/80 px-3 py-2.5 rounded-2xl border border-slate-800/60 shadow-inner">
-            <span className="flex items-center gap-1.5 font-bold text-amber-400"><Sparkles className="w-4 h-4" /> 5 Linhas Ativas</span>
-            <span className="text-emerald-400 font-black tracking-wide">QUEDA DE CIMA PARA BAIXO</span>
+        <div className="w-full bg-neutral-950/90 border-2 border-amber-500/30 rounded-3xl p-5 sm:p-6 shadow-[0_0_30px_rgba(217,119,6,0.1)] relative backdrop-blur-xl">
+          {/* PROPAGANDA REDE PAMPAS DESENVOLVIMENTO */}
+          <div className="flex justify-between items-center mb-4 text-xs bg-gradient-to-r from-neutral-900 via-amber-950/40 to-neutral-900 px-3 py-2.5 rounded-2xl border border-amber-500/30 shadow-inner">
+            <span className="flex items-center gap-1.5 font-bold text-amber-300 font-serif tracking-wider"><Sparkles className="w-4 h-4 text-amber-400 animate-spin" /> Rede Pampas Desenvolvimento</span>
+            <span className="text-amber-400/90 font-mono text-[10px]">PADRÃO VIP</span>
           </div>
 
-          <div className="relative bg-slate-950 border-4 border-slate-800/90 rounded-2xl p-4 shadow-2xl mb-5 overflow-hidden">
+          <div className="relative bg-neutral-900 border-4 border-amber-600/50 rounded-2xl p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] mb-5 overflow-hidden">
             <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
               {grid.map((symbolChar, idx) => {
                 const isWinningSlot = activePaylines.some(line => line.coords.includes(idx));
                 return (
                   <div 
                     key={idx}
-                    className={`h-24 sm:h-28 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 border-2 rounded-2xl flex items-center justify-center text-5xl sm:text-6xl shadow-lg transition-all duration-300 ${
-                      spinning ? 'animate-[bounce_0.2s_infinite] scale-95 border-slate-700 opacity-80' : 
-                      isWinningSlot ? 'border-amber-400 shadow-amber-500/50 scale-105 bg-amber-500/10' : 'border-slate-800/80'
+                    className={`h-24 sm:h-28 bg-gradient-to-b from-neutral-950 via-neutral-900 to-neutral-950 border-2 rounded-2xl flex items-center justify-center text-5xl sm:text-6xl shadow-lg transition-all duration-200 ${
+                      spinning ? 'animate-[bounce_0.15s_infinite] scale-95 border-amber-500/50 opacity-80' : 
+                      isWinningSlot ? 'border-amber-400 shadow-[0_0_20px_#f59e0b] scale-105 bg-amber-500/10' : 'border-amber-900/30'
                     }`}
                   >
-                    <span className={spinning ? 'animate-pulse' : 'drop-shadow-md'}>{symbolChar}</span>
+                    <span className={spinning ? 'animate-pulse' : 'drop-shadow-[0_2px_10px_rgba(255,215,0,0.3)]'}>{symbolChar}</span>
                   </div>
                 );
               })}
             </div>
 
-            {/* RISCO SOBRE AS LINHAS FECHADAS COM O PRÉMIO EM CIMA */}
+            {/* LINHAS FECHADAS COM EFEITO VISUAL */}
             {activePaylines.map(line => (
               <div key={line.id} className={`absolute inset-x-0 border-b-4 border-amber-400 shadow-[0_0_15px_#f59e0b] z-10 pointer-events-none transition-all ${line.style}`} />
             ))}
 
             {lastWin > 0 && !spinning && (
-              <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center justify-center animate-fade-in z-20 p-4 text-center">
-                <span className="text-amber-400 font-black text-2xl sm:text-3xl uppercase tracking-widest drop-shadow-[0_4px_12px_rgba(245,158,11,0.5)]">🔥 LINHA FECHADA! 🔥</span>
-                <span className="text-white font-black text-3xl sm:text-4xl mt-2 tracking-tight">{formatCurrency(lastWin)}</span>
+              <div className="absolute inset-0 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center animate-fade-in z-20 p-4 text-center">
+                <span className="text-amber-400 font-serif font-black text-2xl sm:text-3xl uppercase tracking-widest drop-shadow-[0_4px_15px_rgba(245,158,11,0.6)]">🔥 LINHA FECHADA! 🔥</span>
+                <span className="text-white font-mono font-black text-3xl sm:text-4xl mt-2 tracking-tight">{formatCurrency(lastWin)}</span>
               </div>
             )}
           </div>
 
-          <div className="space-y-3.5">
-            {/* VALORES DAS APOSTAS SEPARADAS */}
-            <div className="flex items-center justify-between bg-slate-950/80 border border-slate-800/80 rounded-2xl p-3.5 shadow-inner">
-              <div>
-                <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Aposta Atual</p>
-                <p className="text-lg sm:text-xl font-black text-amber-400 tracking-tight">{formatCurrency(currentBet)}</p>
+          <div className="space-y-4">
+            {/* VALORES DAS APOSTAS SEPARADAS NA TELA */}
+            <div className="bg-neutral-900/90 border border-amber-500/30 rounded-2xl p-3.5 shadow-inner">
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-[11px] text-amber-400/80 font-bold uppercase tracking-wider">Escolha a Aposta</p>
+                <span className="text-xs font-mono font-bold text-amber-300">{formatCurrency(currentBet)}</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <button 
-                  disabled={betIndex === 0 || spinning}
-                  onClick={() => setBetIndex(prev => Math.max(0, prev - 1))}
-                  className="bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-white w-10 h-10 rounded-xl font-black text-lg transition shadow active:scale-95 flex items-center justify-center"
-                >-</button>
-                <span className="text-xs font-bold text-slate-300 px-2">Nível {betIndex + 1}</span>
-                <button 
-                  disabled={betIndex === BET_LEVELS.length - 1 || spinning}
-                  onClick={() => setBetIndex(prev => Math.min(BET_LEVELS.length - 1, prev + 1))}
-                  className="bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-white w-10 h-10 rounded-xl font-black text-lg transition shadow active:scale-95 flex items-center justify-center"
-                >+</button>
+              <div className="grid grid-cols-4 gap-1.5">
+                {BET_LEVELS.map((betVal, idx) => (
+                  <button
+                    key={idx}
+                    disabled={spinning}
+                    onClick={() => setBetIndex(idx)}
+                    className={`py-2 px-1 rounded-xl text-[11px] font-mono font-bold transition active:scale-95 ${
+                      betIndex === idx 
+                        ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-[0_0_10px_rgba(245,158,11,0.5)] border border-amber-200' 
+                        : 'bg-neutral-950 text-amber-200/70 border border-amber-900/40 hover:border-amber-500/50'
+                    }`}
+                  >
+                    {betVal >= 1000000 ? `${betVal / 1000000}M` : `${betVal / 1000}k`}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2.5">
               <button 
                 onClick={() => setIsTurbo(!isTurbo)}
-                className={`py-4 rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 border transition shadow-md active:scale-95 ${
-                  isTurbo ? 'bg-amber-500/20 border-amber-500 text-amber-400 shadow-amber-500/20' : 'bg-slate-800/80 border-slate-700/80 text-slate-400 hover:bg-slate-800'
+                className={`py-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 border transition shadow-md active:scale-95 ${
+                  isTurbo ? 'bg-amber-500/20 border-amber-500 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.3)]' : 'bg-neutral-900 border-amber-900/40 text-amber-300/70 hover:border-amber-500/50'
                 }`}
               >
                 <Zap className="w-5 h-5" />
@@ -615,10 +634,10 @@ function App() {
               <button 
                 disabled={spinning}
                 onClick={() => executeSpin()}
-                className="bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 text-slate-950 font-black py-4 rounded-2xl text-lg sm:text-xl shadow-xl shadow-amber-500/25 active:scale-95 transition flex items-center justify-center gap-2 uppercase tracking-wide"
+                className="bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 text-black font-serif font-black py-4 rounded-2xl text-lg sm:text-xl shadow-[0_0_20px_rgba(245,158,11,0.4)] active:scale-95 transition flex items-center justify-center gap-2 uppercase tracking-wide border border-amber-200"
               >
-                {spinning ? <RefreshCw className="w-6 h-6 animate-spin" /> : <Flame className="w-6 h-6 text-red-600" />}
-                {spinning ? 'A Girar...' : 'Girar'}
+                {spinning ? <RefreshCw className="w-6 h-6 animate-spin text-black" /> : <Flame className="w-6 h-6 text-red-700" />}
+                {spinning ? 'A Girar...' : 'GIRAR'}
               </button>
             </div>
           </div>
@@ -626,100 +645,135 @@ function App() {
       </main>
             {/* MODAL DE AUTENTICAÇÃO */}
       {showAuthModal && (
-        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-6 sm:p-7 shadow-2xl relative">
-            <h2 className="text-xl sm:text-2xl font-black text-amber-400 mb-1 flex items-center gap-2">
-              <UserCheck className="w-6 h-6" />
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-amber-500/40 w-full max-w-md rounded-3xl p-6 sm:p-7 shadow-[0_0_30px_rgba(217,119,6,0.2)] relative">
+            <h2 className="text-xl sm:text-2xl font-serif font-bold text-amber-300 mb-1 flex items-center gap-2">
+              <UserCheck className="w-6 h-6 text-amber-400" />
               {authMode === 'login' ? 'Entrar no Casino' : 'Registar Conta'}
             </h2>
             <form onSubmit={handleAuthSubmit} className="space-y-4 mt-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase">Nome de Utilizador (Login)</label>
-                <input type="text" placeholder="Utilizador" value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-white text-sm" required />
+                <label className="block text-xs font-bold text-amber-400/80 mb-1.5 uppercase tracking-wider">Nome de Utilizador</label>
+                <input type="text" placeholder="Utilizador" value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} className="w-full bg-neutral-950 border border-amber-900/50 rounded-2xl px-4 py-3.5 text-white text-sm focus:border-amber-500 focus:outline-none" required />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase">Senha</label>
-                <input type="password" placeholder="********" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-white text-sm" required />
+                <label className="block text-xs font-bold text-amber-400/80 mb-1.5 uppercase tracking-wider">Senha</label>
+                <input type="password" placeholder="********" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} className="w-full bg-neutral-950 border border-amber-900/50 rounded-2xl px-4 py-3.5 text-white text-sm focus:border-amber-500 focus:outline-none" required />
               </div>
-              <button type="submit" className="w-full bg-amber-500 text-slate-950 font-black py-4 rounded-2xl shadow-lg text-sm uppercase">{authMode === 'login' ? 'Entrar' : 'Registar'}</button>
+              <button type="submit" className="w-full bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-serif font-black py-4 rounded-2xl shadow-[0_0_15px_rgba(245,158,11,0.3)] text-sm uppercase">{authMode === 'login' ? 'Entrar' : 'Registar'}</button>
             </form>
             <div className="mt-5 text-center">
               <button type="button" onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} className="text-xs font-bold text-amber-400 hover:underline">
                 {authMode === 'login' ? 'Não tem conta? Registe-se' : 'Já tem conta? Faça login'}
               </button>
             </div>
-            <button onClick={() => setShowAuthModal(false)} className="absolute top-5 right-5 text-slate-400 hover:text-white bg-slate-800/60 w-8 h-8 rounded-full flex items-center justify-center">✕</button>
+            <button onClick={() => setShowAuthModal(false)} className="absolute top-5 right-5 text-amber-400 hover:text-white bg-neutral-800 w-8 h-8 rounded-full flex items-center justify-center">✕</button>
           </div>
         </div>
       )}
 
       {/* MODAL DE CARTEIRA */}
       {showWalletModal && (
-        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl relative">
-            <h2 className="text-xl font-black text-amber-400 mb-4 flex items-center gap-2"><Wallet className="w-6 h-6" /> Gestão de Saldo</h2>
-            <div className="flex gap-2 mb-6 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
-              <button onClick={() => setWalletTab('deposit')} className={`flex-1 py-2.5 rounded-xl text-xs font-black ${walletTab === 'deposit' ? 'bg-amber-500 text-slate-950' : 'text-slate-400'}`}>Depositar</button>
-              <button onClick={() => setWalletTab('withdraw')} className={`flex-1 py-2.5 rounded-xl text-xs font-black ${walletTab === 'withdraw' ? 'bg-amber-500 text-slate-950' : 'text-slate-400'}`}>Levantar</button>
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-amber-500/40 w-full max-w-md rounded-3xl p-6 shadow-2xl relative">
+            <h2 className="text-xl font-serif font-bold text-amber-300 mb-4 flex items-center gap-2"><Wallet className="w-6 h-6 text-amber-400" /> Gestão de Saldo</h2>
+            <div className="flex gap-2 mb-6 bg-neutral-950 p-1.5 rounded-2xl border border-amber-900/50">
+              <button onClick={() => setWalletTab('deposit')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold ${walletTab === 'deposit' ? 'bg-amber-500 text-black font-black' : 'text-amber-300/70'}`}>Depositar</button>
+              <button onClick={() => setWalletTab('withdraw')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold ${walletTab === 'withdraw' ? 'bg-amber-500 text-black font-black' : 'text-amber-300/70'}`}>Levantar</button>
             </div>
             <form onSubmit={handleTransactionRequest} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase">Valor (R$)</label>
-                <input type="number" placeholder="Ex: 50000" value={transactionAmount} onChange={(e) => setTransactionAmount(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-white text-sm" required />
+                <label className="block text-xs font-bold text-amber-400/80 mb-1.5 uppercase">Valor (R$)</label>
+                <input type="number" placeholder="Ex: 50000" value={transactionAmount} onChange={(e) => setTransactionAmount(e.target.value)} className="w-full bg-neutral-950 border border-amber-900/50 rounded-2xl px-4 py-3.5 text-white text-sm focus:border-amber-500 focus:outline-none" required />
               </div>
-              <button type="submit" className="w-full bg-emerald-600 text-white font-black py-4 rounded-2xl shadow-lg text-sm uppercase">Solicitar</button>
+              <button type="submit" className="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-serif font-bold py-4 rounded-2xl shadow-lg text-sm uppercase">Solicitar</button>
             </form>
-            <button onClick={() => setShowWalletModal(false)} className="absolute top-5 right-5 text-slate-400 hover:text-white bg-slate-800/60 w-8 h-8 rounded-full flex items-center justify-center">✕</button>
+            <button onClick={() => setShowWalletModal(false)} className="absolute top-5 right-5 text-amber-400 hover:text-white bg-neutral-800 w-8 h-8 rounded-full flex items-center justify-center">✕</button>
+          </div>
+        </div>
+      )}
+
+      {/* EXTRATO DE TRANSAÇÕES DO UTILIZADOR */}
+      {showStatementModal && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-amber-500/40 w-full max-w-md max-h-[85vh] rounded-3xl p-6 shadow-2xl flex flex-col relative">
+            <h2 className="text-xl font-serif font-bold text-amber-300 mb-4 flex items-center gap-2"><History className="w-6 h-6 text-amber-400" /> Meu Extrato de Transações</h2>
+            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+              {transactions.filter(t => t.username === user.username).length === 0 ? (
+                <p className="text-center text-amber-300/50 py-8 text-sm">Sem transações registadas no extrato.</p>
+              ) : (
+                transactions.filter(t => t.username === user.username).map(tx => (
+                  <div key={tx.id} className="bg-neutral-950 border border-amber-900/40 rounded-2xl p-3.5 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-white uppercase tracking-wider">{tx.type === 'deposit' ? 'Depósito' : 'Saque'}</p>
+                      <p className="text-[11px] text-amber-300/60">{tx.date}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-mono font-bold text-amber-300">{formatCurrency(tx.amount)}</p>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${tx.status === 'approved' ? 'bg-emerald-500/20 text-emerald-400' : tx.status === 'rejected' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                        {tx.status === 'approved' ? 'Aprovado' : tx.status === 'rejected' ? 'Rejeitado' : 'Pendente'}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <button onClick={() => setShowStatementModal(false)} className="mt-4 w-full bg-neutral-800 text-amber-300 font-bold py-3 rounded-2xl text-sm">Fechar</button>
           </div>
         </div>
       )}
 
       {/* RODA DE BÓNUS (1x A 10x) */}
       {showBonus && (
-        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-amber-500/50 w-full max-w-md rounded-3xl p-6 shadow-2xl text-center relative">
-            <h2 className="text-2xl font-black text-amber-400 mb-1">💎 RODA DE BÓNUS (1x - 10x) 💎</h2>
-            <div className="my-6 py-8 bg-slate-950 border border-slate-800 rounded-2xl flex flex-col items-center justify-center">
-              <span className="text-5xl font-black text-amber-400 mb-2">{bonusMult > 0 ? `${bonusMult}x` : '???'}</span>
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-amber-500/50 w-full max-w-md rounded-3xl p-6 shadow-2xl text-center relative">
+            <h2 className="text-2xl font-serif font-bold text-amber-300 mb-1">💎 RODA DE BÓNUS (1x - 10x) 💎</h2>
+            <div className="my-6 py-8 bg-neutral-950 border border-amber-900/50 rounded-2xl flex flex-col items-center justify-center shadow-inner">
+              <span className="text-5xl font-mono font-black text-amber-400 mb-2">{bonusMult > 0 ? `${bonusMult}x` : '???'}</span>
             </div>
-            <button disabled={spinningBonus || bonusMult > 0} onClick={spinBonusWheel} className="w-full bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black py-4 rounded-2xl text-lg">
+            <button disabled={spinningBonus || bonusMult > 0} onClick={spinBonusWheel} className="w-full bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-serif font-black py-4 rounded-2xl text-lg shadow-[0_0_15px_rgba(245,158,11,0.3)]">
               {spinningBonus ? 'A Girar...' : bonusMult > 0 ? 'Prémio Creditado!' : 'Rodar Bónus'}
             </button>
             {bonusMult > 0 && (
-              <button onClick={() => setShowBonus(false)} className="mt-3.5 w-full bg-slate-800 text-white font-bold py-3.5 rounded-2xl text-sm">Continuar</button>
+              <button onClick={() => setShowBonus(false)} className="mt-3.5 w-full bg-neutral-800 text-amber-300 font-bold py-3.5 rounded-2xl text-sm">Continuar</button>
             )}
           </div>
         </div>
       )}
-
-      {/* PAINEL ADMIN COM FERRAMENTAS DE ATUALIZAÇÃO, SALDO, DEPÓSITO E RETIRADA */}
+            {/* PAINEL ADMIN COM NOTIFICAÇÃO VERDE E FERRAMENTAS */}
       {showAdminPanel && user.isAdmin && (
-        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-4xl max-h-[90vh] rounded-3xl p-6 shadow-2xl flex flex-col relative overflow-hidden">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-amber-500/40 w-full max-w-4xl max-h-[90vh] rounded-3xl p-6 shadow-2xl flex flex-col relative overflow-hidden">
+            <div className="flex items-center justify-between pb-4 border-b border-amber-500/30">
               <div className="flex items-center gap-3">
-                <h2 className="text-lg font-black text-purple-400 flex items-center gap-2"><Shield className="w-6 h-6" /> Painel Admin - Rede Pampas</h2>
-                <button onClick={fetchCloudData} className="bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition">
-                  <RefreshCw className="w-3.5 h-3.5" /> Atualizar Painel
+                <h2 className="text-lg font-serif font-bold text-amber-300 flex items-center gap-2">
+                  <Shield className="w-6 h-6 text-amber-400" /> Painel Admin - Rede Pampas
+                </h2>
+                <button onClick={fetchCloudData} className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition border border-amber-500/30">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Atualizar Painel
                 </button>
               </div>
-              <button onClick={() => setShowAdminPanel(false)} className="text-slate-400 hover:text-white font-bold bg-slate-800/60 w-8 h-8 rounded-full flex items-center justify-center">✕</button>
+              <button onClick={() => setShowAdminPanel(false)} className="text-amber-400 hover:text-white bg-neutral-800 w-8 h-8 rounded-full flex items-center justify-center">✕</button>
             </div>
 
-            <div className="flex gap-2 my-4 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
-              <button onClick={() => setAdminTab('transactions')} className={`flex-1 py-2.5 rounded-xl text-xs font-black ${adminTab === 'transactions' ? 'bg-purple-600 text-white' : 'text-slate-400'}`}>Transações ({transactions.length})</button>
-              <button onClick={() => setAdminTab('users')} className={`flex-1 py-2.5 rounded-xl text-xs font-black ${adminTab === 'users' ? 'bg-purple-600 text-white' : 'text-slate-400'}`}>Utilizadores ({Object.keys(usersDB).length})</button>
+            <div className="flex gap-2 my-4 bg-neutral-950 p-1.5 rounded-2xl border border-amber-900/50">
+              <button onClick={() => setAdminTab('transactions')} className={`relative flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 ${adminTab === 'transactions' ? 'bg-amber-500 text-black font-black' : 'text-amber-300/70'}`}>
+                Transações ({transactions.length})
+                {hasPendingTransactions && <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping shadow-[0_0_8px_#10b981]" />}
+                {hasPendingTransactions && <span className="absolute right-3 w-2 h-2 bg-emerald-500 rounded-full" />}
+              </button>
+              <button onClick={() => setAdminTab('users')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold ${adminTab === 'users' ? 'bg-amber-500 text-black font-black' : 'text-amber-300/70'}`}>Utilizadores ({Object.keys(usersDB).length})</button>
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-3 pr-1">
               {adminTab === 'transactions' && (
                 <div className="space-y-3">
-                  {transactions.length === 0 ? <p className="text-center text-slate-500 py-8 text-sm">Sem transações pendentes.</p> : (
+                  {transactions.length === 0 ? <p className="text-center text-amber-300/50 py-8 text-sm">Sem transações registadas.</p> : (
                     transactions.map(tx => (
-                      <div key={tx.id} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+                      <div key={tx.id} className="bg-neutral-950 border border-amber-900/40 rounded-2xl p-4 flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-black text-white">@{tx.username} - <span className={tx.type === 'deposit' ? 'text-emerald-400' : 'text-amber-400'}>{tx.type.toUpperCase()}</span></p>
-                          <p className="text-xs text-slate-400 font-bold">{formatCurrency(tx.amount)} • {tx.date}</p>
+                          <p className="text-sm font-bold text-white">@{tx.username} - <span className={tx.type === 'deposit' ? 'text-emerald-400' : 'text-amber-400'}>{tx.type.toUpperCase()}</span></p>
+                          <p className="text-xs font-mono font-bold text-amber-300">{formatCurrency(tx.amount)} • {tx.date}</p>
                         </div>
                         <div className="flex gap-2">
                           {tx.status === 'pending' ? (
@@ -727,7 +781,7 @@ function App() {
                               <button onClick={() => handleApproveTransaction(tx)} className="bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs font-black">Aprovar</button>
                               <button onClick={() => handleRejectTransaction(tx)} className="bg-red-600 text-white px-3 py-2 rounded-xl text-xs font-black">Rejeitar</button>
                             </>
-                          ) : <span className={`text-xs font-black px-3 py-1 rounded-xl ${tx.status === 'approved' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>{tx.status.toUpperCase()}</span>}
+                          ) : <span className={`text-xs font-bold px-3 py-1 rounded-xl ${tx.status === 'approved' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>{tx.status.toUpperCase()}</span>}
                         </div>
                       </div>
                     ))
@@ -737,24 +791,46 @@ function App() {
 
               {adminTab === 'users' && (
                 <div className="space-y-3">
+                  <div className="flex justify-between items-center mb-2">
+                    <button 
+                      onClick={() => setShowAddUserForm(!showAddUserForm)}
+                      className="bg-amber-500 text-black px-4 py-2.5 rounded-2xl text-xs font-black flex items-center gap-2 shadow"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      {showAddUserForm ? 'Fechar' : 'Adicionar Jogador'}
+                    </button>
+                  </div>
+
+                  {showAddUserForm && (
+                    <form onSubmit={handleAdminCreateUser} className="bg-neutral-950 border border-amber-900/50 p-4 rounded-2xl space-y-3 mb-4">
+                      <h3 className="text-xs font-bold text-amber-300 uppercase tracking-wider">Criar Nova Conta Manualmente</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <input type="text" placeholder="Utilizador" value={createNickInput} onChange={(e) => setCreateNickInput(e.target.value)} className="bg-neutral-900 border border-amber-900/40 rounded-xl p-3 text-xs text-white" required />
+                        <input type="password" placeholder="Senha" value={createPassInput} onChange={(e) => setCreatePassInput(e.target.value)} className="bg-neutral-900 border border-amber-900/40 rounded-xl p-3 text-xs text-white" required />
+                        <input type="number" placeholder="Saldo Inicial" value={createBalanceInput} onChange={(e) => setCreateBalanceInput(e.target.value)} className="bg-neutral-900 border border-amber-900/40 rounded-xl p-3 text-xs text-white" />
+                      </div>
+                      <button type="submit" className="bg-amber-500 text-black w-full py-3 rounded-xl text-xs font-black uppercase">Criar Jogador</button>
+                    </form>
+                  )}
+
                   {Object.values(usersDB).map(u => (
-                    <div key={u.username} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
+                    <div key={u.username} className="bg-neutral-950 border border-amber-900/40 rounded-2xl p-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-black text-white">@{u.username} {u.isAdmin && <span className="bg-purple-600/20 text-purple-400 text-[10px] px-2 py-0.5 rounded">Admin</span>}</p>
-                          <p className="text-xs text-amber-400 font-bold">Saldo Atual: {formatCurrency(u.balance)}</p>
+                          <p className="text-sm font-bold text-white">@{u.username} {u.isAdmin && <span className="bg-purple-900 text-purple-200 text-[10px] px-2 py-0.5 rounded">Admin</span>}</p>
+                          <p className="text-xs font-mono font-bold text-amber-400">Saldo Atual: {formatCurrency(u.balance)}</p>
                         </div>
-                        <button onClick={() => handleDeleteUser(u.username)} className="bg-red-600/20 text-red-400 p-2 rounded-xl"><Trash2 className="w-4 h-4" /></button>
+                        <button onClick={() => handleDeleteUser(u.username)} className="bg-red-950 text-red-400 p-2 rounded-xl"><Trash2 className="w-4 h-4" /></button>
                       </div>
 
                       {/* FERRAMENTAS DE DEPÓSITO E RETIRADA DIRETA NO ADMIN */}
-                      <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
+                      <div className="flex items-center gap-2 pt-2 border-t border-amber-900/30">
                         <input 
                           type="number" 
                           placeholder="Valor R$" 
                           value={adminActionAmount} 
                           onChange={(e) => setAdminActionAmount(e.target.value)}
-                          className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white w-28"
+                          className="bg-neutral-900 border border-amber-900/40 rounded-xl px-3 py-2 text-xs text-white w-28"
                         />
                         <button onClick={() => handleAdminDirectDeposit(u.username)} className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1">
                           <PlusCircle className="w-3.5 h-3.5" /> Depositar
