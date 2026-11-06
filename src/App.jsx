@@ -4,7 +4,7 @@ import { supabase } from './supabaseClient';
 import { 
   Shield, Coins, Sparkles, User, LogOut, 
   Wallet, CheckCircle2, XCircle, 
-  RefreshCw, Zap, UserPlus, Trash2, Flame, UserCheck
+  RefreshCw, Zap, UserPlus, Trash2, Flame, UserCheck, PlusCircle, MinusCircle
 } from 'lucide-react';
 
 const SYMBOLS = [
@@ -21,22 +21,22 @@ const SYMBOLS = [
 const BET_LEVELS = [30000, 60000, 100000, 300000, 500000, 1000000, 3000000, 5000000];
 
 const PAYLINES = [
-  { id: 0, name: 'Linha Superior', coords: [0, 1, 2] },
-  { id: 1, name: 'Linha Central', coords: [3, 4, 5] },
-  { id: 2, name: 'Linha Inferior', coords: [6, 7, 8] },
-  { id: 3, name: 'Diagonal Principal', coords: [0, 4, 8] },
-  { id: 4, name: 'Diagonal Invertida', coords: [2, 4, 6] }
+  { id: 0, name: 'Linha Superior', coords: [0, 1, 2], style: 'top-8' },
+  { id: 1, name: 'Linha Central', coords: [3, 4, 5], style: 'top-1/2 -translate-y-1/2' },
+  { id: 2, name: 'Linha Inferior', coords: [6, 7, 8], style: 'bottom-8' },
+  { id: 3, name: 'Diagonal Principal', coords: [0, 4, 8], style: 'rotate-45' },
+  { id: 4, name: 'Diagonal Invertida', coords: [2, 4, 6], style: '-rotate-45' }
 ];
 
 const MULTIPLIER_WHEEL = [
-  { mult: 2, weight: 90 },
-  { mult: 3, weight: 70 },
+  { mult: 1, weight: 100 },
+  { mult: 2, weight: 80 },
+  { mult: 3, weight: 60 },
   { mult: 4, weight: 40 },
   { mult: 5, weight: 25 },
   { mult: 6, weight: 15 },
   { mult: 8, weight: 8 },
-  { mult: 10, weight: 4 },
-  { mult: 15, weight: 2 }
+  { mult: 10, weight: 4 }
 ];
 function App() {
   const [usersDB, setUsersDB] = useState({});
@@ -68,13 +68,12 @@ function App() {
   const [selectedUserToEdit, setSelectedUserToEdit] = useState(null);
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [newBalanceInput, setNewBalanceInput] = useState('');
+  const [adminActionAmount, setAdminActionAmount] = useState('');
 
   const [createNickInput, setCreateNickInput] = useState('');
   const [createPassInput, setCreatePassInput] = useState('');
   const [createBalanceInput, setCreateBalanceInput] = useState('');
   const [showAddUserForm, setShowAddUserForm] = useState(false);
-
-  const [houseStats, setHouseStats] = useState({ totalBets: 0, totalPayouts: 0 });
     const fetchCloudData = async () => {
     try {
       const { data: userData, error: userError } = await supabase.from('users').select('*');
@@ -109,7 +108,7 @@ function App() {
         })));
       }
     } catch (err) {
-      console.error('Erro ao sincronizar com o Supabase:', err);
+      console.error('Erro ao sincronizar dados:', err);
     }
   };
 
@@ -141,13 +140,13 @@ function App() {
 
       const { error } = await supabase.from('users').insert([newUserObj]);
       if (error) {
-        alert('Erro ao criar conta na nuvem.');
+        alert('Erro ao registar conta na nuvem.');
         return;
       }
 
       const localObj = { username: cleanNick, password: loginPassword, balance: 0, isAdmin: false, totalDeposited: 0, totalWon: 0 };
       setUser(localObj);
-      alert(`Conta @${cleanNick} criada com sucesso! Faça um pedido de depósito.`);
+      alert(`Conta @${cleanNick} criada com sucesso! Solicite um depósito para começar.`);
     } else {
       let currentUserData = usersDB[cleanNick];
       if (!currentUserData) {
@@ -199,16 +198,55 @@ function App() {
 
   const handleDeleteUser = async (usernameToDelete) => {
     if (usernameToDelete === 'LVelasques') {
-      alert('Não podes apagar a conta do Admin Master!');
+      alert('Não pode apagar o Admin Master!');
       return;
     }
-    if (confirm(`Tens a certeza que pretendes eliminar @${usernameToDelete}?`)) {
+    if (confirm(`Pretende eliminar @${usernameToDelete}?`)) {
       await supabase.from('users').delete().eq('username', usernameToDelete);
       if (user.username === usernameToDelete) {
         setUser({ username: 'Visitante', balance: 0, isAdmin: false, totalDeposited: 0, totalWon: 0 });
       }
       fetchCloudData();
     }
+  };
+
+  const handleAdminDirectDeposit = async (targetUsername) => {
+    const val = parseFloat(adminActionAmount);
+    if (!val || val <= 0) {
+      alert('Insira um valor válido para depositar.');
+      return;
+    }
+    const currentUsr = usersDB[targetUsername];
+    if (!currentUsr) return;
+
+    const newBal = currentUsr.balance + val;
+    const newDep = currentUsr.totalDeposited + val;
+
+    await supabase.from('users').update({ balance: newBal, total_deposited: newDep }).eq('username', targetUsername);
+    alert(`Depósito direto de ${formatCurrency(val)} efetuado para @${targetUsername}!`);
+    setAdminActionAmount('');
+    fetchCloudData();
+  };
+
+  const handleAdminDirectWithdraw = async (targetUsername) => {
+    const val = parseFloat(adminActionAmount);
+    if (!val || val <= 0) {
+      alert('Insira um valor válido para retirar.');
+      return;
+    }
+    const currentUsr = usersDB[targetUsername];
+    if (!currentUsr) return;
+
+    if (currentUsr.balance < val) {
+      alert('O utilizador não tem saldo suficiente para esta retirada.');
+      return;
+    }
+
+    const newBal = currentUsr.balance - val;
+    await supabase.from('users').update({ balance: newBal }).eq('username', targetUsername);
+    alert(`Retirada direta de ${formatCurrency(val)} efetuada de @${targetUsername}!`);
+    setAdminActionAmount('');
+    fetchCloudData();
   };
     const getDynamicRtp = (currentUser, currentBal) => {
     const deposited = currentUser.totalDeposited || 1;
@@ -309,9 +347,8 @@ function App() {
       }
     });
 
-    // Velocidade mais lenta e emocionante
-    const spinDuration = isTurbo ? 40 : 120;
-    const maxSteps = isTurbo ? 6 : 18;
+    const spinDuration = isTurbo ? 50 : 130;
+    const maxSteps = isTurbo ? 6 : 16;
     let currentInterval = 0;
 
     const spinTimer = setInterval(async () => {
@@ -350,7 +387,7 @@ function App() {
 
     const totalWeight = MULTIPLIER_WHEEL.reduce((acc, m) => acc + m.weight, 0);
     let rnd = Math.random() * totalWeight;
-    let selectedMult = 3;
+    let selectedMult = 1;
     for (let item of MULTIPLIER_WHEEL) {
       if (rnd < item.weight) {
         selectedMult = item.mult;
@@ -369,7 +406,7 @@ function App() {
       const finalUserObj = { ...user, balance: newBal, totalWon: wonAdded };
       setUser(finalUserObj);
       await supabase.from('users').update({ balance: newBal, total_won: wonAdded }).eq('username', user.username);
-    }, 1800);
+    }, 2000);
   };
 
   const handleTransactionRequest = async (e) => {
@@ -395,7 +432,11 @@ function App() {
       date: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
     };
 
-    await supabase.from('transactions').insert([newTx]);
+    const { error } = await supabase.from('transactions').insert([newTx]);
+    if (error) {
+      alert('Erro ao enviar pedido para o servidor.');
+      return;
+    }
 
     setTransactionAmount('');
     setShowWalletModal(false);
@@ -430,27 +471,12 @@ function App() {
     fetchCloudData();
   };
 
-  const handleSaveUserEdit = async () => {
-    if (!selectedUserToEdit) return;
-    const targetNick = selectedUserToEdit.username;
-    const newPass = newPasswordInput.trim() || selectedUserToEdit.password;
-    const newBal = newBalanceInput !== '' ? parseFloat(newBalanceInput) : selectedUserToEdit.balance;
-
-    await supabase.from('users').update({ password: newPass, balance: newBal }).eq('username', targetNick);
-
-    alert(`Utilizador @${targetNick} atualizado com sucesso!`);
-    setSelectedUserToEdit(null);
-    setNewPasswordInput('');
-    setNewBalanceInput('');
-    fetchCloudData();
-  };
-
   const formatCurrency = (val) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(val);
   };
     return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans relative overflow-x-hidden selection:bg-amber-500 selection:text-slate-950">
-      {/* HEADER PROFISSIONAL */}
+      {/* HEADER */}
       <header className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800/80 sticky top-0 z-40 px-4 py-3 flex items-center justify-between shadow-lg">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-300 flex items-center justify-center shadow-lg shadow-amber-500/20 border border-amber-300/30">
@@ -462,7 +488,7 @@ function App() {
             </h1>
             <p className="text-[11px] text-slate-400 flex items-center gap-1.5 font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              Supabase Cloud Ativo
+              Supabase Sincronizado
             </p>
           </div>
         </div>
@@ -485,7 +511,7 @@ function App() {
                 <Wallet className="w-4 h-4" />
               </button>
               <button 
-                onClick={() => { setUser({ username: 'Visitante', balance: 0, isAdmin: false, totalDeposited: 0, totalWon: 0 }); }}
+                onClick={() => setUser({ username: 'Visitante', balance: 0, isAdmin: false, totalDeposited: 0, totalWon: 0 })}
                 className="bg-slate-800 hover:bg-red-600/80 text-slate-300 hover:text-white p-2 rounded-xl transition active:scale-95"
                 title="Terminar Sessão"
               >
@@ -514,12 +540,12 @@ function App() {
         </div>
       </header>
 
-      {/* SLOT MACHINE PRINCIPAL */}
+      {/* SLOT MACHINE COM QUEDA DE CIMA PARA BAIXO E LINHAS FECHADAS */}
       <main className="flex-1 max-w-lg w-full mx-auto p-4 flex flex-col justify-center items-center">
         <div className="w-full bg-slate-900/90 border border-slate-800/80 rounded-3xl p-5 sm:p-6 shadow-2xl relative backdrop-blur-xl">
           <div className="flex justify-between items-center mb-4 text-xs text-slate-400 bg-slate-950/80 px-3 py-2.5 rounded-2xl border border-slate-800/60 shadow-inner">
             <span className="flex items-center gap-1.5 font-bold text-amber-400"><Sparkles className="w-4 h-4" /> 5 Linhas Ativas</span>
-            <span className="text-emerald-400 font-black tracking-wide">MODO EMOÇÃO ON</span>
+            <span className="text-emerald-400 font-black tracking-wide">QUEDA DE CIMA PARA BAIXO</span>
           </div>
 
           <div className="relative bg-slate-950 border-4 border-slate-800/90 rounded-2xl p-4 shadow-2xl mb-5 overflow-hidden">
@@ -530,25 +556,31 @@ function App() {
                   <div 
                     key={idx}
                     className={`h-24 sm:h-28 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 border-2 rounded-2xl flex items-center justify-center text-5xl sm:text-6xl shadow-lg transition-all duration-300 ${
-                      spinning ? 'animate-pulse scale-95 border-slate-700 opacity-80' : 
+                      spinning ? 'animate-[bounce_0.2s_infinite] scale-95 border-slate-700 opacity-80' : 
                       isWinningSlot ? 'border-amber-400 shadow-amber-500/50 scale-105 bg-amber-500/10' : 'border-slate-800/80'
                     }`}
                   >
-                    <span className={spinning ? 'blur-[1px]' : 'drop-shadow-md'}>{symbolChar}</span>
+                    <span className={spinning ? 'animate-pulse' : 'drop-shadow-md'}>{symbolChar}</span>
                   </div>
                 );
               })}
             </div>
 
+            {/* RISCO SOBRE AS LINHAS FECHADAS COM O PRÉMIO EM CIMA */}
+            {activePaylines.map(line => (
+              <div key={line.id} className={`absolute inset-x-0 border-b-4 border-amber-400 shadow-[0_0_15px_#f59e0b] z-10 pointer-events-none transition-all ${line.style}`} />
+            ))}
+
             {lastWin > 0 && !spinning && (
               <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center justify-center animate-fade-in z-20 p-4 text-center">
-                <span className="text-amber-400 font-black text-2xl sm:text-3xl uppercase tracking-widest drop-shadow-[0_4px_12px_rgba(245,158,11,0.5)]">🔥 GRANDE PRÉMIO! 🔥</span>
+                <span className="text-amber-400 font-black text-2xl sm:text-3xl uppercase tracking-widest drop-shadow-[0_4px_12px_rgba(245,158,11,0.5)]">🔥 LINHA FECHADA! 🔥</span>
                 <span className="text-white font-black text-3xl sm:text-4xl mt-2 tracking-tight">{formatCurrency(lastWin)}</span>
               </div>
             )}
           </div>
 
           <div className="space-y-3.5">
+            {/* VALORES DAS APOSTAS SEPARADAS */}
             <div className="flex items-center justify-between bg-slate-950/80 border border-slate-800/80 rounded-2xl p-3.5 shadow-inner">
               <div>
                 <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Aposta Atual</p>
@@ -583,7 +615,7 @@ function App() {
               <button 
                 disabled={spinning}
                 onClick={() => executeSpin()}
-                className="bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black py-4 rounded-2xl text-lg sm:text-xl shadow-xl shadow-amber-500/25 active:scale-95 transition flex items-center justify-center gap-2 uppercase tracking-wide"
+                className="bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 text-slate-950 font-black py-4 rounded-2xl text-lg sm:text-xl shadow-xl shadow-amber-500/25 active:scale-95 transition flex items-center justify-center gap-2 uppercase tracking-wide"
               >
                 {spinning ? <RefreshCw className="w-6 h-6 animate-spin" /> : <Flame className="w-6 h-6 text-red-600" />}
                 {spinning ? 'A Girar...' : 'Girar'}
@@ -592,7 +624,7 @@ function App() {
           </div>
         </div>
       </main>
-                        {/* MODAL DE AUTENTICAÇÃO (LOGIN E SENHA) */}
+            {/* MODAL DE AUTENTICAÇÃO */}
       {showAuthModal && (
         <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-6 sm:p-7 shadow-2xl relative">
@@ -600,51 +632,22 @@ function App() {
               <UserCheck className="w-6 h-6" />
               {authMode === 'login' ? 'Entrar no Casino' : 'Registar Conta'}
             </h2>
-            <p className="text-xs text-slate-400 mb-6 font-medium">Insira o seu login e senha para aceder.</p>
-
-            <form onSubmit={handleAuthSubmit} className="space-y-4">
+            <form onSubmit={handleAuthSubmit} className="space-y-4 mt-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Nome de Utilizador (Login)</label>
-                <input 
-                  type="text"
-                  placeholder="Ex: JogadorPampas"
-                  value={loginUsername}
-                  onChange={(e) => setLoginUsername(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-white focus:outline-none focus:border-amber-500 text-sm font-medium shadow-inner"
-                  required
-                />
+                <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase">Nome de Utilizador (Login)</label>
+                <input type="text" placeholder="Utilizador" value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-white text-sm" required />
               </div>
-
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Senha</label>
-                <input 
-                  type="password"
-                  placeholder="********"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-white focus:outline-none focus:border-amber-500 text-sm font-medium shadow-inner"
-                  required
-                />
+                <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase">Senha</label>
+                <input type="password" placeholder="********" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-white text-sm" required />
               </div>
-
-              <button 
-                type="submit"
-                className="w-full bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black py-4 rounded-2xl shadow-lg transition text-sm uppercase tracking-wide active:scale-95"
-              >
-                {authMode === 'login' ? 'Entrar na Conta' : 'Criar Conta Agora'}
-              </button>
+              <button type="submit" className="w-full bg-amber-500 text-slate-950 font-black py-4 rounded-2xl shadow-lg text-sm uppercase">{authMode === 'login' ? 'Entrar' : 'Registar'}</button>
             </form>
-
             <div className="mt-5 text-center">
-              <button 
-                type="button"
-                onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
-                className="text-xs font-bold text-amber-400 hover:underline"
-              >
-                {authMode === 'login' ? 'Não tem conta? Registe-se aqui' : 'Já tem conta? Faça login'}
+              <button type="button" onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} className="text-xs font-bold text-amber-400 hover:underline">
+                {authMode === 'login' ? 'Não tem conta? Registe-se' : 'Já tem conta? Faça login'}
               </button>
             </div>
-
             <button onClick={() => setShowAuthModal(false)} className="absolute top-5 right-5 text-slate-400 hover:text-white bg-slate-800/60 w-8 h-8 rounded-full flex items-center justify-center">✕</button>
           </div>
         </div>
@@ -653,34 +656,34 @@ function App() {
       {/* MODAL DE CARTEIRA */}
       {showWalletModal && (
         <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-6 sm:p-7 shadow-2xl relative">
-            <h2 className="text-xl sm:text-2xl font-black text-amber-400 mb-4 flex items-center gap-2"><Wallet className="w-6 h-6" /> Gestão de Saldo</h2>
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl relative">
+            <h2 className="text-xl font-black text-amber-400 mb-4 flex items-center gap-2"><Wallet className="w-6 h-6" /> Gestão de Saldo</h2>
             <div className="flex gap-2 mb-6 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
-              <button onClick={() => setWalletTab('deposit')} className={`flex-1 py-2.5 rounded-xl text-xs font-black transition ${walletTab === 'deposit' ? 'bg-amber-500 text-slate-950 shadow-md' : 'text-slate-400'}`}>Depositar</button>
-              <button onClick={() => setWalletTab('withdraw')} className={`flex-1 py-2.5 rounded-xl text-xs font-black transition ${walletTab === 'withdraw' ? 'bg-amber-500 text-slate-950 shadow-md' : 'text-slate-400'}`}>Levantar / Saque</button>
+              <button onClick={() => setWalletTab('deposit')} className={`flex-1 py-2.5 rounded-xl text-xs font-black ${walletTab === 'deposit' ? 'bg-amber-500 text-slate-950' : 'text-slate-400'}`}>Depositar</button>
+              <button onClick={() => setWalletTab('withdraw')} className={`flex-1 py-2.5 rounded-xl text-xs font-black ${walletTab === 'withdraw' ? 'bg-amber-500 text-slate-950' : 'text-slate-400'}`}>Levantar</button>
             </div>
             <form onSubmit={handleTransactionRequest} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">{walletTab === 'deposit' ? 'Valor do Depósito (R$)' : 'Valor do Saque (R$)'}</label>
-                <input type="number" placeholder="Ex: 50000" value={transactionAmount} onChange={(e) => setTransactionAmount(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-white text-sm font-medium shadow-inner" required />
+                <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase">Valor (R$)</label>
+                <input type="number" placeholder="Ex: 50000" value={transactionAmount} onChange={(e) => setTransactionAmount(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3.5 text-white text-sm" required />
               </div>
-              <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-2xl shadow-lg transition text-sm uppercase">Solicitar</button>
+              <button type="submit" className="w-full bg-emerald-600 text-white font-black py-4 rounded-2xl shadow-lg text-sm uppercase">Solicitar</button>
             </form>
             <button onClick={() => setShowWalletModal(false)} className="absolute top-5 right-5 text-slate-400 hover:text-white bg-slate-800/60 w-8 h-8 rounded-full flex items-center justify-center">✕</button>
           </div>
         </div>
       )}
 
-      {/* RODA DE BÓNUS */}
+      {/* RODA DE BÓNUS (1x A 10x) */}
       {showBonus && (
         <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-amber-500/50 w-full max-w-md rounded-3xl p-6 shadow-2xl text-center relative">
-            <h2 className="text-2xl font-black text-amber-400 mb-1">💎 RODA DE BÓNUS 💎</h2>
+            <h2 className="text-2xl font-black text-amber-400 mb-1">💎 RODA DE BÓNUS (1x - 10x) 💎</h2>
             <div className="my-6 py-8 bg-slate-950 border border-slate-800 rounded-2xl flex flex-col items-center justify-center">
               <span className="text-5xl font-black text-amber-400 mb-2">{bonusMult > 0 ? `${bonusMult}x` : '???'}</span>
             </div>
             <button disabled={spinningBonus || bonusMult > 0} onClick={spinBonusWheel} className="w-full bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black py-4 rounded-2xl text-lg">
-              {spinningBonus ? 'A Girar...' : bonusMult > 0 ? 'Recebido!' : 'Rodar Bónus'}
+              {spinningBonus ? 'A Girar...' : bonusMult > 0 ? 'Prémio Creditado!' : 'Rodar Bónus'}
             </button>
             {bonusMult > 0 && (
               <button onClick={() => setShowBonus(false)} className="mt-3.5 w-full bg-slate-800 text-white font-bold py-3.5 rounded-2xl text-sm">Continuar</button>
@@ -689,18 +692,25 @@ function App() {
         </div>
       )}
 
-      {/* PAINEL ADMIN */}
+      {/* PAINEL ADMIN COM FERRAMENTAS DE ATUALIZAÇÃO, SALDO, DEPÓSITO E RETIRADA */}
       {showAdminPanel && user.isAdmin && (
         <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 w-full max-w-4xl max-h-[90vh] rounded-3xl p-6 shadow-2xl flex flex-col relative overflow-hidden">
             <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-              <h2 className="text-lg font-black text-purple-400 flex items-center gap-2"><Shield className="w-6 h-6" /> Painel Admin - Rede Pampas</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-black text-purple-400 flex items-center gap-2"><Shield className="w-6 h-6" /> Painel Admin - Rede Pampas</h2>
+                <button onClick={fetchCloudData} className="bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition">
+                  <RefreshCw className="w-3.5 h-3.5" /> Atualizar Painel
+                </button>
+              </div>
               <button onClick={() => setShowAdminPanel(false)} className="text-slate-400 hover:text-white font-bold bg-slate-800/60 w-8 h-8 rounded-full flex items-center justify-center">✕</button>
             </div>
+
             <div className="flex gap-2 my-4 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
               <button onClick={() => setAdminTab('transactions')} className={`flex-1 py-2.5 rounded-xl text-xs font-black ${adminTab === 'transactions' ? 'bg-purple-600 text-white' : 'text-slate-400'}`}>Transações ({transactions.length})</button>
               <button onClick={() => setAdminTab('users')} className={`flex-1 py-2.5 rounded-xl text-xs font-black ${adminTab === 'users' ? 'bg-purple-600 text-white' : 'text-slate-400'}`}>Utilizadores ({Object.keys(usersDB).length})</button>
             </div>
+
             <div className="flex-1 overflow-y-auto space-y-3 pr-1">
               {adminTab === 'transactions' && (
                 <div className="space-y-3">
@@ -724,45 +734,39 @@ function App() {
                   )}
                 </div>
               )}
+
               {adminTab === 'users' && (
                 <div className="space-y-3">
-                  <button onClick={() => setShowAddUserForm(!showAddUserForm)} className="bg-emerald-600 text-white px-4 py-2.5 rounded-2xl text-xs font-black flex items-center gap-2"><UserPlus className="w-4 h-4" /> Adicionar Jogador</button>
-                  {showAddUserForm && (
-                    <form onSubmit={handleAdminCreateUser} className="bg-slate-950 p-4 rounded-2xl space-y-3">
-                      <input type="text" placeholder="Utilizador" value={createNickInput} onChange={(e) => setCreateNickInput(e.target.value)} className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white w-full" required />
-                      <input type="password" placeholder="Senha" value={createPassInput} onChange={(e) => setCreatePassInput(e.target.value)} className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white w-full" required />
-                      <input type="number" placeholder="Saldo Inicial" value={createBalanceInput} onChange={(e) => setCreateBalanceInput(e.target.value)} className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white w-full" />
-                      <button type="submit" className="bg-emerald-600 text-white w-full py-3 rounded-xl text-xs font-black uppercase">Criar</button>
-                    </form>
-                  )}
                   {Object.values(usersDB).map(u => (
-                    <div key={u.username} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
-                      <div><p className="text-sm font-black text-white">@{u.username} {u.isAdmin && <span className="bg-purple-600/20 text-purple-400 text-[10px] px-2 py-0.5 rounded">Admin</span>}</p><p className="text-xs text-amber-400 font-bold">{formatCurrency(u.balance)}</p></div>
-                      <div className="flex gap-2">
-                        <button onClick={() => setSelectedUserToEdit(u)} className="bg-slate-800 text-white px-3.5 py-2 rounded-xl text-xs font-black">Editar</button>
-                        {u.username !== 'LVelasques' && <button onClick={() => handleDeleteUser(u.username)} className="bg-red-600/20 text-red-400 p-2.5 rounded-xl"><Trash2 className="w-4 h-4" /></button>}
+                    <div key={u.username} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-black text-white">@{u.username} {u.isAdmin && <span className="bg-purple-600/20 text-purple-400 text-[10px] px-2 py-0.5 rounded">Admin</span>}</p>
+                          <p className="text-xs text-amber-400 font-bold">Saldo Atual: {formatCurrency(u.balance)}</p>
+                        </div>
+                        <button onClick={() => handleDeleteUser(u.username)} className="bg-red-600/20 text-red-400 p-2 rounded-xl"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+
+                      {/* FERRAMENTAS DE DEPÓSITO E RETIRADA DIRETA NO ADMIN */}
+                      <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
+                        <input 
+                          type="number" 
+                          placeholder="Valor R$" 
+                          value={adminActionAmount} 
+                          onChange={(e) => setAdminActionAmount(e.target.value)}
+                          className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white w-28"
+                        />
+                        <button onClick={() => handleAdminDirectDeposit(u.username)} className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1">
+                          <PlusCircle className="w-3.5 h-3.5" /> Depositar
+                        </button>
+                        <button onClick={() => handleAdminDirectWithdraw(u.username)} className="bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1">
+                          <MinusCircle className="w-3.5 h-3.5" /> Retirar
+                        </button>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL EDITAR UTILIZADOR */}
-      {selectedUserToEdit && (
-        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl relative">
-            <h3 className="text-base font-black text-purple-400 mb-4">Editar @{selectedUserToEdit.username}</h3>
-            <div className="space-y-3.5">
-              <input type="text" placeholder="Nova Senha" value={newPasswordInput} onChange={(e) => setNewPasswordInput(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-3 text-xs text-white" />
-              <input type="number" defaultValue={selectedUserToEdit.balance} onChange={(e) => setNewBalanceInput(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-3 text-xs text-white" />
-              <div className="flex gap-2 pt-2">
-                <button onClick={handleSaveUserEdit} className="flex-1 bg-purple-600 text-white font-black py-3 rounded-2xl text-xs uppercase">Guardar</button>
-                <button onClick={() => setSelectedUserToEdit(null)} className="flex-1 bg-slate-800 text-slate-300 font-black py-3 rounded-2xl text-xs uppercase">Cancelar</button>
-              </div>
             </div>
           </div>
         </div>
@@ -773,4 +777,3 @@ function App() {
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App />);
-                                
