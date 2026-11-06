@@ -1,8 +1,6 @@
- import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  Trophy, Shield, Coins, Sparkles, TrendingUp, 
-  UserCheck, RefreshCw, AlertCircle, ArrowUpRight, 
-  Lock, CheckCircle2, DollarSign, Settings, LogOut, User
+  Shield, Coins, Sparkles, User, Settings, LogOut
 } from 'lucide-react';
 
 const SYMBOLS = [
@@ -89,13 +87,11 @@ export default function App() {
     const cleanNick = loginUsername.trim().replace('@', '');
     const isAdmin = cleanNick.toLowerCase() === 'lvelasques';
     
-    const newUser = {
+    setUser({
       username: cleanNick || 'Jogador',
       balance: isAdmin ? 5000000 : 100000,
       isAdmin
-    };
-    
-    setUser(newUser);
+    });
     setShowAuthModal(false);
   };
 
@@ -160,9 +156,6 @@ export default function App() {
 
     PAYLINES.forEach(line => {
       const [a, b, c] = line.coords;
-      const symA = SYMBOLS.find(s => s.char === finalGrid[a]);
-      const symB = SYMBOLS.find(s => s.char === finalGrid[b]);
-      const symC = SYMBOLS.find(s => s.char === finalGrid[c]);
 
       const isBonusMatch = finalGrid[a] === '💎' && finalGrid[b] === '💎' && finalGrid[c] === '💎';
       if (isBonusMatch) {
@@ -203,15 +196,13 @@ export default function App() {
         }
 
         if (hasBonus) {
-          setTimeout(() => triggerBonus(), 600);
+          setTimeout(() => {
+            setShowBonus(true);
+            setBonusMult(0);
+          }, 600);
         }
       }
     }, 80);
-  };
-
-  const triggerBonus = () => {
-    setShowBonus(true);
-    setBonusMult(0);
   };
 
   const spinBonusWheel = () => {
@@ -266,8 +257,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#040817] text-slate-100 flex flex-col items-center justify-between font-sans">
-      
-      {/* Top Navigation Bar */}
       <header className="w-full max-w-lg bg-slate-900/90 border-b border-amber-500/30 p-4 flex items-center justify-between backdrop-blur-md sticky top-0 z-40">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-600 via-amber-300 to-amber-500 p-0.5 shadow-lg shadow-amber-500/20">
@@ -312,10 +301,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Game Interface */}
       <main className="w-full max-w-lg p-4 flex flex-col items-center gap-4 my-auto">
-        
-        {/* User Greeting & Status Bar */}
         <div className="w-full bg-slate-900/60 border border-slate-800 rounded-xl p-3 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
             <User className="w-4 h-4 text-amber-400" />
@@ -330,10 +316,7 @@ export default function App() {
           </button>
         </div>
 
-        {/* Slot Machine Display */}
         <div className="relative w-full aspect-square bg-slate-950 rounded-2xl border-2 border-amber-500/40 p-4 flex flex-col justify-between shadow-2xl shadow-amber-500/10 overflow-hidden">
-          
-          {/* Overlay Line Glows */}
           <svg className="absolute inset-0 w-full h-full pointer-events-none z-20">
             {activePaylines.map(line => (
               <line
@@ -350,7 +333,6 @@ export default function App() {
             ))}
           </svg>
 
-          {/* 3x3 Matrix Grid */}
           <div className="grid grid-cols-3 gap-3 w-full h-full z-10">
             {grid.map((char, i) => (
               <div 
@@ -364,7 +346,6 @@ export default function App() {
             ))}
           </div>
 
-          {/* Win Announcement Banner */}
           {lastWin > 0 && (
             <div className="absolute inset-x-4 bottom-4 bg-amber-500 text-slate-950 font-black py-2 rounded-xl text-center text-sm shadow-xl animate-bounce z-30">
               GANHOU R$ {lastWin.toLocaleString('pt-BR')}! 🎉
@@ -372,7 +353,6 @@ export default function App() {
           )}
         </div>
 
-        {/* Bet Scaling Control Bar */}
         <div className="w-full bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex flex-col gap-3">
           <div className="flex items-center justify-between text-xs text-slate-400 font-bold">
             <span>VALOR DA APOSTA</span>
@@ -397,7 +377,6 @@ export default function App() {
             ))}
           </div>
 
-          {/* Spin Button */}
           <button
             onClick={spin}
             disabled={spinning}
@@ -410,10 +389,8 @@ export default function App() {
             {spinning ? 'GIRANDO...' : 'GIRAR AGORA'}
           </button>
         </div>
-
       </main>
 
-      {/* Bonus Modal */}
       {showBonus && (
         <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-slate-900 border-2 border-amber-500/60 rounded-2xl p-6 text-center flex flex-col items-center gap-4">
@@ -421,7 +398,7 @@ export default function App() {
               BÔNUS FORTUNA DIPLOMÁTICA 💎
             </h2>
             <p className="text-xs text-slate-400">
-              Gira a roleta de multiplicadores para aumentar os teus ganhos da rodada!
+              Gira a roleta de multiplicadores para aumentar os teus ganhos!
             </p>
 
             <div className="w-32 h-32 rounded-full border-4 border-amber-500 flex items-center justify-center bg-slate-950 text-3xl font-black text-amber-300 shadow-xl shadow-amber-500/20">
@@ -448,7 +425,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Auth Modal */}
       {showAuthModal && (
         <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <form onSubmit={handleLogin} className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col gap-4">
@@ -494,7 +470,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Deposit Modal */}
       {showDepositModal && (
         <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <form onSubmit={handleRequestDeposit} className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col gap-4">
@@ -515,4 +490,82 @@ export default function App() {
               <button 
                 type="button"
                 onClick={() => setShowDepositModal(false)}
-  
+                className="w-1/2 py-2 bg-slate-800 text-slate-300 font-bold rounded-lg"
+              >
+                Cancelar
+              </button>
+              <button type="submit" className="w-1/2 py-2 bg-amber-500 text-slate-950 font-black rounded-lg">
+                Confirmar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {showAdminPanel && user.isAdmin && (
+        <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-50 p-4 overflow-y-auto">
+          <div className="max-w-2xl mx-auto bg-slate-900 border border-amber-500/40 rounded-2xl p-6 flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-black text-amber-400 flex items-center gap-2">
+                <Shield className="w-5 h-5" />
+                PAINEL DE CONTROLO MASTER (@LVelasques)
+              </h2>
+              <button onClick={() => setShowAdminPanel(false)} className="text-slate-400 hover:text-white">
+                ✕ Fechar
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                <p className="text-[10px] text-slate-400">VOLUME TOTAL APOSTADO</p>
+                <p className="text-sm font-black text-slate-200">R$ {houseStats.totalBets.toLocaleString('pt-BR')}</p>
+              </div>
+              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                <p className="text-[10px] text-slate-400">TOTAL PRÉMIOS PAGOS</p>
+                <p className="text-sm font-black text-amber-400">R$ {houseStats.totalPayouts.toLocaleString('pt-BR')}</p>
+              </div>
+              <div className="bg-slate-950 p-3 rounded-xl border border-amber-500/30">
+                <p className="text-[10px] text-amber-400">LUCRO LÍQUIDO DA CASA</p>
+                <p className="text-sm font-black text-emerald-400">
+                  R$ {(houseStats.totalBets - houseStats.totalPayouts).toLocaleString('pt-BR')}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-xs font-black text-slate-300 mb-2">FILA DE DEPÓSITOS PENDENTES</h3>
+              <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
+                {deposits.length === 0 ? (
+                  <p className="text-xs text-slate-500">Sem depósitos registados.</p>
+                ) : (
+                  deposits.map(dep => (
+                    <div key={dep.id} className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex items-center justify-between text-xs">
+                      <div>
+                        <strong className="text-amber-300">@{dep.username}</strong> - R$ {dep.amount.toLocaleString('pt-BR')}
+                        <span className="text-[10px] text-slate-500 block">{dep.date}</span>
+                      </div>
+                      {dep.status === 'pending' ? (
+                        <button
+                          onClick={() => handleApproveDeposit(dep)}
+                          className="bg-emerald-500 text-slate-950 px-3 py-1 rounded font-black hover:brightness-110"
+                        >
+                          Aprovar
+                        </button>
+                      ) : (
+                        <span className="text-emerald-400 font-bold">Aprovado</span>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <footer className="w-full text-center py-3 text-[10px] text-slate-600 border-t border-slate-900">
+        Cassino Diplomático © 2026 - Todos os direitos reservados.
+      </footer>
+    </div>
+  );
+}
