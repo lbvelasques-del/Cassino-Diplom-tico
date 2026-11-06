@@ -549,7 +549,7 @@ function App() {
           </button>
         </div>
       </main>
-              {showBonus && (
+          {showBonus && (
         <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-slate-900 border-2 border-amber-500/60 rounded-3xl p-6 text-center flex flex-col items-center gap-4 shadow-2xl shadow-amber-500/20">
             <h2 className="text-lg font-black text-amber-400 tracking-wider">
@@ -945,4 +945,52 @@ function App() {
                   <div className="bg-slate-950 p-3.5 rounded-2xl border border-emerald-500/30">
                     <p className="text-[10px] text-emerald-400 font-bold uppercase">TOTAL DEPÓSITOS APROVADOS</p>
                     <p className="text-base font-black text-emerald-400 font-mono mt-1">
-                      R$ {totalApprovedDeposits.toLocaleS
+                      R$ {totalApprovedDeposits.toLocaleS                    <p className="text-base font-black text-rose-400 font-mono mt-1">
+                      R$ {totalApprovedWithdrawals.toLocaleString('pt-BR')}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800">
+                    <p className="text-[9px] text-slate-400">VOLUME APOSTADO</p>
+                    <p className="text-xs font-black text-slate-200 font-mono mt-1">
+                      R$ {houseStats.totalBets.toLocaleString('pt-BR')}
+                    </p>
+                  </div>
+                  <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800">
+                    <p className="text-[9px] text-slate-400">PRÊMIOS PAGOS</p>
+                    <p className="text-xs font-black text-amber-400 font-mono mt-1">
+                      R$ {houseStats.totalPayouts.toLocaleString('pt-BR')}
+                    </p>
+                  </div>
+                  <div className="bg-slate-950 p-3 rounded-2xl border border-amber-500/30">
+                    <p className="text-[9px] text-amber-400">LUCRO DA CASA</p>
+                    <p className="text-xs font-black text-emerald-400 font-mono mt-1">
+                      R$ {(houseStats.totalBets - houseStats.totalPayouts).toLocaleString('pt-BR')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+
+      <footer className="w-full text-center py-3 text-[10px] text-slate-600 border-t border-slate-900/80 backdrop-blur-md">
+        Cassino Diplomático © 2026 - Todos os direitos reservados.
+      </footer>
+    </div>
+  );
+}
+
+const rootElement = document.getElementById('root');
+if (rootElement) {
+  const root = ReactDOM.createRoot(rootElement);
+  root.render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
+}
