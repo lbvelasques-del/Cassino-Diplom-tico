@@ -21,11 +21,11 @@ const SYMBOLS = [
 const BET_LEVELS = [30000, 60000, 100000, 300000, 500000, 1000000, 3000000, 5000000];
 
 const PAYLINES = [
-  { id: 0, name: 'Linha Superior', coords: [0, 1, 2], style: 'top-10' },
-  { id: 1, name: 'Linha Central', coords: [3, 4, 5], style: 'top-1/2 -translate-y-1/2' },
-  { id: 2, name: 'Linha Inferior', coords: [6, 7, 8], style: 'bottom-10' },
-  { id: 3, name: 'Diagonal Principal', coords: [0, 4, 8], style: 'rotate-45 scale-125' },
-  { id: 4, name: 'Diagonal Invertida', coords: [2, 4, 6], style: '-rotate-45 scale-125' }
+  { id: 0, name: 'Linha Superior', coords: [0, 1, 2] },
+  { id: 1, name: 'Linha Central', coords: [3, 4, 5] },
+  { id: 2, name: 'Linha Inferior', coords: [6, 7, 8] },
+  { id: 3, name: 'Diagonal Principal', coords: [0, 4, 8] },
+  { id: 4, name: 'Diagonal Invertida', coords: [2, 4, 6] }
 ];
 
 const MULTIPLIER_WHEEL = [
@@ -115,7 +115,7 @@ function App() {
 
   useEffect(() => {
     fetchCloudData();
-    const interval = setInterval(fetchCloudData, 2000);
+    const interval = setInterval(fetchCloudData, 2500);
     return () => clearInterval(interval);
   }, [user.username]);
 
@@ -507,7 +507,7 @@ function App() {
               </div>
               <button 
                 onClick={() => { setShowWalletModal(true); setWalletTab('deposit'); }}
-                className="bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black font-extrabold p-2 rounded-xl transition shadow-md flex items-center justify-center active:scale-95"
+                className="bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 text-black font-extrabold p-2 rounded-xl transition shadow-md flex items-center justify-center active:scale-95"
                 title="Carteira / Depósito"
               >
                 <Wallet className="w-4 h-4" />
@@ -555,7 +555,7 @@ function App() {
         </div>
       </header>
 
-      {/* SLOT MACHINE ESTILO FORTUNE TIGER COM QUEDA DE CIMA PARA BAIXO */}
+      {/* SLOT MACHINE ESTILO FORTUNE TIGER COM PRÉMIO TRADICIONAL */}
       <main className="flex-1 max-w-lg w-full mx-auto p-4 flex flex-col justify-center items-center">
         <div className="w-full bg-neutral-950/90 border-2 border-amber-500/30 rounded-3xl p-5 sm:p-6 shadow-[0_0_30px_rgba(217,119,6,0.1)] relative backdrop-blur-xl">
           {/* PROPAGANDA REDE PAMPAS DESENVOLVIMENTO */}
@@ -563,6 +563,13 @@ function App() {
             <span className="flex items-center gap-1.5 font-bold text-amber-300 font-serif tracking-wider"><Sparkles className="w-4 h-4 text-amber-400 animate-spin" /> Rede Pampas Desenvolvimento</span>
             <span className="text-amber-400/90 font-mono text-[10px]">PADRÃO VIP</span>
           </div>
+
+          {/* PRÉMIO TRADICIONAL EM CIMA DO CAÇA-NÍQUEL QUANDO HÁ VITÓRIA */}
+          {lastWin > 0 && !spinning && (
+            <div className="mb-3 bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-600 text-black font-serif font-black py-2.5 px-4 rounded-xl text-center shadow-[0_0_20px_rgba(245,158,11,0.6)] animate-pulse">
+              🎉 PRÉMIO DA LINHA: {formatCurrency(lastWin)} 🎉
+            </div>
+          )}
 
           <div className="relative bg-neutral-900 border-4 border-amber-600/50 rounded-2xl p-4 shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] mb-5 overflow-hidden">
             <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
@@ -573,26 +580,14 @@ function App() {
                     key={idx}
                     className={`h-24 sm:h-28 bg-gradient-to-b from-neutral-950 via-neutral-900 to-neutral-950 border-2 rounded-2xl flex items-center justify-center text-5xl sm:text-6xl shadow-lg transition-all duration-200 ${
                       spinning ? 'animate-[bounce_0.15s_infinite] scale-95 border-amber-500/50 opacity-80' : 
-                      isWinningSlot ? 'border-amber-400 shadow-[0_0_20px_#f59e0b] scale-105 bg-amber-500/10' : 'border-amber-900/30'
+                      isWinningSlot ? 'border-amber-400 shadow-[0_0_25px_#f59e0b] scale-105 bg-amber-500/20 ring-2 ring-amber-300' : 'border-amber-900/30'
                     }`}
                   >
-                    <span className={spinning ? 'animate-pulse' : 'drop-shadow-[0_2px_10px_rgba(255,215,0,0.3)]'}>{symbolChar}</span>
+                    <span className={spinning ? 'animate-pulse' : 'drop-shadow-[0_2px_10px_rgba(255,215,0,0.4)]'}>{symbolChar}</span>
                   </div>
                 );
               })}
             </div>
-
-            {/* LINHAS FECHADAS COM EFEITO VISUAL */}
-            {activePaylines.map(line => (
-              <div key={line.id} className={`absolute inset-x-0 border-b-4 border-amber-400 shadow-[0_0_15px_#f59e0b] z-10 pointer-events-none transition-all ${line.style}`} />
-            ))}
-
-            {lastWin > 0 && !spinning && (
-              <div className="absolute inset-0 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center animate-fade-in z-20 p-4 text-center">
-                <span className="text-amber-400 font-serif font-black text-2xl sm:text-3xl uppercase tracking-widest drop-shadow-[0_4px_15px_rgba(245,158,11,0.6)]">🔥 LINHA FECHADA! 🔥</span>
-                <span className="text-white font-mono font-black text-3xl sm:text-4xl mt-2 tracking-tight">{formatCurrency(lastWin)}</span>
-              </div>
-            )}
           </div>
 
           <div className="space-y-4">
@@ -693,7 +688,7 @@ function App() {
         </div>
       )}
 
-      {/* EXTRATO DE TRANSAÇÕES DO UTILIZADOR */}
+      {/* EXTRATO DE TRANSAÇÕES */}
       {showStatementModal && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-amber-500/40 w-full max-w-md max-h-[85vh] rounded-3xl p-6 shadow-2xl flex flex-col relative">
@@ -723,7 +718,7 @@ function App() {
         </div>
       )}
 
-      {/* RODA DE BÓNUS (1x A 10x) */}
+      {/* RODA DE BÓNUS */}
       {showBonus && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-amber-500/50 w-full max-w-md rounded-3xl p-6 shadow-2xl text-center relative">
@@ -740,7 +735,7 @@ function App() {
           </div>
         </div>
       )}
-            {/* PAINEL ADMIN COM NOTIFICAÇÃO VERDE E FERRAMENTAS */}
+            {/* PAINEL ADMIN */}
       {showAdminPanel && user.isAdmin && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-amber-500/40 w-full max-w-4xl max-h-[90vh] rounded-3xl p-6 shadow-2xl flex flex-col relative overflow-hidden">
@@ -823,7 +818,6 @@ function App() {
                         <button onClick={() => handleDeleteUser(u.username)} className="bg-red-950 text-red-400 p-2 rounded-xl"><Trash2 className="w-4 h-4" /></button>
                       </div>
 
-                      {/* FERRAMENTAS DE DEPÓSITO E RETIRADA DIRETA NO ADMIN */}
                       <div className="flex items-center gap-2 pt-2 border-t border-amber-900/30">
                         <input 
                           type="number" 
@@ -853,3 +847,4 @@ function App() {
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App />);
+                                 
