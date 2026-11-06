@@ -3,18 +3,18 @@ import ReactDOM from 'react-dom/client';
 import { 
   Shield, Coins, Sparkles, User, Settings, LogOut, 
   ArrowUpRight, ArrowDownRight, Wallet, CheckCircle2, XCircle, Clock,
-  Users, Key, Search, Activity, DollarSign, Lock, RefreshCw, Zap, UserPlus, Trash2, Flame
+  Users, Key, Search, Activity, DollarSign, Lock, RefreshCw, Zap, UserPlus, Trash2, Flame, FastForward, Play
 } from 'lucide-react';
 
 const SYMBOLS = [
-  { id: 'couro', char: '🫎', name: 'Couro', mult: 1, weight: 100 },
-  { id: 'trm', char: '⚗️', name: 'TRM', mult: 2, weight: 80 },
-  { id: 'petroleo', char: '🛢️', name: 'Petróleo', mult: 3, weight: 50 },
-  { id: 'ouro', char: '🪙', name: 'Ouro', mult: 4, weight: 30 },
-  { id: 'brasil', char: '🇧🇷', name: 'Brasil', mult: 5, weight: 20 },
-  { id: 'costarica', char: '🇨🇷', name: 'Costa Rica', mult: 6, weight: 15 },
-  { id: 'mundo', char: '🌎', name: 'Mundo', mult: 8, weight: 10 },
-  { id: 'diamante', char: '💎', name: 'Diamante VIP', mult: 12, weight: 5, isWild: true }
+  { id: 'couro', char: '🫎', name: 'Couro', mult: 0.5, weight: 120 },
+  { id: 'trm', char: '⚗️', name: 'TRM', mult: 0.8, weight: 100 },
+  { id: 'petroleo', char: '🛢️', name: 'Petróleo', mult: 1, weight: 80 },
+  { id: 'ouro', char: '🪙', name: 'Ouro', mult: 1.5, weight: 50 },
+  { id: 'brasil', char: '🇧🇷', name: 'Brasil', mult: 2, weight: 35 },
+  { id: 'costarica', char: '🇨🇷', name: 'Costa Rica', mult: 3, weight: 20 },
+  { id: 'mundo', char: '🌎', name: 'Mundo', mult: 2.5, weight: 25 },
+  { id: 'diamante', char: '💎', name: 'Diamante Bônus', mult: 0, weight: 6, isBonus: true }
 ];
 
 const BET_LEVELS = [30000, 60000, 100000, 300000, 500000, 1000000, 3000000, 5000000];
@@ -35,7 +35,7 @@ const MULTIPLIER_WHEEL = [
   { mult: 6, weight: 15 },
   { mult: 8, weight: 8 },
   { mult: 10, weight: 4 },
-  { mult: 15, weight: 1 }
+  { mult: 15, weight: 2 }
 ];
 
 function App() {
@@ -51,14 +51,6 @@ function App() {
     return saved ? JSON.parse(saved) : { username: 'Visitante', balance: 0, isAdmin: false, totalDeposited: 0, totalWon: 0 };
   });
 
-  const [onlineCount, setOnlineCount] = useState(165);
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setOnlineCount(prev => prev + Math.floor(Math.random() * 5) - 2);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
-
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -68,10 +60,13 @@ function App() {
 
   const [betIndex, setBetIndex] = useState(0);
   const currentBet = BET_LEVELS[betIndex];
-  const [grid, setGrid] = useState(['🪙','🇧🇷','🌎','🫎','💎','⚗️','🇨🇷','🛢️','🪙']);
+  const [grid, setGrid] = useState(['🪙','🇧🇷','🌎','🫎','🪙','⚗️','🇨🇷','🛢️','🪙']);
   const [spinning, setSpinning] = useState(false);
   const [activePaylines, setActivePaylines] = useState([]);
   const [lastWin, setLastWin] = useState(0);
+
+  const [autoSpinsLeft, setAutoSpinsLeft] = useState(0);
+  const [isTurbo, setIsTurbo] = useState(false);
 
   const [showBonus, setShowBonus] = useState(false);
   const [bonusMult, setBonusMult] = useState(0);
@@ -96,7 +91,7 @@ function App() {
 
   const [houseStats, setHouseStats] = useState(() => {
     const saved = localStorage.getItem('cd_house_stats');
-    return saved ? JSON.parse(saved) : { totalBets: 120000000, totalPayouts: 48000000 };
+    return saved ? JSON.parse(saved) : { totalBets: 150000000, totalPayouts: 50000000 };
   });
 
   useEffect(() => { localStorage.setItem('cd_users_db', JSON.stringify(usersDB)); }, [usersDB]);
@@ -106,11 +101,10 @@ function App() {
 
   useEffect(() => {
     if (user.username !== 'Visitante' && usersDB[user.username]) {
-      setUser(prev => ({ ...prev, balance: usersDB[user.username].balance }));
+      setUser(usersDB[user.username]);
     }
   }, [usersDB]);
-
-  const handleLogin = (e) => {
+    const handleLogin = (e) => {
     e.preventDefault();
     const cleanNick = loginUsername.trim().replace('@', '');
     if (!cleanNick) return;
@@ -140,6 +134,7 @@ function App() {
     setLoginPassword('');
     setShowAuthModal(false);
   };
+
   const handleAdminCreateUser = (e) => {
     e.preventDefault();
     const cleanNick = createNickInput.trim().replace('@', '');
@@ -189,41 +184,58 @@ function App() {
       alert('Relatórios financeiros zerados com sucesso!');
     }
   };
-
+    // RTP reduzido geral para garantir a lucratividade da casa (favorita as 3 primeiras imagens no modo Turbo)
   const getDynamicRtp = (currentUser, currentBal) => {
     const deposited = currentUser.totalDeposited || 1;
     const wonRatio = currentUser.totalWon / deposited;
 
-    if (wonRatio >= 0.40) {
-      return 0.15; 
+    if (wonRatio >= 0.35) {
+      return 0.10; // Trava estrita para proteger o ganho da casa
     }
 
     if (currentBal >= 500000 || currentBet >= 500000) {
-      return 0.25;
+      return 0.18;
     }
 
-    if (currentBal < 50000 && currentBal > 0) {
-      return 0.75; 
+    if (currentBal < 40000 && currentBal > 0) {
+      return 0.65; // Pequenos respiros para manter jogando
     }
 
-    return 0.45;
+    return isTurbo ? 0.22 : 0.30; // Modo turbo reduz a taxa geral e privilegia baixas pagas
   };
 
-  const getRandomSymbol = () => {
-    const totalWeight = SYMBOLS.reduce((acc, s) => acc + s.weight, 0);
+  const getRandomSymbol = (isTurboMode = false) => {
+    let pool = SYMBOLS;
+    if (isTurboMode) {
+      // No modo Turbo, maior probabilidade de sair as 3 primeiras imagens (Couro, TRM, Petróleo)
+      const lowTierWeights = SYMBOLS.map(s => {
+        if (s.id === 'couro' || s.id === 'trm' || s.id === 'petroleo') {
+          return { ...s, weight: s.weight * 4 };
+        }
+        return { ...s, weight: s.weight * 0.4 };
+      });
+      const totalW = lowTierWeights.reduce((acc, s) => acc + s.weight, 0);
+      let rnd = Math.random() * totalW;
+      for (let sym of lowTierWeights) {
+        if (rnd < sym.weight) return sym.char;
+        rnd -= sym.weight;
+      }
+    }
+
+    const totalWeight = pool.reduce((acc, s) => acc + s.weight, 0);
     let rnd = Math.random() * totalWeight;
-    for (let sym of SYMBOLS) {
+    for (let sym of pool) {
       if (rnd < sym.weight) return sym.char;
       rnd -= sym.weight;
     }
-    return SYMBOLS[0].char;
+    return pool[0].char;
   };
-    const spin = () => {
-    if (spinning) return;
+    const executeSpin = (overrideTurbo = isTurbo) => {
     if (user.balance < currentBet) {
       alert('Saldo insuficiente! Faça um depósito para continuar.');
       setWalletTab('deposit');
       setShowWalletModal(true);
+      setAutoSpinsLeft(0);
       return;
     }
 
@@ -248,30 +260,27 @@ function App() {
     let hasBonus = false;
 
     if (forceWin) {
-      const isLowMoney = updatedBalance < 50000;
-      const allowedSymbols = isLowMoney 
-        ? SYMBOLS.filter(s => s.mult <= 2) 
-        : SYMBOLS.filter(s => s.mult <= 5);
-
+      const allowedSymbols = SYMBOLS.filter(s => !s.isBonus && s.mult <= (overrideTurbo ? 1 : 2.5));
       const winningSymbol = allowedSymbols[Math.floor(Math.random() * allowedSymbols.length)];
       const targetLine = PAYLINES[Math.floor(Math.random() * PAYLINES.length)];
 
-      finalGrid = Array(9).fill(null).map(() => getRandomSymbol());
+      finalGrid = Array(9).fill(null).map(() => getRandomSymbol(overrideTurbo));
       targetLine.coords.forEach(idx => { finalGrid[idx] = winningSymbol.char; });
 
-      if (Math.random() < 0.05) {
+      // O diamante agora ativa exclusivamente o bônus
+      if (Math.random() < 0.04) {
         const bonusLine = PAYLINES[Math.floor(Math.random() * PAYLINES.length)];
         bonusLine.coords.forEach(idx => { finalGrid[idx] = '💎'; });
         hasBonus = true;
       }
     } else {
-      finalGrid = Array(9).fill(null).map(() => getRandomSymbol());
-      if (Math.random() < 0.50) {
+      finalGrid = Array(9).fill(null).map(() => getRandomSymbol(overrideTurbo));
+      if (Math.random() < 0.40) {
         const targetLine = PAYLINES[Math.floor(Math.random() * PAYLINES.length)];
-        const nearSym = getRandomSymbol();
+        const nearSym = getRandomSymbol(overrideTurbo);
         finalGrid[targetLine.coords[0]] = nearSym;
         finalGrid[targetLine.coords[1]] = nearSym;
-        finalGrid[targetLine.coords[2]] = SYMBOLS.find(s => s.char !== nearSym).char;
+        finalGrid[targetLine.coords[2]] = SYMBOLS.find(s => s.char !== nearSym && !s.isBonus)?.char || '🪙';
       }
     }
 
@@ -281,14 +290,15 @@ function App() {
       if (isBonusMatch) {
         hasBonus = true;
         winLines.push(line);
-        totalMultiplier += 12;
         return;
       }
 
-      const matchChar = [finalGrid[a], finalGrid[b], finalGrid[c]].find(char => char !== '💎') || '💎';
+      const matchChar = [finalGrid[a], finalGrid[b], finalGrid[c]].find(char => char !== '💎');
+      if (!matchChar) return;
+
       const baseSym = SYMBOLS.find(s => s.char === matchChar);
       const isLineWin = [finalGrid[a], finalGrid[b], finalGrid[c]].every(
-        char => char === matchChar || char === '💎'
+        char => char === matchChar
       );
 
       if (isLineWin && baseSym) {
@@ -297,16 +307,19 @@ function App() {
       }
     });
 
+    const spinDuration = overrideTurbo ? 25 : 70;
+    const maxSteps = overrideTurbo ? 5 : 14;
     let currentInterval = 0;
+
     const spinTimer = setInterval(() => {
-      setGrid(Array(9).fill(null).map(() => getRandomSymbol()));
+      setGrid(Array(9).fill(null).map(() => getRandomSymbol(overrideTurbo)));
       currentInterval++;
-      if (currentInterval >= 14) {
+      if (currentInterval >= maxSteps) {
         clearInterval(spinTimer);
         setGrid(finalGrid);
         setSpinning(false);
 
-        if (winLines.length > 0) {
+        if (winLines.length > 0 && totalMultiplier > 0) {
           const totalWin = currentBet * totalMultiplier;
           const winBalance = updatedBalance + totalWin;
           const wonAdded = (user.totalWon || 0) + totalWin;
@@ -326,12 +339,30 @@ function App() {
             setShowBonus(true); 
             setBonusMult(0); 
             setShowFireworks(true);
-          }, 500);
+            setAutoSpinsLeft(0);
+          }, 300);
+        } else if (autoSpinsLeft > 1) {
+          setAutoSpinsLeft(prev => prev - 1);
+          setTimeout(() => executeSpin(overrideTurbo), overrideTurbo ? 100 : 350);
+        } else {
+          setAutoSpinsLeft(0);
         }
       }
-    }, 70);
+    }, spinDuration);
   };
-        const spinBonusWheel = () => {
+
+  const startAutoSpins = (count) => {
+    if (spinning) return;
+    setAutoSpinsLeft(count);
+  };
+
+  useEffect(() => {
+    if (autoSpinsLeft > 0 && !spinning && !showBonus) {
+      const timer = setTimeout(() => executeSpin(), isTurbo ? 150 : 400);
+      return () => clearTimeout(timer);
+    }
+  }, [autoSpinsLeft, spinning, showBonus]);
+    const spinBonusWheel = () => {
     if (spinningBonus) return;
     setSpinningBonus(true);
 
@@ -389,42 +420,49 @@ function App() {
       date: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
     };
 
-    setTransactions([newTx, ...transactions]);
+    const updatedTxs = [newTx, ...transactions];
+    setTransactions(updatedTxs);
+    localStorage.setItem('cd_transactions', JSON.stringify(updatedTxs));
+
     setTransactionAmount('');
     setShowWalletModal(false);
     alert(walletTab === 'deposit' 
-      ? 'Depósito solicitado! Aguarde a aprovação do Administrador.' 
+      ? 'Depósito solicitado! O pedido foi enviado ao Administrador da Rede Pampas.' 
       : 'Saque solicitado com sucesso! O valor foi debitado e aguarda validação.'
     );
   };
 
   const handleApproveTransaction = (tx) => {
-    setTransactions(transactions.map(t => t.id === tx.id ? { ...t, status: 'approved' } : t));
+    const updatedTxs = transactions.map(t => t.id === tx.id ? { ...t, status: 'approved' } : t);
+    setTransactions(updatedTxs);
+    localStorage.setItem('cd_transactions', JSON.stringify(updatedTxs));
 
     if (tx.type === 'deposit') {
       setUsersDB(prev => {
         const u = prev[tx.username];
         const currentBal = u ? u.balance : 0;
         const depAdded = (u?.totalDeposited || 0) + tx.amount;
-        return {
-          ...prev,
-          [tx.username]: { ...u, balance: currentBal + tx.amount, totalDeposited: depAdded }
-        };
+        const updatedUserObj = { ...(u || { username: tx.username, password: '123', isAdmin: false, totalWon: 0 }), balance: currentBal + tx.amount, totalDeposited: depAdded };
+        const newDb = { ...prev, [tx.username]: updatedUserObj };
+        localStorage.setItem('cd_users_db', JSON.stringify(newDb));
+        return newDb;
       });
     }
   };
 
   const handleRejectTransaction = (tx) => {
-    setTransactions(transactions.map(t => t.id === tx.id ? { ...t, status: 'rejected' } : t));
+    const updatedTxs = transactions.map(t => t.id === tx.id ? { ...t, status: 'rejected' } : t);
+    setTransactions(updatedTxs);
+    localStorage.setItem('cd_transactions', JSON.stringify(updatedTxs));
 
     if (tx.type === 'withdraw') {
       setUsersDB(prev => {
         const u = prev[tx.username];
         const currentBal = u ? u.balance : 0;
-        return {
-          ...prev,
-          [tx.username]: { ...u, balance: currentBal + tx.amount }
-        };
+        const updatedUserObj = { ...u, balance: currentBal + tx.amount };
+        const newDb = { ...prev, [tx.username]: updatedUserObj };
+        localStorage.setItem('cd_users_db', JSON.stringify(newDb));
+        return newDb;
       });
     }
   };
@@ -435,14 +473,14 @@ function App() {
 
     setUsersDB(prev => {
       const u = prev[targetNick];
-      return {
-        ...prev,
-        [targetNick]: {
-          ...u,
-          password: newPasswordInput || u.password,
-          balance: newBalanceInput !== '' ? parseFloat(newBalanceInput) : u.balance
-        }
+      const updatedUserObj = {
+        ...u,
+        password: newPasswordInput || u.password,
+        balance: newBalanceInput !== '' ? parseFloat(newBalanceInput) : u.balance
       };
+      const newDb = { ...prev, [targetNick]: updatedUserObj };
+      localStorage.setItem('cd_users_db', JSON.stringify(newDb));
+      return newDb;
     });
 
     alert(`Dados do utilizador @${targetNick} atualizados com sucesso!`);
@@ -465,57 +503,60 @@ function App() {
       
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-gradient-to-b from-amber-500/20 via-cyan-500/10 to-transparent blur-[120px] pointer-events-none z-0" />
 
-      <header className="w-full max-w-md bg-slate-900/90 border-b border-amber-500/40 p-3 flex items-center justify-between backdrop-blur-2xl sticky top-0 z-40 shadow-2xl shadow-amber-500/10">
-        <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-500 via-yellow-300 to-cyan-400 p-0.5 shadow-xl shadow-amber-500/30 animate-pulse">
-            <div className="w-full h-full bg-slate-950 rounded-full flex items-center justify-center">
-              <Zap className="w-4 h-4 text-amber-400 fill-amber-400" />
+      {/* Header com Logotipo da Rede Pampas */}
+      <header className="w-full max-w-md bg-slate-900/95 border-b border-amber-500/50 p-3 flex flex-col items-center gap-2 backdrop-blur-2xl sticky top-0 z-40 shadow-2xl shadow-amber-500/10">
+        
+        <div className="w-full flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-300 p-0.5 shadow-lg shadow-amber-500/30 flex items-center justify-center">
+              <span className="text-slate-950 font-black text-xs">RP</span>
+            </div>
+            <div>
+              <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider block">PROPRIEDADE DE</span>
+              <span className="text-xs font-black text-slate-100 tracking-tight">REDE PAMPAS</span>
             </div>
           </div>
-          <div>
-            <h1 className="text-sm font-black tracking-wider bg-gradient-to-r from-amber-200 via-amber-400 to-cyan-300 bg-clip-text text-transparent">
-              CASSINO DIPLOMÁTICO
-            </h1>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <p className="text-[9px] text-emerald-400 font-bold tracking-widest uppercase flex items-center gap-1">
-                <span>{onlineCount} ONLINE</span>
-              </p>
+
+          <div className="flex items-center gap-2">
+            {user.isAdmin && (
+              <button 
+                onClick={() => setShowAdminPanel(true)}
+                className="relative p-2 bg-amber-500/15 border border-amber-500/60 rounded-xl text-amber-400 hover:bg-amber-500/25 transition-all flex items-center gap-1 text-xs font-bold shadow-lg"
+              >
+                <Shield className="w-4 h-4" />
+                <span className="hidden sm:inline">Admin</span>
+                {hasPendingTransactions && (
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-slate-900 animate-bounce" title="Novos pedidos!" />
+                )}
+              </button>
+            )}
+
+            <div className="bg-slate-950/90 border border-slate-800 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 shadow-inner">
+              <Coins className="w-3.5 h-3.5 text-amber-400" />
+              <span className="text-xs font-black text-amber-300 font-mono">
+                R$ {user.balance.toLocaleString('pt-BR')}
+              </span>
             </div>
+
+            <button 
+              onClick={() => setShowWalletModal(true)}
+              className="bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-black hover:brightness-110 transition-all shadow-lg flex items-center gap-1"
+            >
+              <Wallet className="w-3.5 h-3.5" />
+              <span>Carteira</span>
+            </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {user.isAdmin && (
-            <button 
-              onClick={() => setShowAdminPanel(true)}
-              className="relative p-2.5 bg-amber-500/15 border border-amber-500/60 rounded-xl text-amber-400 hover:bg-amber-500/25 transition-all flex items-center gap-1 text-xs font-bold shadow-lg shadow-amber-500/20"
-            >
-              <Shield className="w-4 h-4" />
-              <span className="hidden sm:inline">Admin</span>
-              {hasPendingTransactions && (
-                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-slate-900 animate-bounce" title="Novos pedidos pendentes!" />
-              )}
-            </button>
-          )}
-
-          <div className="bg-slate-950/90 border border-slate-800 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 shadow-inner">
-            <Coins className="w-3.5 h-3.5 text-amber-400" />
-            <span className="text-xs font-black text-amber-300 font-mono">
-              R$ {user.balance.toLocaleString('pt-BR')}
-            </span>
-          </div>
-
-          <button 
-            onClick={() => setShowWalletModal(true)}
-            className="bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-black hover:brightness-110 transition-all shadow-lg shadow-amber-500/30 flex items-center gap-1"
-          >
-            <Wallet className="w-3.5 h-3.5" />
-            <span>Carteira</span>
-          </button>
+        {/* Logotipo Oficial Rede Pampas integrado na barra */}
+        <div className="w-full bg-slate-950/80 border border-amber-500/30 rounded-xl py-1.5 px-3 flex items-center justify-center gap-2 shadow-inner">
+          <span className="text-[11px] font-black bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-200 bg-clip-text text-transparent tracking-widest">
+            ⭐ REDE PAMPAS CASINO ⭐
+          </span>
         </div>
       </header>
 
+      {/* Main Game Interface */}
       <main className="w-full max-w-md p-4 flex flex-col items-center gap-3 my-auto z-10">
         
         <div className="w-full bg-slate-900/70 border border-slate-800/90 rounded-2xl p-2.5 flex items-center justify-between text-xs backdrop-blur-md">
@@ -532,7 +573,8 @@ function App() {
           </button>
         </div>
 
-        <div className="relative w-full aspect-square bg-slate-950/95 rounded-3xl border-2 border-amber-500/50 p-4 flex flex-col justify-between shadow-2xl shadow-amber-500/20 overflow-hidden backdrop-blur-xl">
+        {/* Slot Grid Ultra-Realista com Moldura Iluminada */}
+        <div className="relative w-full aspect-square bg-slate-950/95 rounded-3xl border-2 border-amber-500/60 p-4 flex flex-col justify-between shadow-2xl shadow-amber-500/25 overflow-hidden backdrop-blur-xl">
           
           <svg className="absolute inset-0 w-full h-full pointer-events-none z-20">
             {activePaylines.map(line => (
@@ -570,6 +612,7 @@ function App() {
           )}
         </div>
 
+        {/* Controlo de Apostas, Rodadas Auto e Botão Turbo */}
         <div className="w-full bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 flex flex-col gap-3 backdrop-blur-md shadow-xl">
           <div className="flex items-center justify-between text-xs text-slate-400 font-bold">
             <span className="tracking-wider">VALOR DA APOSTA</span>
@@ -594,8 +637,45 @@ function App() {
             ))}
           </div>
 
+          {/* Opções de Rodadas Automáticas e Turbo */}
+          <div className="flex items-center justify-between gap-1.5 pt-1">
+            <button
+              onClick={() => setIsTurbo(!isTurbo)}
+              className={`flex-1 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1 transition-all border ${
+                isTurbo 
+                  ? 'bg-rose-600 border-rose-400 text-white shadow-lg shadow-rose-500/30 animate-pulse' 
+                  : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+              }`}
+            >
+              <FastForward className="w-3.5 h-3.5" />
+              <span>TURBO {isTurbo ? 'ON' : 'OFF'}</span>
+            </button>
+
+            <button
+              onClick={() => startAutoSpins(10)}
+              disabled={autoSpinsLeft > 0}
+              className="px-2.5 py-2 bg-slate-950 border border-slate-800 hover:border-amber-500/40 rounded-xl text-[11px] font-bold text-amber-300"
+            >
+              Auto 10
+            </button>
+            <button
+              onClick={() => startAutoSpins(30)}
+              disabled={autoSpinsLeft > 0}
+              className="px-2.5 py-2 bg-slate-950 border border-slate-800 hover:border-amber-500/40 rounded-xl text-[11px] font-bold text-amber-300"
+            >
+              Auto 30
+            </button>
+            <button
+              onClick={() => startAutoSpins(50)}
+              disabled={autoSpinsLeft > 0}
+              className="px-2.5 py-2 bg-slate-950 border border-slate-800 hover:border-amber-500/40 rounded-xl text-[11px] font-bold text-amber-300"
+            >
+              Auto 50
+            </button>
+          </div>
+
           <button
-            onClick={spin}
+            onClick={() => executeSpin()}
             disabled={spinning}
             className={`w-full py-4 rounded-2xl font-black text-base tracking-wider transition-all shadow-2xl ${
               spinning 
@@ -603,11 +683,12 @@ function App() {
                 : 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-600 text-slate-950 hover:brightness-110 active:scale-98 shadow-amber-500/40'
             }`}
           >
-            {spinning ? 'GIRANDO...' : 'GIRAR AGORA'}
+            {autoSpinsLeft > 0 ? `AUTO (${autoSpinsLeft}) GIRANDO...` : spinning ? 'GIRANDO...' : 'GIRAR AGORA'}
           </button>
         </div>
       </main>
-            {showBonus && (
+            {/* Modal de Bônus com Fogos de Artifício */}
+      {showBonus && (
         <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-slate-900 border-2 border-amber-500/80 rounded-3xl p-6 text-center flex flex-col items-center gap-4 shadow-2xl shadow-amber-500/40 relative overflow-hidden">
             
@@ -620,7 +701,7 @@ function App() {
             <div className="flex items-center gap-2 text-amber-400">
               <Flame className="w-6 h-6 animate-bounce text-amber-400" />
               <h2 className="text-lg font-black tracking-wider">
-                SUPER BÔNUS DIPLOMÁTICO 💎
+                SUPER BÔNUS REDE PAMPAS 💎
               </h2>
             </div>
             <p className="text-xs text-slate-300">
@@ -651,6 +732,7 @@ function App() {
         </div>
       )}
 
+      {/* Modal de Carteira */}
       {showWalletModal && (
         <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col gap-4 shadow-2xl">
@@ -714,6 +796,7 @@ function App() {
         </div>
       )}
 
+      {/* Modal de Autenticação */}
       {showAuthModal && (
         <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <form onSubmit={handleLogin} className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col gap-4 shadow-2xl">
@@ -756,7 +839,8 @@ function App() {
           </form>
         </div>
       )}
-            {showAdminPanel && user.isAdmin && (
+            {/* Painel Master Admin Detalhado */}
+      {showAdminPanel && user.isAdmin && (
         <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-50 p-4 overflow-y-auto">
           <div className="max-w-2xl mx-auto bg-slate-900 border border-amber-500/50 rounded-3xl p-5 flex flex-col gap-5 my-4 shadow-2xl">
             
@@ -764,7 +848,7 @@ function App() {
               <div className="flex items-center gap-2">
                 <Shield className="w-5 h-5 text-amber-400" />
                 <h2 className="text-sm font-black text-amber-400">
-                  PAINEL MASTER GESTÃO (@LVelasques)
+                  PAINEL MASTER REDE PAMPAS (@LVelasques)
                 </h2>
               </div>
               <button onClick={() => setShowAdminPanel(false)} className="text-slate-400 hover:text-white text-sm font-bold">
@@ -772,14 +856,14 @@ function App() {
               </button>
             </div>
 
-            <div className="flex gap-2 border-b border-slate-800 pb-3">
+            <div className="flex gap-2 border-b border-slate-800 pb-3 flex-wrap">
               <button 
                 onClick={() => setAdminTab('transactions')}
                 className={`relative px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
                   adminTab === 'transactions' ? 'bg-amber-500 text-slate-950' : 'bg-slate-950 text-slate-400'
                 }`}
               >
-                Fila Transações
+                Transações
                 {hasPendingTransactions && (
                   <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping" />
                 )}
@@ -790,7 +874,7 @@ function App() {
                   adminTab === 'users' ? 'bg-amber-500 text-slate-950' : 'bg-slate-950 text-slate-400'
                 }`}
               >
-                Jogadores & Contas
+                Jogadores
               </button>
               <button 
                 onClick={() => setAdminTab('reports')}
@@ -798,7 +882,15 @@ function App() {
                   adminTab === 'reports' ? 'bg-amber-500 text-slate-950' : 'bg-slate-950 text-slate-400'
                 }`}
               >
-                Relatórios & Lucro
+                Relatórios
+              </button>
+              <button 
+                onClick={() => setAdminTab('rtp')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                  adminTab === 'rtp' ? 'bg-amber-500 text-slate-950' : 'bg-slate-950 text-slate-400'
+                }`}
+              >
+                Regras & RTP
               </button>
             </div>
 
@@ -1072,12 +1164,35 @@ function App() {
               </div>
             )}
 
+            {adminTab === 'rtp' && (
+              <div className="flex flex-col gap-3">
+                <h3 className="text-xs font-black text-slate-300 uppercase tracking-wider">
+                  DETALHES DE PAGAMENTO E RTP ATUAL
+                </h3>
+                <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800 flex flex-col gap-2 text-xs">
+                  <p className="text-slate-300 font-bold">Tabela de Pagamento por Símbolo:</p>
+                  <div className="grid grid-cols-2 gap-1.5 font-mono text-[11px] text-slate-400">
+                    {SYMBOLS.map(s => (
+                      <div key={s.id} className="bg-slate-900 p-2 rounded-xl flex items-center justify-between border border-slate-800">
+                        <span>{s.char} {s.name}</span>
+                        <strong className="text-amber-400">{s.isBonus ? 'Apenas Bônus' : `${s.mult}x`}</strong>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-2 border-t border-slate-800 pt-2 flex flex-col gap-1 text-[11px] text-slate-400">
+                    <p>• <strong className="text-emerald-400">Modo Turbo:</strong> Prioriza focar nas 3 primeiras imagens e acelera as rodadas.</p>
+                    <p>• <strong className="text-emerald-400">Proteção de Lucro:</strong> Trava automática quando o jogador atinge 35% de lucro sobre o depósito.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
       )}
 
       <footer className="w-full text-center py-3 text-[10px] text-slate-600 border-t border-slate-900/80 backdrop-blur-md">
-        Cassino Diplomático © 2026 - Todos os direitos reservados.
+        Rede Pampas Cassino © 2026 - Todos os direitos reservados.
       </footer>
     </div>
   );
