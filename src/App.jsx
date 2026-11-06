@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
-import { 
-  Shield, Coins, Sparkles, User, Settings, LogOut
-} from 'lucide-react';
+import { Shield, Coins, Sparkles, User, Settings, LogOut } from 'lucide-react';
 
 const SYMBOLS = [
   { id: 'couro', char: '🫎', name: 'Couro', mult: 1, weight: 80 },
@@ -37,7 +35,7 @@ const MULTIPLIER_WHEEL = [
   { mult: 10, weight: 20 }
 ];
 
-export default function App() {
+function App() {
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('cd_user');
     return saved ? JSON.parse(saved) : { username: 'LVelasques', balance: 2500000, isAdmin: true };
@@ -87,7 +85,6 @@ export default function App() {
     e.preventDefault();
     const cleanNick = loginUsername.trim().replace('@', '');
     const isAdmin = cleanNick.toLowerCase() === 'lvelasques';
-    
     setUser({
       username: cleanNick || 'Jogador',
       balance: isAdmin ? 5000000 : 100000,
@@ -507,4 +504,76 @@ export default function App() {
         <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-50 p-4 overflow-y-auto">
           <div className="max-w-2xl mx-auto bg-slate-900 border border-amber-500/40 rounded-2xl p-6 flex flex-col gap-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-black text-amber-400 fle
+              <h2 className="text-lg font-black text-amber-400 flex items-center gap-2">
+    <Shield className="w-5 h-5" />
+                PAINEL MASTER (@LVelasques)
+              </h2>
+              <button onClick={() => setShowAdminPanel(false)} className="text-slate-400 hover:text-white">
+                ✕ Fechar
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                <p className="text-[10px] text-slate-400">VOLUME TOTAL</p>
+                <p className="text-sm font-black text-slate-200">R$ {houseStats.totalBets.toLocaleString('pt-BR')}</p>
+              </div>
+              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                <p className="text-[10px] text-slate-400">TOTAL PAGOS</p>
+                <p className="text-sm font-black text-amber-400">R$ {houseStats.totalPayouts.toLocaleString('pt-BR')}</p>
+              </div>
+              <div className="bg-slate-950 p-3 rounded-xl border border-amber-500/30">
+                <p className="text-[10px] text-amber-400">LUCRO CASA</p>
+                <p className="text-sm font-black text-emerald-400">
+                  R$ {(houseStats.totalBets - houseStats.totalPayouts).toLocaleString('pt-BR')}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-xs font-black text-slate-300 mb-2">DEPÓSITOS PENDENTES</h3>
+              <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
+                {deposits.length === 0 ? (
+                  <p className="text-xs text-slate-500">Sem depósitos registados.</p>
+                ) : (
+                  deposits.map(dep => (
+                    <div key={dep.id} className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex items-center justify-between text-xs">
+                      <div>
+                        <strong className="text-amber-300">@{dep.username}</strong> - R$ {dep.amount.toLocaleString('pt-BR')}
+                        <span className="text-[10px] text-slate-500 block">{dep.date}</span>
+                      </div>
+                      {dep.status === 'pending' ? (
+                        <button
+                          onClick={() => handleApproveDeposit(dep)}
+                          className="bg-emerald-500 text-slate-950 px-3 py-1 rounded font-black hover:brightness-110"
+                        >
+                          Aprovar
+                        </button>
+                      ) : (
+                        <span className="text-emerald-400 font-bold">Aprovado</span>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <footer className="w-full text-center py-3 text-[10px] text-slate-600 border-t border-slate-900">
+        Cassino Diplomático © 2026 - Todos os direitos reservados.
+      </footer>
+    </div>
+  );
+}
+
+const rootElement = document.getElementById('root');
+if (rootElement) {
+  const root = ReactDOM.createRoot(rootElement);
+  root.render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
+}
