@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { 
   Shield, Coins, Sparkles, User, Settings, LogOut, 
   ArrowUpRight, ArrowDownRight, Wallet, CheckCircle2, XCircle, Clock,
-  Users, Key, Search, Activity, DollarSign, Lock, RefreshCw, Zap, UserPlus
+  Users, Key, Search, Activity, DollarSign, Lock, RefreshCw, Zap, UserPlus, Globe
 } from 'lucide-react';
 
 const SYMBOLS = [
@@ -50,7 +50,7 @@ function App() {
     return saved ? JSON.parse(saved) : { username: 'Visitante', balance: 0, isAdmin: false };
   });
 
-  const [onlineCount, setOnlineCount] = useState(142);
+  const [onlineCount, setOnlineCount] = useState(148);
   useEffect(() => {
     const interval = setInterval(() => {
       setOnlineCount(prev => prev + Math.floor(Math.random() * 5) - 2);
@@ -136,7 +136,6 @@ function App() {
     setLoginPassword('');
     setShowAuthModal(false);
   };
-
   const handleAdminCreateUser = (e) => {
     e.preventDefault();
     const cleanNick = createNickInput.trim().replace('@', '');
@@ -175,7 +174,8 @@ function App() {
     }
     return SYMBOLS[0].char;
   };
-      const spin = () => {
+
+  const spin = () => {
     if (spinning) return;
     if (user.balance < currentBet) {
       alert('Saldo insuficiente! Faça um depósito para jogar.');
@@ -279,8 +279,7 @@ function App() {
       }
     }, 70);
   };
-
-  const spinBonusWheel = () => {
+    const spinBonusWheel = () => {
     if (spinningBonus) return;
     setSpinningBonus(true);
 
@@ -548,7 +547,7 @@ function App() {
           </button>
         </div>
       </main>
-            {showBonus && (
+              {showBonus && (
         <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-slate-900 border-2 border-amber-500/60 rounded-3xl p-6 text-center flex flex-col items-center gap-4 shadow-2xl shadow-amber-500/20">
             <h2 className="text-lg font-black text-amber-400 tracking-wider">
@@ -799,8 +798,7 @@ function App() {
                 </div>
               </div>
             )}
-
-            {adminTab === 'users' && (
+                            {adminTab === 'users' && (
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-black text-slate-300 uppercase tracking-wider">
@@ -936,7 +934,8 @@ function App() {
                 )}
               </div>
             )}
-                          {adminTab === 'reports' && (
+
+            {adminTab === 'reports' && (
               <div className="flex flex-col gap-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-slate-950 p-3.5 rounded-2xl border border-emerald-500/30">
