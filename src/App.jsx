@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { 
   Shield, Coins, Sparkles, User, Settings, LogOut, 
   ArrowUpRight, ArrowDownRight, Wallet, CheckCircle2, XCircle, Clock,
-  Users, Key, Search, Activity, DollarSign, Lock, RefreshCw, Zap, UserPlus, Trash2, Flame, FastForward, Play
+  Users, Key, Search, Activity, DollarSign, Lock, RefreshCw, Zap, UserPlus, Trash2, Flame, FastForward, Play, UserCheck
 } from 'lucide-react';
 
 const SYMBOLS = [
@@ -40,19 +40,20 @@ const MULTIPLIER_WHEEL = [
 
 function App() {
   const [usersDB, setUsersDB] = useState(() => {
-    const saved = localStorage.getItem('cd_users_db');
+    const saved = localStorage.getItem('rp_users_db');
     return saved ? JSON.parse(saved) : {
       'LVelasques': { username: 'LVelasques', password: 'Lucas123!', balance: 10000000, isAdmin: true, totalDeposited: 10000000, totalWon: 0 }
     };
   });
 
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('cd_current_user');
+    const saved = localStorage.getItem('rp_current_user');
     return saved ? JSON.parse(saved) : { username: 'Visitante', balance: 0, isAdmin: false, totalDeposited: 0, totalWon: 0 };
   });
 
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [authMode, setAuthMode] = useState('login'); // 'login' ou 'register'
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [walletTab, setWalletTab] = useState('deposit');
@@ -74,7 +75,7 @@ function App() {
   const [showFireworks, setShowFireworks] = useState(false);
 
   const [transactions, setTransactions] = useState(() => {
-    const saved = localStorage.getItem('cd_transactions');
+    const saved = localStorage.getItem('rp_transactions');
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -90,46 +91,85 @@ function App() {
   const [showAddUserForm, setShowAddUserForm] = useState(false);
 
   const [houseStats, setHouseStats] = useState(() => {
-    const saved = localStorage.getItem('cd_house_stats');
+    const saved = localStorage.getItem('rp_house_stats');
     return saved ? JSON.parse(saved) : { totalBets: 150000000, totalPayouts: 50000000 };
   });
 
-  useEffect(() => { localStorage.setItem('cd_users_db', JSON.stringify(usersDB)); }, [usersDB]);
-  useEffect(() => { localStorage.setItem('cd_current_user', JSON.stringify(user)); }, [user]);
-  useEffect(() => { localStorage.setItem('cd_transactions', JSON.stringify(transactions)); }, [transactions]);
-  useEffect(() => { localStorage.setItem('cd_house_stats', JSON.stringify(houseStats)); }, [houseStats]);
-
+  // Sincronização em tempo real entre dispositivos e armazenamento local
   useEffect(() => {
-    if (user.username !== 'Visitante' && usersDB[user.username]) {
-      setUser(usersDB[user.username]);
-    }
-  }, [usersDB]);
-    const handleLogin = (e) => {
+    const interval = setInterval(() => {
+      const savedUsers = localStorage.getItem('rp_users_db');
+      if (savedUsers) setUsersDB(JSON.parse(savedUsers));
+
+      const savedTx = localStorage.getItem('rp_transactions');
+      if (savedTx) setTransactions(JSON.parse(savedTx));
+
+      const savedStats = localStorage.getItem('rp_house_stats');
+      if (savedStats) setHouseStats(JSON.parse(savedStats));
+
+      if (user.username !== 'Visitante') {
+        const currentDb = savedUsers ? JSON.parse(savedUsers) : usersDB;
+        if (currentDb[user.username]) {
+          setUser(currentDb[user.username]);
+        }
+      }
+    }, 1500);
+    return () => clearInterval(interval);
+  }, [user.username]);
+
+  useEffect(() => { localStorage.setItem('rp_users_db', JSON.stringify(usersDB)); }, [usersDB]);
+  useEffect(() => { localStorage.setItem('rp_current_user', JSON.stringify(user)); }, [user]);
+  useEffect(() => { localStorage.setItem('rp_transactions', JSON.stringify(transactions)); }, [transactions]);
+  useEffect(() => { localStorage.setItem('rp_house_stats', JSON.stringify(houseStats)); }, [houseStats]);
+    const handleAuthSubmit = (e) => {
     e.preventDefault();
     const cleanNick = loginUsername.trim().replace('@', '');
-    if (!cleanNick) return;
+    if (!cleanNick || !loginPassword) return;
 
     const isAdmin = cleanNick.toLowerCase() === 'lvelasques' && loginPassword === 'Lucas123!';
-    let currentUserData = usersDB[cleanNick];
 
-    if (!currentUserData) {
-      currentUserData = {
+    if (authMode === 'register') {
+      if (usersDB[cleanNick]) {
+        alert('Este nome de utilizador já existe! Escolha outro ou faça login.');
+        return;
+      }
+      const newUserObj = {
         username: cleanNick,
         password: loginPassword,
-        balance: isAdmin ? 10000000 : 0,
-        isAdmin,
+        balance: 0,
+        isAdmin: false,
         totalDeposited: 0,
         totalWon: 0
       };
-      setUsersDB(prev => ({ ...prev, [cleanNick]: currentUserData }));
+      const updatedDb = { ...usersDB, [cleanNick]: newUserObj };
+      setUsersDB(updatedDb);
+      localStorage.setItem('rp_users_db', JSON.stringify(updatedDb));
+
+      setUser(newUserObj);
+      localStorage.setItem('rp_current_user', JSON.stringify(newUserObj));
+      alert(`Conta @${cleanNick} criada com sucesso! Faça um pedido de depósito para começar a jogar.`);
     } else {
-      if (currentUserData.password !== loginPassword && !isAdmin) {
-        alert('Senha incorreta!');
-        return;
+      let currentUserData = usersDB[cleanNick];
+      if (!currentUserData) {
+        if (isAdmin) {
+          currentUserData = { username: cleanNick, password: loginPassword, balance: 10000000, isAdmin: true, totalDeposited: 10000000, totalWon: 0 };
+          const updatedDb = { ...usersDB, [cleanNick]: currentUserData };
+          setUsersDB(updatedDb);
+          localStorage.setItem('rp_users_db', JSON.stringify(updatedDb));
+        } else {
+          alert('Utilizador não encontrado! Registe uma nova conta.');
+          return;
+        }
+      } else {
+        if (currentUserData.password !== loginPassword && !isAdmin) {
+          alert('Senha incorreta!');
+          return;
+        }
       }
+      setUser(currentUserData);
+      localStorage.setItem('rp_current_user', JSON.stringify(currentUserData));
     }
 
-    setUser(currentUserData);
     setLoginUsername('');
     setLoginPassword('');
     setShowAuthModal(false);
@@ -141,7 +181,6 @@ function App() {
     if (!cleanNick) return;
 
     const initialBal = parseFloat(createBalanceInput) || 0;
-
     const newUserObj = {
       username: cleanNick,
       password: createPassInput || '123456',
@@ -151,7 +190,9 @@ function App() {
       totalWon: 0
     };
 
-    setUsersDB(prev => ({ ...prev, [cleanNick]: newUserObj }));
+    const updatedDb = { ...usersDB, [cleanNick]: newUserObj };
+    setUsersDB(updatedDb);
+    localStorage.setItem('rp_users_db', JSON.stringify(updatedDb));
     alert(`Conta do jogador @${cleanNick} criada com sucesso!`);
     
     setCreateNickInput('');
@@ -166,48 +207,42 @@ function App() {
       return;
     }
     if (confirm(`Tens a certeza que pretendes eliminar o utilizador @${usernameToDelete}?`)) {
-      setUsersDB(prev => {
-        const copy = { ...prev };
-        delete copy[usernameToDelete];
-        return copy;
-      });
+      const copy = { ...usersDB };
+      delete copy[usernameToDelete];
+      setUsersDB(copy);
+      localStorage.setItem('rp_users_db', JSON.stringify(copy));
+
       if (user.username === usernameToDelete) {
-        setUser({ username: 'Visitante', balance: 0, isAdmin: false, totalDeposited: 0, totalWon: 0 });
+        const guest = { username: 'Visitante', balance: 0, isAdmin: false, totalDeposited: 0, totalWon: 0 };
+        setUser(guest);
+        localStorage.setItem('rp_current_user', JSON.stringify(guest));
       }
     }
   };
 
   const handleResetReports = () => {
     if (confirm('Queres zerar todos os relatórios de entradas, saídas e estatísticas da casa?')) {
-      setHouseStats({ totalBets: 0, totalPayouts: 0 });
+      const resetStats = { totalBets: 0, totalPayouts: 0 };
+      setHouseStats(resetStats);
       setTransactions([]);
+      localStorage.setItem('rp_house_stats', JSON.stringify(resetStats));
+      localStorage.setItem('rp_transactions', JSON.stringify([]));
       alert('Relatórios financeiros zerados com sucesso!');
     }
   };
-    // RTP reduzido geral para garantir a lucratividade da casa (favorita as 3 primeiras imagens no modo Turbo)
-  const getDynamicRtp = (currentUser, currentBal) => {
+    const getDynamicRtp = (currentUser, currentBal) => {
     const deposited = currentUser.totalDeposited || 1;
     const wonRatio = currentUser.totalWon / deposited;
 
-    if (wonRatio >= 0.35) {
-      return 0.10; // Trava estrita para proteger o ganho da casa
-    }
-
-    if (currentBal >= 500000 || currentBet >= 500000) {
-      return 0.18;
-    }
-
-    if (currentBal < 40000 && currentBal > 0) {
-      return 0.65; // Pequenos respiros para manter jogando
-    }
-
-    return isTurbo ? 0.22 : 0.30; // Modo turbo reduz a taxa geral e privilegia baixas pagas
+    if (wonRatio >= 0.35) return 0.10; 
+    if (currentBal >= 500000 || currentBet >= 500000) return 0.18;
+    if (currentBal < 40000 && currentBal > 0) return 0.65; 
+    return isTurbo ? 0.22 : 0.30;
   };
 
   const getRandomSymbol = (isTurboMode = false) => {
     let pool = SYMBOLS;
     if (isTurboMode) {
-      // No modo Turbo, maior probabilidade de sair as 3 primeiras imagens (Couro, TRM, Petróleo)
       const lowTierWeights = SYMBOLS.map(s => {
         if (s.id === 'couro' || s.id === 'trm' || s.id === 'petroleo') {
           return { ...s, weight: s.weight * 4 };
@@ -229,8 +264,7 @@ function App() {
       rnd -= sym.weight;
     }
     return pool[0].char;
-  };
-    const executeSpin = (overrideTurbo = isTurbo) => {
+  };  const executeSpin = (overrideTurbo = isTurbo) => {
     if (user.balance < currentBet) {
       alert('Saldo insuficiente! Faça um depósito para continuar.');
       setWalletTab('deposit');
@@ -240,12 +274,19 @@ function App() {
     }
 
     const updatedBalance = user.balance - currentBet;
-    setUser(prev => ({ ...prev, balance: updatedBalance }));
-    setUsersDB(prev => ({
-      ...prev,
-      [user.username]: { ...prev[user.username], balance: updatedBalance }
-    }));
-    setHouseStats(prev => ({ ...prev, totalBets: prev.totalBets + currentBet }));
+    const updatedUserObj = { ...user, balance: updatedBalance };
+    setUser(updatedUserObj);
+    localStorage.setItem('rp_current_user', JSON.stringify(updatedUserObj));
+
+    setUsersDB(prev => {
+      const newDb = { ...prev, [user.username]: updatedUserObj };
+      localStorage.setItem('rp_users_db', JSON.stringify(newDb));
+      return newDb;
+    });
+
+    const newStats = { ...houseStats, totalBets: houseStats.totalBets + currentBet };
+    setHouseStats(newStats);
+    localStorage.setItem('rp_house_stats', JSON.stringify(newStats));
 
     setSpinning(true);
     setActivePaylines([]);
@@ -267,7 +308,6 @@ function App() {
       finalGrid = Array(9).fill(null).map(() => getRandomSymbol(overrideTurbo));
       targetLine.coords.forEach(idx => { finalGrid[idx] = winningSymbol.char; });
 
-      // O diamante agora ativa exclusivamente o bônus
       if (Math.random() < 0.04) {
         const bonusLine = PAYLINES[Math.floor(Math.random() * PAYLINES.length)];
         bonusLine.coords.forEach(idx => { finalGrid[idx] = '💎'; });
@@ -324,14 +364,21 @@ function App() {
           const winBalance = updatedBalance + totalWin;
           const wonAdded = (user.totalWon || 0) + totalWin;
 
+          const finalUserObj = { ...updatedUserObj, balance: winBalance, totalWon: wonAdded };
           setActivePaylines(winLines);
           setLastWin(totalWin);
-          setUser(prev => ({ ...prev, balance: winBalance, totalWon: wonAdded }));
-          setUsersDB(prev => ({
-            ...prev,
-            [user.username]: { ...prev[user.username], balance: winBalance, totalWon: wonAdded }
-          }));
-          setHouseStats(prev => ({ ...prev, totalPayouts: prev.totalPayouts + totalWin }));
+          setUser(finalUserObj);
+          localStorage.setItem('rp_current_user', JSON.stringify(finalUserObj));
+
+          setUsersDB(prev => {
+            const newDb = { ...prev, [user.username]: finalUserObj };
+            localStorage.setItem('rp_users_db', JSON.stringify(newDb));
+            return newDb;
+          });
+
+          const finalStats = { ...newStats, totalPayouts: newStats.totalPayouts + totalWin };
+          setHouseStats(finalStats);
+          localStorage.setItem('rp_house_stats', JSON.stringify(finalStats));
         }
 
         if (hasBonus) {
@@ -384,12 +431,19 @@ function App() {
       const newBal = user.balance + bonusPrize;
       const wonAdded = (user.totalWon || 0) + bonusPrize;
 
-      setUser(prev => ({ ...prev, balance: newBal, totalWon: wonAdded }));
-      setUsersDB(prev => ({
-        ...prev,
-        [user.username]: { ...prev[user.username], balance: newBal, totalWon: wonAdded }
-      }));
-      setHouseStats(prev => ({ ...prev, totalPayouts: prev.totalPayouts + bonusPrize }));
+      const finalUserObj = { ...user, balance: newBal, totalWon: wonAdded };
+      setUser(finalUserObj);
+      localStorage.setItem('rp_current_user', JSON.stringify(finalUserObj));
+
+      setUsersDB(prev => {
+        const newDb = { ...prev, [user.username]: finalUserObj };
+        localStorage.setItem('rp_users_db', JSON.stringify(newDb));
+        return newDb;
+      });
+
+      const finalStats = { ...houseStats, totalPayouts: houseStats.totalPayouts + bonusPrize };
+      setHouseStats(finalStats);
+      localStorage.setItem('rp_house_stats', JSON.stringify(finalStats));
     }, 1800);
   };
 
@@ -404,11 +458,15 @@ function App() {
         return;
       }
       const newBal = user.balance - val;
-      setUser(prev => ({ ...prev, balance: newBal }));
-      setUsersDB(prev => ({
-        ...prev,
-        [user.username]: { ...prev[user.username], balance: newBal }
-      }));
+      const updatedUserObj = { ...user, balance: newBal };
+      setUser(updatedUserObj);
+      localStorage.setItem('rp_current_user', JSON.stringify(updatedUserObj));
+
+      setUsersDB(prev => {
+        const newDb = { ...prev, [user.username]: updatedUserObj };
+        localStorage.setItem('rp_users_db', JSON.stringify(newDb));
+        return newDb;
+      });
     }
 
     const newTx = {
@@ -422,7 +480,7 @@ function App() {
 
     const updatedTxs = [newTx, ...transactions];
     setTransactions(updatedTxs);
-    localStorage.setItem('cd_transactions', JSON.stringify(updatedTxs));
+    localStorage.setItem('rp_transactions', JSON.stringify(updatedTxs));
 
     setTransactionAmount('');
     setShowWalletModal(false);
@@ -435,7 +493,7 @@ function App() {
   const handleApproveTransaction = (tx) => {
     const updatedTxs = transactions.map(t => t.id === tx.id ? { ...t, status: 'approved' } : t);
     setTransactions(updatedTxs);
-    localStorage.setItem('cd_transactions', JSON.stringify(updatedTxs));
+    localStorage.setItem('rp_transactions', JSON.stringify(updatedTxs));
 
     if (tx.type === 'deposit') {
       setUsersDB(prev => {
@@ -444,7 +502,7 @@ function App() {
         const depAdded = (u?.totalDeposited || 0) + tx.amount;
         const updatedUserObj = { ...(u || { username: tx.username, password: '123', isAdmin: false, totalWon: 0 }), balance: currentBal + tx.amount, totalDeposited: depAdded };
         const newDb = { ...prev, [tx.username]: updatedUserObj };
-        localStorage.setItem('cd_users_db', JSON.stringify(newDb));
+        localStorage.setItem('rp_users_db', JSON.stringify(newDb));
         return newDb;
       });
     }
@@ -453,7 +511,7 @@ function App() {
   const handleRejectTransaction = (tx) => {
     const updatedTxs = transactions.map(t => t.id === tx.id ? { ...t, status: 'rejected' } : t);
     setTransactions(updatedTxs);
-    localStorage.setItem('cd_transactions', JSON.stringify(updatedTxs));
+    localStorage.setItem('rp_transactions', JSON.stringify(updatedTxs));
 
     if (tx.type === 'withdraw') {
       setUsersDB(prev => {
@@ -461,7 +519,7 @@ function App() {
         const currentBal = u ? u.balance : 0;
         const updatedUserObj = { ...u, balance: currentBal + tx.amount };
         const newDb = { ...prev, [tx.username]: updatedUserObj };
-        localStorage.setItem('cd_users_db', JSON.stringify(newDb));
+        localStorage.setItem('rp_users_db', JSON.stringify(newDb));
         return newDb;
       });
     }
@@ -479,7 +537,7 @@ function App() {
         balance: newBalanceInput !== '' ? parseFloat(newBalanceInput) : u.balance
       };
       const newDb = { ...prev, [targetNick]: updatedUserObj };
-      localStorage.setItem('cd_users_db', JSON.stringify(newDb));
+      localStorage.setItem('rp_users_db', JSON.stringify(newDb));
       return newDb;
     });
 
@@ -498,12 +556,11 @@ function App() {
     .reduce((acc, t) => acc + t.amount, 0);
 
   const hasPendingTransactions = transactions.some(t => t.status === 'pending');
-    return (
+      return (
     <div className="min-h-screen bg-[#020617] text-slate-100 flex flex-col items-center justify-between font-sans relative overflow-x-hidden selection:bg-amber-500 selection:text-slate-950">
       
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-gradient-to-b from-amber-500/20 via-cyan-500/10 to-transparent blur-[120px] pointer-events-none z-0" />
 
-      {/* Header com Logotipo da Rede Pampas */}
       <header className="w-full max-w-md bg-slate-900/95 border-b border-amber-500/50 p-3 flex flex-col items-center gap-2 backdrop-blur-2xl sticky top-0 z-40 shadow-2xl shadow-amber-500/10">
         
         <div className="w-full flex items-center justify-between">
@@ -548,7 +605,6 @@ function App() {
           </div>
         </div>
 
-        {/* Logotipo Oficial Rede Pampas integrado na barra */}
         <div className="w-full bg-slate-950/80 border border-amber-500/30 rounded-xl py-1.5 px-3 flex items-center justify-center gap-2 shadow-inner">
           <span className="text-[11px] font-black bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-200 bg-clip-text text-transparent tracking-widest">
             ⭐ REDE PAMPAS CASINO ⭐
@@ -556,7 +612,6 @@ function App() {
         </div>
       </header>
 
-      {/* Main Game Interface */}
       <main className="w-full max-w-md p-4 flex flex-col items-center gap-3 my-auto z-10">
         
         <div className="w-full bg-slate-900/70 border border-slate-800/90 rounded-2xl p-2.5 flex items-center justify-between text-xs backdrop-blur-md">
@@ -565,15 +620,14 @@ function App() {
             <span className="text-slate-300">Utilizador: <strong className="text-amber-300 font-bold">@{user.username}</strong></span>
           </div>
           <button 
-            onClick={() => setShowAuthModal(true)}
+            onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
             className="text-slate-400 hover:text-amber-400 flex items-center gap-1 text-[11px] font-semibold transition-colors"
           >
             <LogOut className="w-3.5 h-3.5" />
-            <span>{user.username === 'Visitante' ? 'Entrar' : 'Trocar Conta'}</span>
+            <span>{user.username === 'Visitante' ? 'Entrar / Criar Conta' : 'Trocar Conta'}</span>
           </button>
         </div>
 
-        {/* Slot Grid Ultra-Realista com Moldura Iluminada */}
         <div className="relative w-full aspect-square bg-slate-950/95 rounded-3xl border-2 border-amber-500/60 p-4 flex flex-col justify-between shadow-2xl shadow-amber-500/25 overflow-hidden backdrop-blur-xl">
           
           <svg className="absolute inset-0 w-full h-full pointer-events-none z-20">
@@ -612,7 +666,6 @@ function App() {
           )}
         </div>
 
-        {/* Controlo de Apostas, Rodadas Auto e Botão Turbo */}
         <div className="w-full bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 flex flex-col gap-3 backdrop-blur-md shadow-xl">
           <div className="flex items-center justify-between text-xs text-slate-400 font-bold">
             <span className="tracking-wider">VALOR DA APOSTA</span>
@@ -637,7 +690,6 @@ function App() {
             ))}
           </div>
 
-          {/* Opções de Rodadas Automáticas e Turbo */}
           <div className="flex items-center justify-between gap-1.5 pt-1">
             <button
               onClick={() => setIsTurbo(!isTurbo)}
@@ -687,8 +739,7 @@ function App() {
           </button>
         </div>
       </main>
-            {/* Modal de Bônus com Fogos de Artifício */}
-      {showBonus && (
+            {showBonus && (
         <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-slate-900 border-2 border-amber-500/80 rounded-3xl p-6 text-center flex flex-col items-center gap-4 shadow-2xl shadow-amber-500/40 relative overflow-hidden">
             
@@ -732,7 +783,6 @@ function App() {
         </div>
       )}
 
-      {/* Modal de Carteira */}
       {showWalletModal && (
         <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col gap-4 shadow-2xl">
@@ -796,51 +846,74 @@ function App() {
         </div>
       )}
 
-      {/* Modal de Autenticação */}
+      {/* Modal de Acesso e Registo Público de Contas */}
       {showAuthModal && (
         <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleLogin} className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col gap-4 shadow-2xl">
-            <h3 className="text-base font-black text-amber-400">ACESSO À CONTA</h3>
-            <div>
-              <label className="text-xs text-slate-400">Utilizador / Nick</label>
-              <input 
-                type="text"
-                required
-                value={loginUsername}
-                onChange={e => setLoginUsername(e.target.value)}
-                placeholder="Ex: TeuNome"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm mt-1 focus:border-amber-500 outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-slate-400">Senha</label>
-              <input 
-                type="password"
-                required
-                value={loginPassword}
-                onChange={e => setLoginPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm mt-1 focus:border-amber-500 outline-none"
-              />
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col gap-4 shadow-2xl">
+            
+            <div className="flex bg-slate-950 rounded-xl p-1 border border-slate-800">
+              <button 
+                onClick={() => setAuthMode('login')}
+                className={`w-1/2 py-2 text-xs font-black rounded-lg transition-all ${
+                  authMode === 'login' ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Entrar
+              </button>
+              <button 
+                onClick={() => setAuthMode('register')}
+                className={`w-1/2 py-2 text-xs font-black rounded-lg transition-all ${
+                  authMode === 'register' ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Criar Conta
+              </button>
             </div>
 
-            <div className="flex gap-2">
-              <button 
-                type="button"
-                onClick={() => setShowAuthModal(false)}
-                className="w-1/3 py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs"
-              >
-                Fechar
-              </button>
-              <button type="submit" className="w-2/3 py-2.5 bg-amber-500 text-slate-950 font-black rounded-xl text-xs">
-                Entrar / Criar Conta
-              </button>
-            </div>
-          </form>
+            <form onSubmit={handleAuthSubmit} className="flex flex-col gap-3">
+              <h3 className="text-sm font-black text-amber-400">
+                {authMode === 'login' ? 'ENTRAR NA SUA CONTA' : 'REGISTAR NOVA CONTA'}
+              </h3>
+              <div>
+                <label className="text-xs text-slate-400">Utilizador / Nick</label>
+                <input 
+                  type="text"
+                  required
+                  value={loginUsername}
+                  onChange={e => setLoginUsername(e.target.value)}
+                  placeholder="Ex: TeuNome"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm mt-1 focus:border-amber-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400">Senha</label>
+                <input 
+                  type="password"
+                  required
+                  value={loginPassword}
+                  onChange={e => setLoginPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm mt-1 focus:border-amber-500 outline-none"
+                />
+              </div>
+
+              <div className="flex gap-2 mt-2">
+                <button 
+                  type="button"
+                  onClick={() => setShowAuthModal(false)}
+                  className="w-1/3 py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs"
+                >
+                  Fechar
+                </button>
+                <button type="submit" className="w-2/3 py-2.5 bg-amber-500 text-slate-950 font-black rounded-xl text-xs">
+                  {authMode === 'login' ? 'Entrar' : 'Registar Conta'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
-            {/* Painel Master Admin Detalhado */}
-      {showAdminPanel && user.isAdmin && (
+                          {showAdminPanel && user.isAdmin && (
         <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-50 p-4 overflow-y-auto">
           <div className="max-w-2xl mx-auto bg-slate-900 border border-amber-500/50 rounded-3xl p-5 flex flex-col gap-5 my-4 shadow-2xl">
             
@@ -1206,4 +1279,6 @@ if (rootElement) {
       <App />
     </React.StrictMode>
   );
-}
+                            }
+
+  
