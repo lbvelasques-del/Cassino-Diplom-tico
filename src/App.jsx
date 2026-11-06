@@ -86,8 +86,7 @@ function App() {
   const [selectedUserToEdit, setSelectedUserToEdit] = useState(null);
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [newBalanceInput, setNewBalanceInput] = useState('');
-  
-  // Novos Campos para Adicionar Jogador no Admin
+
   const [createNickInput, setCreateNickInput] = useState('');
   const [createPassInput, setCreatePassInput] = useState('');
   const [createBalanceInput, setCreateBalanceInput] = useState('');
@@ -137,7 +136,8 @@ function App() {
     setLoginPassword('');
     setShowAuthModal(false);
   };
-    const handleAdminCreateUser = (e) => {
+
+  const handleAdminCreateUser = (e) => {
     e.preventDefault();
     const cleanNick = createNickInput.trim().replace('@', '');
     if (!cleanNick) return;
@@ -175,8 +175,7 @@ function App() {
     }
     return SYMBOLS[0].char;
   };
-
-  const spin = () => {
+      const spin = () => {
     if (spinning) return;
     if (user.balance < currentBet) {
       alert('Saldo insuficiente! Faça um depósito para jogar.');
@@ -549,7 +548,7 @@ function App() {
           </button>
         </div>
       </main>
-          {showBonus && (
+            {showBonus && (
         <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-slate-900 border-2 border-amber-500/60 rounded-3xl p-6 text-center flex flex-col items-center gap-4 shadow-2xl shadow-amber-500/20">
             <h2 className="text-lg font-black text-amber-400 tracking-wider">
@@ -816,7 +815,6 @@ function App() {
                   </button>
                 </div>
 
-                {/* Formulario de Criar Novo Jogador Manualmente */}
                 {showAddUserForm && (
                   <form onSubmit={handleAdminCreateUser} className="bg-slate-950 p-4 rounded-2xl border border-amber-500/40 flex flex-col gap-3">
                     <h4 className="text-xs font-black text-amber-400">CRIAR CONTA DE JOGADOR</h4>
@@ -938,14 +936,18 @@ function App() {
                 )}
               </div>
             )}
-
-            {adminTab === 'reports' && (
+                          {adminTab === 'reports' && (
               <div className="flex flex-col gap-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-slate-950 p-3.5 rounded-2xl border border-emerald-500/30">
                     <p className="text-[10px] text-emerald-400 font-bold uppercase">TOTAL DEPÓSITOS APROVADOS</p>
                     <p className="text-base font-black text-emerald-400 font-mono mt-1">
-                      R$ {totalApprovedDeposits.toLocaleS                    <p className="text-base font-black text-rose-400 font-mono mt-1">
+                      R$ {totalApprovedDeposits.toLocaleString('pt-BR')}
+                    </p>
+                  </div>
+                  <div className="bg-slate-950 p-3.5 rounded-2xl border border-rose-500/30">
+                    <p className="text-[10px] text-rose-400 font-bold uppercase">TOTAL SAQUES PAGOS</p>
+                    <p className="text-base font-black text-rose-400 font-mono mt-1">
                       R$ {totalApprovedWithdrawals.toLocaleString('pt-BR')}
                     </p>
                   </div>
