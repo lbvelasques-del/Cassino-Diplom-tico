@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { 
   Shield, Coins, Sparkles, User, Settings, LogOut, 
   ArrowUpRight, ArrowDownRight, Wallet, CheckCircle2, XCircle, Clock,
-  Users, Key, Search, Activity, DollarSign, Lock, RefreshCw, Zap
+  Users, Key, Search, Activity, DollarSign, Lock, RefreshCw, Zap, UserPlus
 } from 'lucide-react';
 
 const SYMBOLS = [
@@ -50,7 +50,7 @@ function App() {
     return saved ? JSON.parse(saved) : { username: 'Visitante', balance: 0, isAdmin: false };
   });
 
-  const [onlineCount, setOnlineCount] = useState(134);
+  const [onlineCount, setOnlineCount] = useState(142);
   useEffect(() => {
     const interval = setInterval(() => {
       setOnlineCount(prev => prev + Math.floor(Math.random() * 5) - 2);
@@ -86,6 +86,12 @@ function App() {
   const [selectedUserToEdit, setSelectedUserToEdit] = useState(null);
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [newBalanceInput, setNewBalanceInput] = useState('');
+  
+  // Novos Campos para Adicionar Jogador no Admin
+  const [createNickInput, setCreateNickInput] = useState('');
+  const [createPassInput, setCreatePassInput] = useState('');
+  const [createBalanceInput, setCreateBalanceInput] = useState('');
+  const [showAddUserForm, setShowAddUserForm] = useState(false);
 
   const [houseStats, setHouseStats] = useState(() => {
     const saved = localStorage.getItem('cd_house_stats');
@@ -131,7 +137,30 @@ function App() {
     setLoginPassword('');
     setShowAuthModal(false);
   };
-      const getRtpTarget = (bet) => {
+    const handleAdminCreateUser = (e) => {
+    e.preventDefault();
+    const cleanNick = createNickInput.trim().replace('@', '');
+    if (!cleanNick) return;
+
+    const initialBal = parseFloat(createBalanceInput) || 0;
+
+    const newUserObj = {
+      username: cleanNick,
+      password: createPassInput || '123456',
+      balance: initialBal,
+      isAdmin: false
+    };
+
+    setUsersDB(prev => ({ ...prev, [cleanNick]: newUserObj }));
+    alert(`Conta do jogador @${cleanNick} criada com sucesso com R$ ${initialBal.toLocaleString('pt-BR')} de saldo!`);
+    
+    setCreateNickInput('');
+    setCreatePassInput('');
+    setCreateBalanceInput('');
+    setShowAddUserForm(false);
+  };
+
+  const getRtpTarget = (bet) => {
     if (bet <= 60000) return 0.50;
     if (bet <= 500000) return 0.35;
     return 0.20;
@@ -778,7 +807,70 @@ function App() {
                   <h3 className="text-xs font-black text-slate-300 uppercase tracking-wider">
                     UTILIZADORES REGISTADOS ({Object.keys(usersDB).length})
                   </h3>
+                  <button 
+                    onClick={() => setShowAddUserForm(!showAddUserForm)}
+                    className="bg-amber-500 text-slate-950 px-3 py-1.5 rounded-xl font-black text-xs hover:brightness-110 flex items-center gap-1"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>+ Criar Jogador</span>
+                  </button>
                 </div>
+
+                {/* Formulario de Criar Novo Jogador Manualmente */}
+                {showAddUserForm && (
+                  <form onSubmit={handleAdminCreateUser} className="bg-slate-950 p-4 rounded-2xl border border-amber-500/40 flex flex-col gap-3">
+                    <h4 className="text-xs font-black text-amber-400">CRIAR CONTA DE JOGADOR</h4>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="text-[10px] text-slate-400">Nick / Usuário</label>
+                        <input 
+                          type="text"
+                          required
+                          placeholder="Ex: João"
+                          value={createNickInput}
+                          onChange={e => setCreateNickInput(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2 text-xs mt-1 text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400">Senha</label>
+                        <input 
+                          type="text"
+                          required
+                          placeholder="Ex: 123456"
+                          value={createPassInput}
+                          onChange={e => setCreatePassInput(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2 text-xs mt-1 text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400">Saldo Inicial (R$)</label>
+                        <input 
+                          type="number"
+                          placeholder="Ex: 500000"
+                          value={createBalanceInput}
+                          onChange={e => setCreateBalanceInput(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2 text-xs mt-1 text-white font-mono"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-1">
+                      <button 
+                        type="button"
+                        onClick={() => setShowAddUserForm(false)}
+                        className="px-3 py-1.5 bg-slate-800 text-slate-300 text-xs font-bold rounded-xl"
+                      >
+                        Cancelar
+                      </button>
+                      <button 
+                        type="submit"
+                        className="px-4 py-1.5 bg-amber-500 text-slate-950 text-xs font-black rounded-xl"
+                      >
+                        Salvar e Depositar
+                      </button>
+                    </div>
+                  </form>
+                )}
 
                 <div className="flex flex-col gap-2 max-h-60 overflow-y-auto">
                   {Object.values(usersDB).map(u => (
@@ -853,57 +945,4 @@ function App() {
                   <div className="bg-slate-950 p-3.5 rounded-2xl border border-emerald-500/30">
                     <p className="text-[10px] text-emerald-400 font-bold uppercase">TOTAL DEPÓSITOS APROVADOS</p>
                     <p className="text-base font-black text-emerald-400 font-mono mt-1">
-                      R$ {totalApprovedDeposits.toLocaleString('pt-BR')}
-                    </p>
-                  </div>
-                  <div className="bg-slate-950 p-3.5 rounded-2xl border border-rose-500/30">
-                    <p className="text-[10px] text-rose-400 font-bold uppercase">TOTAL SAQUES PAGOS</p>
-                    <p className="text-base font-black text-rose-400 font-mono mt-1">
-                      R$ {totalApprovedWithdrawals.toLocaleString('pt-BR')}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800">
-                    <p className="text-[9px] text-slate-400">VOLUME APOSTADO</p>
-                    <p className="text-xs font-black text-slate-200 font-mono mt-1">
-                      R$ {houseStats.totalBets.toLocaleString('pt-BR')}
-                    </p>
-                  </div>
-                  <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800">
-                    <p className="text-[9px] text-slate-400">PRÊMIOS PAGOS</p>
-                    <p className="text-xs font-black text-amber-400 font-mono mt-1">
-                      R$ {houseStats.totalPayouts.toLocaleString('pt-BR')}
-                    </p>
-                  </div>
-                  <div className="bg-slate-950 p-3 rounded-2xl border border-amber-500/30">
-                    <p className="text-[9px] text-amber-400">LUCRO DA CASA</p>
-                    <p className="text-xs font-black text-emerald-400 font-mono mt-1">
-                      R$ {(houseStats.totalBets - houseStats.totalPayouts).toLocaleString('pt-BR')}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-          </div>
-        </div>
-      )}
-
-      <footer className="w-full text-center py-3 text-[10px] text-slate-600 border-t border-slate-900/80 backdrop-blur-md">
-        Cassino Diplomático © 2026 - Todos os direitos reservados.
-      </footer>
-    </div>
-  );
-}
-
-const rootElement = document.getElementById('root');
-if (rootElement) {
-  const root = ReactDOM.createRoot(rootElement);
-  root.render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>
-  );
-            }
+                      R$ {totalApprovedDeposits.toLocaleS
