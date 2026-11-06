@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { 
   Shield, Coins, Sparkles, User, Settings, LogOut, 
   ArrowUpRight, ArrowDownRight, Wallet, CheckCircle2, XCircle, Clock,
-  Users, Key, Search, Activity, DollarSign, Lock, RefreshCw, Zap, UserPlus, Globe
+  Users, Key, Search, Activity, DollarSign, Lock, RefreshCw, Zap, UserPlus, Trash2, Flame
 } from 'lucide-react';
 
 const SYMBOLS = [
@@ -14,7 +14,7 @@ const SYMBOLS = [
   { id: 'brasil', char: '🇧🇷', name: 'Brasil', mult: 5, weight: 20 },
   { id: 'costarica', char: '🇨🇷', name: 'Costa Rica', mult: 6, weight: 15 },
   { id: 'mundo', char: '🌎', name: 'Mundo', mult: 8, weight: 10 },
-  { id: 'diamante', char: '💎', name: 'Diamante', mult: 10, weight: 5, isWild: true }
+  { id: 'diamante', char: '💎', name: 'Diamante VIP', mult: 12, weight: 5, isWild: true }
 ];
 
 const BET_LEVELS = [30000, 60000, 100000, 300000, 500000, 1000000, 3000000, 5000000];
@@ -34,23 +34,24 @@ const MULTIPLIER_WHEEL = [
   { mult: 5, weight: 25 },
   { mult: 6, weight: 15 },
   { mult: 8, weight: 8 },
-  { mult: 10, weight: 2 }
+  { mult: 10, weight: 4 },
+  { mult: 15, weight: 1 }
 ];
 
 function App() {
   const [usersDB, setUsersDB] = useState(() => {
     const saved = localStorage.getItem('cd_users_db');
     return saved ? JSON.parse(saved) : {
-      'LVelasques': { username: 'LVelasques', password: 'Lucas123!', balance: 10000000, isAdmin: true }
+      'LVelasques': { username: 'LVelasques', password: 'Lucas123!', balance: 10000000, isAdmin: true, totalDeposited: 10000000, totalWon: 0 }
     };
   });
 
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('cd_current_user');
-    return saved ? JSON.parse(saved) : { username: 'Visitante', balance: 0, isAdmin: false };
+    return saved ? JSON.parse(saved) : { username: 'Visitante', balance: 0, isAdmin: false, totalDeposited: 0, totalWon: 0 };
   });
 
-  const [onlineCount, setOnlineCount] = useState(148);
+  const [onlineCount, setOnlineCount] = useState(165);
   useEffect(() => {
     const interval = setInterval(() => {
       setOnlineCount(prev => prev + Math.floor(Math.random() * 5) - 2);
@@ -75,6 +76,7 @@ function App() {
   const [showBonus, setShowBonus] = useState(false);
   const [bonusMult, setBonusMult] = useState(0);
   const [spinningBonus, setSpinningBonus] = useState(false);
+  const [showFireworks, setShowFireworks] = useState(false);
 
   const [transactions, setTransactions] = useState(() => {
     const saved = localStorage.getItem('cd_transactions');
@@ -94,7 +96,7 @@ function App() {
 
   const [houseStats, setHouseStats] = useState(() => {
     const saved = localStorage.getItem('cd_house_stats');
-    return saved ? JSON.parse(saved) : { totalBets: 85000000, totalPayouts: 34000000 };
+    return saved ? JSON.parse(saved) : { totalBets: 120000000, totalPayouts: 48000000 };
   });
 
   useEffect(() => { localStorage.setItem('cd_users_db', JSON.stringify(usersDB)); }, [usersDB]);
@@ -121,7 +123,9 @@ function App() {
         username: cleanNick,
         password: loginPassword,
         balance: isAdmin ? 10000000 : 0,
-        isAdmin
+        isAdmin,
+        totalDeposited: 0,
+        totalWon: 0
       };
       setUsersDB(prev => ({ ...prev, [cleanNick]: currentUserData }));
     } else {
@@ -147,11 +151,13 @@ function App() {
       username: cleanNick,
       password: createPassInput || '123456',
       balance: initialBal,
-      isAdmin: false
+      isAdmin: false,
+      totalDeposited: initialBal,
+      totalWon: 0
     };
 
     setUsersDB(prev => ({ ...prev, [cleanNick]: newUserObj }));
-    alert(`Conta do jogador @${cleanNick} criada com sucesso com R$ ${initialBal.toLocaleString('pt-BR')} de saldo!`);
+    alert(`Conta do jogador @${cleanNick} criada com sucesso!`);
     
     setCreateNickInput('');
     setCreatePassInput('');
@@ -159,10 +165,48 @@ function App() {
     setShowAddUserForm(false);
   };
 
-  const getRtpTarget = (bet) => {
-    if (bet <= 60000) return 0.50;
-    if (bet <= 500000) return 0.35;
-    return 0.20;
+  const handleDeleteUser = (usernameToDelete) => {
+    if (usernameToDelete === 'LVelasques') {
+      alert('Não podes apagar a conta do Admin Master!');
+      return;
+    }
+    if (confirm(`Tens a certeza que pretendes eliminar o utilizador @${usernameToDelete}?`)) {
+      setUsersDB(prev => {
+        const copy = { ...prev };
+        delete copy[usernameToDelete];
+        return copy;
+      });
+      if (user.username === usernameToDelete) {
+        setUser({ username: 'Visitante', balance: 0, isAdmin: false, totalDeposited: 0, totalWon: 0 });
+      }
+    }
+  };
+
+  const handleResetReports = () => {
+    if (confirm('Queres zerar todos os relatórios de entradas, saídas e estatísticas da casa?')) {
+      setHouseStats({ totalBets: 0, totalPayouts: 0 });
+      setTransactions([]);
+      alert('Relatórios financeiros zerados com sucesso!');
+    }
+  };
+
+  const getDynamicRtp = (currentUser, currentBal) => {
+    const deposited = currentUser.totalDeposited || 1;
+    const wonRatio = currentUser.totalWon / deposited;
+
+    if (wonRatio >= 0.40) {
+      return 0.15; 
+    }
+
+    if (currentBal >= 500000 || currentBet >= 500000) {
+      return 0.25;
+    }
+
+    if (currentBal < 50000 && currentBal > 0) {
+      return 0.75; 
+    }
+
+    return 0.45;
   };
 
   const getRandomSymbol = () => {
@@ -174,11 +218,10 @@ function App() {
     }
     return SYMBOLS[0].char;
   };
-
-  const spin = () => {
+    const spin = () => {
     if (spinning) return;
     if (user.balance < currentBet) {
-      alert('Saldo insuficiente! Faça um depósito para jogar.');
+      alert('Saldo insuficiente! Faça um depósito para continuar.');
       setWalletTab('deposit');
       setShowWalletModal(true);
       return;
@@ -196,7 +239,7 @@ function App() {
     setActivePaylines([]);
     setLastWin(0);
 
-    const rtpTarget = getRtpTarget(currentBet);
+    const rtpTarget = getDynamicRtp(user, updatedBalance);
     const forceWin = Math.random() < rtpTarget;
 
     let finalGrid = [];
@@ -205,21 +248,25 @@ function App() {
     let hasBonus = false;
 
     if (forceWin) {
-      const lowTierSymbols = SYMBOLS.filter(s => s.mult <= 4);
-      const winningSymbol = lowTierSymbols[Math.floor(Math.random() * lowTierSymbols.length)];
+      const isLowMoney = updatedBalance < 50000;
+      const allowedSymbols = isLowMoney 
+        ? SYMBOLS.filter(s => s.mult <= 2) 
+        : SYMBOLS.filter(s => s.mult <= 5);
+
+      const winningSymbol = allowedSymbols[Math.floor(Math.random() * allowedSymbols.length)];
       const targetLine = PAYLINES[Math.floor(Math.random() * PAYLINES.length)];
 
       finalGrid = Array(9).fill(null).map(() => getRandomSymbol());
       targetLine.coords.forEach(idx => { finalGrid[idx] = winningSymbol.char; });
 
-      if (Math.random() < 0.04) {
+      if (Math.random() < 0.05) {
         const bonusLine = PAYLINES[Math.floor(Math.random() * PAYLINES.length)];
         bonusLine.coords.forEach(idx => { finalGrid[idx] = '💎'; });
         hasBonus = true;
       }
     } else {
       finalGrid = Array(9).fill(null).map(() => getRandomSymbol());
-      if (Math.random() < 0.65) {
+      if (Math.random() < 0.50) {
         const targetLine = PAYLINES[Math.floor(Math.random() * PAYLINES.length)];
         const nearSym = getRandomSymbol();
         finalGrid[targetLine.coords[0]] = nearSym;
@@ -234,7 +281,7 @@ function App() {
       if (isBonusMatch) {
         hasBonus = true;
         winLines.push(line);
-        totalMultiplier += 10;
+        totalMultiplier += 12;
         return;
       }
 
@@ -262,30 +309,35 @@ function App() {
         if (winLines.length > 0) {
           const totalWin = currentBet * totalMultiplier;
           const winBalance = updatedBalance + totalWin;
+          const wonAdded = (user.totalWon || 0) + totalWin;
 
           setActivePaylines(winLines);
           setLastWin(totalWin);
-          setUser(prev => ({ ...prev, balance: winBalance }));
+          setUser(prev => ({ ...prev, balance: winBalance, totalWon: wonAdded }));
           setUsersDB(prev => ({
             ...prev,
-            [user.username]: { ...prev[user.username], balance: winBalance }
+            [user.username]: { ...prev[user.username], balance: winBalance, totalWon: wonAdded }
           }));
           setHouseStats(prev => ({ ...prev, totalPayouts: prev.totalPayouts + totalWin }));
         }
 
         if (hasBonus) {
-          setTimeout(() => { setShowBonus(true); setBonusMult(0); }, 500);
+          setTimeout(() => { 
+            setShowBonus(true); 
+            setBonusMult(0); 
+            setShowFireworks(true);
+          }, 500);
         }
       }
     }, 70);
   };
-    const spinBonusWheel = () => {
+        const spinBonusWheel = () => {
     if (spinningBonus) return;
     setSpinningBonus(true);
 
     const totalWeight = MULTIPLIER_WHEEL.reduce((acc, m) => acc + m.weight, 0);
     let rnd = Math.random() * totalWeight;
-    let selectedMult = 2;
+    let selectedMult = 3;
     for (let item of MULTIPLIER_WHEEL) {
       if (rnd < item.weight) {
         selectedMult = item.mult;
@@ -299,11 +351,12 @@ function App() {
       setSpinningBonus(false);
       const bonusPrize = currentBet * selectedMult;
       const newBal = user.balance + bonusPrize;
+      const wonAdded = (user.totalWon || 0) + bonusPrize;
 
-      setUser(prev => ({ ...prev, balance: newBal }));
+      setUser(prev => ({ ...prev, balance: newBal, totalWon: wonAdded }));
       setUsersDB(prev => ({
         ...prev,
-        [user.username]: { ...prev[user.username], balance: newBal }
+        [user.username]: { ...prev[user.username], balance: newBal, totalWon: wonAdded }
       }));
       setHouseStats(prev => ({ ...prev, totalPayouts: prev.totalPayouts + bonusPrize }));
     }, 1800);
@@ -340,8 +393,8 @@ function App() {
     setTransactionAmount('');
     setShowWalletModal(false);
     alert(walletTab === 'deposit' 
-      ? 'Depósito solicitado! Aguarde aprovação do Admin.' 
-      : 'Saque solicitado! O valor foi congelado da conta até à aprovação do Admin.'
+      ? 'Depósito solicitado! Aguarde a aprovação do Administrador.' 
+      : 'Saque solicitado com sucesso! O valor foi debitado e aguarda validação.'
     );
   };
 
@@ -352,9 +405,10 @@ function App() {
       setUsersDB(prev => {
         const u = prev[tx.username];
         const currentBal = u ? u.balance : 0;
+        const depAdded = (u?.totalDeposited || 0) + tx.amount;
         return {
           ...prev,
-          [tx.username]: { ...u, balance: currentBal + tx.amount }
+          [tx.username]: { ...u, balance: currentBal + tx.amount, totalDeposited: depAdded }
         };
       });
     }
@@ -405,24 +459,25 @@ function App() {
     .filter(t => t.type === 'withdraw' && t.status === 'approved')
     .reduce((acc, t) => acc + t.amount, 0);
 
-  return (
-    <div className="min-h-screen bg-[#030712] text-slate-100 flex flex-col items-center justify-between font-sans relative overflow-x-hidden selection:bg-amber-500 selection:text-slate-950">
+  const hasPendingTransactions = transactions.some(t => t.status === 'pending');
+    return (
+    <div className="min-h-screen bg-[#020617] text-slate-100 flex flex-col items-center justify-between font-sans relative overflow-x-hidden selection:bg-amber-500 selection:text-slate-950">
       
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-gradient-to-b from-amber-500/15 via-cyan-500/10 to-transparent blur-3xl pointer-events-none z-0" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-gradient-to-b from-amber-500/20 via-cyan-500/10 to-transparent blur-[120px] pointer-events-none z-0" />
 
-      <header className="w-full max-w-md bg-slate-900/80 border-b border-amber-500/30 p-3 flex items-center justify-between backdrop-blur-xl sticky top-0 z-40 shadow-xl shadow-amber-500/5">
+      <header className="w-full max-w-md bg-slate-900/90 border-b border-amber-500/40 p-3 flex items-center justify-between backdrop-blur-2xl sticky top-0 z-40 shadow-2xl shadow-amber-500/10">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-500 via-amber-300 to-cyan-400 p-0.5 shadow-lg shadow-amber-500/30 animate-pulse">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-500 via-yellow-300 to-cyan-400 p-0.5 shadow-xl shadow-amber-500/30 animate-pulse">
             <div className="w-full h-full bg-slate-950 rounded-full flex items-center justify-center">
               <Zap className="w-4 h-4 text-amber-400 fill-amber-400" />
             </div>
           </div>
           <div>
-            <h1 className="text-sm font-black tracking-wider bg-gradient-to-r from-amber-200 via-amber-400 to-cyan-400 bg-clip-text text-transparent">
+            <h1 className="text-sm font-black tracking-wider bg-gradient-to-r from-amber-200 via-amber-400 to-cyan-300 bg-clip-text text-transparent">
               CASSINO DIPLOMÁTICO
             </h1>
             <div className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
               <p className="text-[9px] text-emerald-400 font-bold tracking-widest uppercase flex items-center gap-1">
                 <span>{onlineCount} ONLINE</span>
               </p>
@@ -434,10 +489,13 @@ function App() {
           {user.isAdmin && (
             <button 
               onClick={() => setShowAdminPanel(true)}
-              className="p-2 bg-amber-500/10 border border-amber-500/50 rounded-xl text-amber-400 hover:bg-amber-500/20 transition-all flex items-center gap-1 text-xs font-bold shadow-lg shadow-amber-500/10"
+              className="relative p-2.5 bg-amber-500/15 border border-amber-500/60 rounded-xl text-amber-400 hover:bg-amber-500/25 transition-all flex items-center gap-1 text-xs font-bold shadow-lg shadow-amber-500/20"
             >
               <Shield className="w-4 h-4" />
               <span className="hidden sm:inline">Admin</span>
+              {hasPendingTransactions && (
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-slate-900 animate-bounce" title="Novos pedidos pendentes!" />
+              )}
             </button>
           )}
 
@@ -450,7 +508,7 @@ function App() {
 
           <button 
             onClick={() => setShowWalletModal(true)}
-            className="bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-black hover:brightness-110 transition-all shadow-lg shadow-amber-500/20 flex items-center gap-1"
+            className="bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-black hover:brightness-110 transition-all shadow-lg shadow-amber-500/30 flex items-center gap-1"
           >
             <Wallet className="w-3.5 h-3.5" />
             <span>Carteira</span>
@@ -459,7 +517,8 @@ function App() {
       </header>
 
       <main className="w-full max-w-md p-4 flex flex-col items-center gap-3 my-auto z-10">
-        <div className="w-full bg-slate-900/60 border border-slate-800/80 rounded-2xl p-2.5 flex items-center justify-between text-xs backdrop-blur-md">
+        
+        <div className="w-full bg-slate-900/70 border border-slate-800/90 rounded-2xl p-2.5 flex items-center justify-between text-xs backdrop-blur-md">
           <div className="flex items-center gap-2">
             <User className="w-4 h-4 text-amber-400" />
             <span className="text-slate-300">Utilizador: <strong className="text-amber-300 font-bold">@{user.username}</strong></span>
@@ -473,7 +532,8 @@ function App() {
           </button>
         </div>
 
-        <div className="relative w-full aspect-square bg-slate-950/90 rounded-3xl border-2 border-amber-500/40 p-3.5 flex flex-col justify-between shadow-2xl shadow-amber-500/10 overflow-hidden backdrop-blur-md">
+        <div className="relative w-full aspect-square bg-slate-950/95 rounded-3xl border-2 border-amber-500/50 p-4 flex flex-col justify-between shadow-2xl shadow-amber-500/20 overflow-hidden backdrop-blur-xl">
+          
           <svg className="absolute inset-0 w-full h-full pointer-events-none z-20">
             {activePaylines.map(line => (
               <line
@@ -490,12 +550,12 @@ function App() {
             ))}
           </svg>
 
-          <div className="grid grid-cols-3 gap-2.5 w-full h-full z-10">
+          <div className="grid grid-cols-3 gap-3 w-full h-full z-10">
             {grid.map((char, i) => (
               <div 
                 key={i}
-                className={`bg-gradient-to-b from-slate-900 to-slate-950 border border-amber-500/20 rounded-2xl flex items-center justify-center text-4xl sm:text-5xl shadow-inner transition-transform ${
-                  spinning ? 'scale-95 opacity-80 blur-[1px]' : 'scale-100 opacity-100'
+                className={`bg-gradient-to-b from-slate-900 via-slate-950 to-slate-950 border border-amber-500/30 rounded-2xl flex items-center justify-center text-5xl sm:text-6xl shadow-inner transition-transform duration-100 ${
+                  spinning ? 'scale-90 opacity-75 blur-[2px]' : 'scale-100 opacity-100 shadow-amber-500/10'
                 }`}
               >
                 {char}
@@ -504,16 +564,16 @@ function App() {
           </div>
 
           {lastWin > 0 && (
-            <div className="absolute inset-x-4 bottom-4 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-slate-950 font-black py-2.5 rounded-2xl text-center text-sm shadow-2xl shadow-amber-500/50 animate-bounce z-30 tracking-wider">
-              GANHOU R$ {lastWin.toLocaleString('pt-BR')}! 🎉
+            <div className="absolute inset-x-4 bottom-4 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 font-black py-3 rounded-2xl text-center text-sm shadow-2xl shadow-amber-500/60 animate-bounce z-30 tracking-wider">
+              PRÊMIO INCRÍVEL: R$ {lastWin.toLocaleString('pt-BR')}! 🚀
             </div>
           )}
         </div>
 
-        <div className="w-full bg-slate-900/80 border border-slate-800 rounded-2xl p-3.5 flex flex-col gap-3 backdrop-blur-md">
+        <div className="w-full bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 flex flex-col gap-3 backdrop-blur-md shadow-xl">
           <div className="flex items-center justify-between text-xs text-slate-400 font-bold">
             <span className="tracking-wider">VALOR DA APOSTA</span>
-            <span className="text-amber-400 font-mono text-sm">
+            <span className="text-amber-400 font-mono text-sm font-black">
               R$ {currentBet.toLocaleString('pt-BR')}
             </span>
           </div>
@@ -525,7 +585,7 @@ function App() {
                 onClick={() => setBetIndex(idx)}
                 className={`py-2 rounded-xl text-xs font-black transition-all border ${
                   betIndex === idx
-                    ? 'bg-amber-500 border-amber-400 text-slate-950 shadow-lg shadow-amber-500/30 scale-105'
+                    ? 'bg-amber-500 border-amber-300 text-slate-950 shadow-lg shadow-amber-500/40 scale-105'
                     : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:border-amber-500/40'
                 }`}
               >
@@ -537,44 +597,54 @@ function App() {
           <button
             onClick={spin}
             disabled={spinning}
-            className={`w-full py-3.5 rounded-2xl font-black text-base tracking-wider transition-all shadow-2xl ${
+            className={`w-full py-4 rounded-2xl font-black text-base tracking-wider transition-all shadow-2xl ${
               spinning 
                 ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
-                : 'bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-slate-950 hover:brightness-110 active:scale-98 shadow-amber-500/30'
+                : 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-600 text-slate-950 hover:brightness-110 active:scale-98 shadow-amber-500/40'
             }`}
           >
             {spinning ? 'GIRANDO...' : 'GIRAR AGORA'}
           </button>
         </div>
       </main>
-              {showBonus && (
-        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-slate-900 border-2 border-amber-500/60 rounded-3xl p-6 text-center flex flex-col items-center gap-4 shadow-2xl shadow-amber-500/20">
-            <h2 className="text-lg font-black text-amber-400 tracking-wider">
-              BÔNUS FORTUNA DIPLOMÁTICA 💎
-            </h2>
-            <p className="text-xs text-slate-400">
-              Gira a roleta de multiplicadores para aumentar os teus ganhos!
+            {showBonus && (
+        <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-slate-900 border-2 border-amber-500/80 rounded-3xl p-6 text-center flex flex-col items-center gap-4 shadow-2xl shadow-amber-500/40 relative overflow-hidden">
+            
+            {showFireworks && (
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                <div className="w-72 h-72 bg-gradient-to-tr from-amber-500/30 via-yellow-400/40 to-cyan-500/30 rounded-full blur-2xl animate-ping" />
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 text-amber-400">
+              <Flame className="w-6 h-6 animate-bounce text-amber-400" />
+              <h2 className="text-lg font-black tracking-wider">
+                SUPER BÔNUS DIPLOMÁTICO 💎
+              </h2>
+            </div>
+            <p className="text-xs text-slate-300">
+              Gira a roleta de multiplicadores especiais e fatura um prêmio monumental!
             </p>
 
-            <div className="w-28 h-28 rounded-full border-4 border-amber-500 flex items-center justify-center bg-slate-950 text-3xl font-black text-amber-300 shadow-xl shadow-amber-500/20">
-              {bonusMult > 0 ? `${bonusMult}x` : '?'}
+            <div className="w-32 h-32 rounded-full border-4 border-amber-400 flex items-center justify-center bg-slate-950 text-4xl font-black text-amber-300 shadow-2xl shadow-amber-500/30">
+              {bonusMult > 0 ? `${bonusMult}x` : '🎰'}
             </div>
 
             <button
               onClick={spinBonusWheel}
               disabled={spinningBonus || bonusMult > 0}
-              className="w-full py-3 bg-amber-500 text-slate-950 font-black rounded-xl hover:brightness-110 disabled:opacity-50 text-sm"
+              className="w-full py-3.5 bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-black rounded-xl hover:brightness-110 disabled:opacity-50 text-sm shadow-xl shadow-amber-500/30"
             >
-              {spinningBonus ? 'SORTEANDO...' : bonusMult > 0 ? 'PRÊMIO CREDITADO!' : 'SORTEAR MULTIPLICADOR'}
+              {spinningBonus ? 'SORTEANDO PRÊMIO...' : bonusMult > 0 ? 'PRÊMIO RESGATADO!' : 'GIRAR ROLETA DE BÔNUS'}
             </button>
 
             {bonusMult > 0 && (
               <button 
-                onClick={() => setShowBonus(false)}
-                className="text-xs text-slate-400 underline mt-1"
+                onClick={() => { setShowBonus(false); setShowFireworks(false); }}
+                className="text-xs text-amber-300 font-bold underline mt-2"
               >
-                Voltar ao Jogo
+                Continuar a Jogar
               </button>
             )}
           </div>
@@ -655,7 +725,7 @@ function App() {
                 required
                 value={loginUsername}
                 onChange={e => setLoginUsername(e.target.value)}
-                placeholder="Ex: SeuNome"
+                placeholder="Ex: TeuNome"
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm mt-1 focus:border-amber-500 outline-none"
               />
             </div>
@@ -680,22 +750,21 @@ function App() {
                 Fechar
               </button>
               <button type="submit" className="w-2/3 py-2.5 bg-amber-500 text-slate-950 font-black rounded-xl text-xs">
-                Entrar / Criar
+                Entrar / Criar Conta
               </button>
             </div>
           </form>
         </div>
       )}
-
-      {showAdminPanel && user.isAdmin && (
-        <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-50 p-4 overflow-y-auto">
-          <div className="max-w-2xl mx-auto bg-slate-900 border border-amber-500/40 rounded-3xl p-5 flex flex-col gap-5 my-4 shadow-2xl">
+            {showAdminPanel && user.isAdmin && (
+        <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl z-50 p-4 overflow-y-auto">
+          <div className="max-w-2xl mx-auto bg-slate-900 border border-amber-500/50 rounded-3xl p-5 flex flex-col gap-5 my-4 shadow-2xl">
             
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <Shield className="w-5 h-5 text-amber-400" />
                 <h2 className="text-sm font-black text-amber-400">
-                  PAINEL MASTER (@LVelasques)
+                  PAINEL MASTER GESTÃO (@LVelasques)
                 </h2>
               </div>
               <button onClick={() => setShowAdminPanel(false)} className="text-slate-400 hover:text-white text-sm font-bold">
@@ -706,11 +775,14 @@ function App() {
             <div className="flex gap-2 border-b border-slate-800 pb-3">
               <button 
                 onClick={() => setAdminTab('transactions')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                className={`relative px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
                   adminTab === 'transactions' ? 'bg-amber-500 text-slate-950' : 'bg-slate-950 text-slate-400'
                 }`}
               >
-                Fila de Transações
+                Fila Transações
+                {hasPendingTransactions && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping" />
+                )}
               </button>
               <button 
                 onClick={() => setAdminTab('users')}
@@ -718,7 +790,7 @@ function App() {
                   adminTab === 'users' ? 'bg-amber-500 text-slate-950' : 'bg-slate-950 text-slate-400'
                 }`}
               >
-                Utilizadores & Senhas
+                Jogadores & Contas
               </button>
               <button 
                 onClick={() => setAdminTab('reports')}
@@ -726,14 +798,14 @@ function App() {
                   adminTab === 'reports' ? 'bg-amber-500 text-slate-950' : 'bg-slate-950 text-slate-400'
                 }`}
               >
-                Relatório Financeiro
+                Relatórios & Lucro
               </button>
             </div>
 
             {adminTab === 'transactions' && (
               <div className="flex flex-col gap-3">
                 <h3 className="text-xs font-black text-slate-300 uppercase tracking-wider">
-                  SOLICITAÇÕES PENDENTES
+                  SOLICITAÇÕES DE DEPÓSITO E SAQUE
                 </h3>
                 <div className="flex flex-col gap-2 max-h-64 overflow-y-auto pr-1">
                   {transactions.length === 0 ? (
@@ -798,15 +870,16 @@ function App() {
                 </div>
               </div>
             )}
-                            {adminTab === 'users' && (
+
+            {adminTab === 'users' && (
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-black text-slate-300 uppercase tracking-wider">
-                    UTILIZADORES REGISTADOS ({Object.keys(usersDB).length})
+                    JOGADORES REGISTRADOS ({Object.keys(usersDB).length})
                   </h3>
                   <button 
                     onClick={() => setShowAddUserForm(!showAddUserForm)}
-                    className="bg-amber-500 text-slate-950 px-3 py-1.5 rounded-xl font-black text-xs hover:brightness-110 flex items-center gap-1"
+                    className="bg-amber-500 text-slate-950 px-3 py-1.5 rounded-xl font-black text-xs hover:brightness-110 flex items-center gap-1 shadow-lg"
                   >
                     <UserPlus className="w-4 h-4" />
                     <span>+ Criar Jogador</span>
@@ -815,14 +888,14 @@ function App() {
 
                 {showAddUserForm && (
                   <form onSubmit={handleAdminCreateUser} className="bg-slate-950 p-4 rounded-2xl border border-amber-500/40 flex flex-col gap-3">
-                    <h4 className="text-xs font-black text-amber-400">CRIAR CONTA DE JOGADOR</h4>
+                    <h4 className="text-xs font-black text-amber-400">CRIAR CONTA PARA JOGADOR</h4>
                     <div className="grid grid-cols-3 gap-2">
                       <div>
-                        <label className="text-[10px] text-slate-400">Nick / Usuário</label>
+                        <label className="text-[10px] text-slate-400">Nick</label>
                         <input 
                           type="text"
                           required
-                          placeholder="Ex: João"
+                          placeholder="Ex: Pedro"
                           value={createNickInput}
                           onChange={e => setCreateNickInput(e.target.value)}
                           className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2 text-xs mt-1 text-white"
@@ -840,7 +913,7 @@ function App() {
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] text-slate-400">Saldo Inicial (R$)</label>
+                        <label className="text-[10px] text-slate-400">Saldo Inicial</label>
                         <input 
                           type="number"
                           placeholder="Ex: 500000"
@@ -862,7 +935,7 @@ function App() {
                         type="submit"
                         className="px-4 py-1.5 bg-amber-500 text-slate-950 text-xs font-black rounded-xl"
                       >
-                        Salvar e Depositar
+                        Criar Conta
                       </button>
                     </div>
                   </form>
@@ -872,21 +945,32 @@ function App() {
                   {Object.values(usersDB).map(u => (
                     <div key={u.username} className="bg-slate-950 p-3 rounded-2xl border border-slate-800 flex items-center justify-between text-xs">
                       <div>
-                        <strong className="text-amber-300">@{u.username}</strong>
+                        <strong className="text-amber-300">@{u.username} {u.isAdmin && '(Admin)'}</strong>
                         <p className="text-[10px] text-slate-400 font-mono mt-0.5">
                           Saldo: R$ {u.balance.toLocaleString('pt-BR')} | Senha: <span className="text-slate-200">{u.password}</span>
                         </p>
                       </div>
-                      <button
-                        onClick={() => {
-                          setSelectedUserToEdit(u);
-                          setNewPasswordInput(u.password);
-                          setNewBalanceInput(u.balance);
-                        }}
-                        className="bg-amber-500/20 border border-amber-500/40 text-amber-300 px-3 py-1 rounded-xl font-bold text-xs hover:bg-amber-500/30"
-                      >
-                        Editar
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => {
+                            setSelectedUserToEdit(u);
+                            setNewPasswordInput(u.password);
+                            setNewBalanceInput(u.balance);
+                          }}
+                          className="bg-amber-500/20 border border-amber-500/40 text-amber-300 px-2.5 py-1 rounded-xl font-bold text-xs hover:bg-amber-500/30"
+                        >
+                          Editar
+                        </button>
+                        {!u.isAdmin && (
+                          <button
+                            onClick={() => handleDeleteUser(u.username)}
+                            className="bg-rose-500/20 border border-rose-500/40 text-rose-400 p-1.5 rounded-xl hover:bg-rose-500/30"
+                            title="Excluir Jogador"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -907,7 +991,7 @@ function App() {
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] text-slate-400">Alterar Saldo (R$)</label>
+                        <label className="text-[10px] text-slate-400">Novo Saldo (R$)</label>
                         <input 
                           type="number"
                           value={newBalanceInput}
@@ -937,6 +1021,19 @@ function App() {
 
             {adminTab === 'reports' && (
               <div className="flex flex-col gap-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-xs font-black text-slate-300 uppercase tracking-wider">
+                    ESTATÍSTICAS FINANCEIRAS
+                  </h3>
+                  <button 
+                    onClick={handleResetReports}
+                    className="bg-rose-500/20 border border-rose-500/40 text-rose-400 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-rose-500/30 flex items-center gap-1"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Zerar Relatório</span>
+                  </button>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-slate-950 p-3.5 rounded-2xl border border-emerald-500/30">
                     <p className="text-[10px] text-emerald-400 font-bold uppercase">TOTAL DEPÓSITOS APROVADOS</p>
