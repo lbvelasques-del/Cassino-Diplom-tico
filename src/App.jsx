@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 
 function App() {
-  // === ESTADOS DO JOGO E CONTAS ===
   const [currentUser, setCurrentUser] = useState(null);
   const [balance, setBalance] = useState(0);
   
@@ -13,7 +12,7 @@ function App() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
-  // Estados Admin (Agora a usar a ID)
+  // Painel Admin (Com suporte a ID e Exclusão)
   const [usersDb, setUsersDb] = useState([]);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [adminTargetId, setAdminTargetId] = useState('');
@@ -24,21 +23,34 @@ function App() {
   const [withdrawSuccess, setWithdrawSuccess] = useState(false);
   const [withdrawalRequests, setWithdrawalRequests] = useState([]);
 
-  // === ESTADOS E IMAGENS DA ROLETA ===
-  // Substitui o "img" pelo caminho das tuas imagens reais se forem diferentes
+  // Símbolos oficiais com os pagamentos que definiste (Estilo Fortune Tiger)
   const symbols = [
-    { name: 'sino', img: '/sino.png', fallback: '🔔' },
-    { name: 'cereja', img: '/cereja.png', fallback: '🍒' },
-    { name: 'diamante', img: '/diamante.png', fallback: '💎' },
-    { name: 'limao', img: '/limao.png', fallback: '🍋' },
-    { name: 'sete', img: '/sete.png', fallback: '7️⃣' }
+    { id: 'elks', name: 'Alce', icon: '🫎', multiplier: 0.5 },
+    { id: 'pot', name: 'Alquimia', icon: '⚗️', multiplier: 0.8 },
+    { id: 'oil', name: 'Barril', icon: '🛢️', multiplier: 1.0 },
+    { id: 'coin', name: 'Moeda', icon: '🪙', multiplier: 1.5 },
+    { id: 'br', name: 'Brasil', icon: '🇧🇷', multiplier: 2.0 },
+    { id: 'world', name: 'Mundo', icon: '🌎', multiplier: 2.5 },
+    { id: 'cr', name: 'Costa Rica', icon: '🇨🇷', multiplier: 3.0 },
+    { id: 'diamond', name: 'Diamante', icon: '💎', bonusOnly: true } // Diamante ativa Bônus
   ];
-  
-  const [slots, setSlots] = useState([symbols[0], symbols[0], symbols[4]]);
-  const [isSpinning, setIsSpinning] = useState(false);
-  const [spinMessage, setSpinMessage] = useState('');
 
-  // === LIGAÇÃO AO SUPABASE ===
+  // Grelha 3x3 estilo Fortune Tiger
+  const [grid, setGrid] = useState([
+    [symbols[0], symbols[1], symbols[2]],
+    [symbols[3], symbols[4], symbols[5]],
+    [symbols[6], symbols[0], symbols[1]]
+  ]);
+  
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [gameMessage, setGameMessage] = useState('Faça a sua aposta e gire!');
+  const [betAmount, setBetAmount] = useState(100); // Aposta padrão
+  
+  // Estado do Bônus (Roleta de 1x a 10x)
+  const [bonusActive, setBonusActive] = useState(false);
+  const [bonusMultiplier, setBonusMultiplier] = useState(null);
+  const [isBonusSpinning, setIsBonusSpinning] = useState(false);
+
   const fetchUsers = async () => {
     const { data, error } = await supabase.from('users').select('*').order('id', { ascending: true });
     if (!error && data) setUsersDb(data);
@@ -83,8 +95,7 @@ function App() {
       setCurrentUser(data[0]); setBalance(Number(data[0].balance));
       setIsAuthOpen(false); resetAuthForm(); await fetchUsers();
     }
-  };// Função de Admin: Atualizar saldo por ID
-  const handleAdminBalanceUpdate = async (e, action) => {
+  };const handleAdminBalanceUpdate = async (e, action) => {
     e.preventDefault();
     const amount = Number(adminDepositAmount);
     if (!adminTargetId || amount <= 0) return;
@@ -106,9 +117,8 @@ function App() {
     }
   };
 
-  // Função de Admin: Excluir Conta
   const handleDeleteUser = async (id, username) => {
-    const confirmar = window.confirm(`ATENÇÃO! Tens a certeza que queres EXCLUIR a conta de ${username} (ID: ${id}) para sempre?`);
+    const confirmar = window.confirm(`ATENÇÃO! Queres EXCLUIR a conta de ${username} (ID: ${id}) para sempre?`);
     if (!confirmar) return;
 
     const { error } = await supabase.from('users').delete().eq('id', id);
@@ -128,57 +138,108 @@ function App() {
     setWithdrawSuccess(true); setTimeout(() => setWithdrawSuccess(false), 3000); setWithdrawAmount('');
   };
 
-  // === LÓGICA DA ROLETA (AGORA COM IMAGENS) ===
+  // Motor do Jogo Estilo Fortune Tiger
   const handleSpin = async () => {
     if (!currentUser) return alert("Faz login para jogar!");
-    const betAmount = 500;
-    if (balance < betAmount) return setSpinMessage("Saldo insuficiente! Custa R$ 500.");
+    if (balance < betAmount) return setGameMessage("Saldo insuficiente para esta aposta!");
 
-    setIsSpinning(true); setSpinMessage("A girar...");
+    setIsSpinning(true);
+    setGameMessage("A girar os cilindros...");
 
     const newBalance = balance - betAmount;
-    setBalance(newBalance); setCurrentUser({...currentUser, balance: newBalance});
+    setBalance(newBalance);
+    setCurrentUser({...currentUser, balance: newBalance});
     await supabase.from('users').update({ balance: newBalance }).eq('id', currentUser.id);
 
     let counter = 0;
     const spinInterval = setInterval(() => {
-       setSlots([
-         symbols[Math.floor(Math.random() * symbols.length)],
-         symbols[Math.floor(Math.random() * symbols.length)],
-         symbols[Math.floor(Math.random() * symbols.length)]
-       ]);
-       counter++;
-       if(counter > 10) { clearInterval(spinInterval); finishSpin(newBalance); }
+      setGrid([
+        [symbols[Math.floor(Math.random() * symbols.length)], symbols[Math.floor(Math.random() * symbols.length)], symbols[Math.floor(Math.random() * symbols.length)]],
+        [symbols[Math.floor(Math.random() * symbols.length)], symbols[Math.floor(Math.random() * symbols.length)], symbols[Math.floor(Math.random() * symbols.length)]],
+        [symbols[Math.floor(Math.random() * symbols.length)], symbols[Math.floor(Math.random() * symbols.length)], symbols[Math.floor(Math.random() * symbols.length)]]
+      ]);
+      counter++;
+      if (counter > 12) {
+        clearInterval(spinInterval);
+        evaluateSpin(newBalance);
+      }
+    }, 90);
+  };
+
+  const evaluateSpin = async (currentBalance) => {
+    // Gera resultado final 3x3
+    const finalGrid = [
+      [symbols[Math.floor(Math.random() * symbols.length)], symbols[Math.floor(Math.random() * symbols.length)], symbols[Math.floor(Math.random() * symbols.length)]],
+      [symbols[Math.floor(Math.random() * symbols.length)], symbols[Math.floor(Math.random() * symbols.length)], symbols[Math.floor(Math.random() * symbols.length)]],
+      [symbols[Math.floor(Math.random() * symbols.length)], symbols[Math.floor(Math.random() * symbols.length)], symbols[Math.floor(Math.random() * symbols.length)]]
+    ];
+    setGrid(finalGrid);
+    setIsSpinning(false);
+
+    // Verifica se saiu Diamante 💎 (Ativa Bônus)
+    let diamondCount = 0;
+    finalGrid.forEach(row => row.forEach(cell => {
+      if (cell.id === 'diamond') diamondCount++;
+    }));
+
+    if (diamondCount >= 2) {
+      setGameMessage("💎 DIAMANTE DETETADO! A ENTRAR NO MODO BÔNUS!");
+      setBonusActive(true);
+      return;
+    }
+
+    // Verifica Linhas Horizontais Pagantes (Estilo Tiger)
+    let totalWin = 0;
+    finalGrid.forEach(row => {
+      if (row[0].id === row[1].id && row[1].id === row[2].id && !row[0].bonusOnly) {
+        totalWin += betAmount * row[0].multiplier;
+      }
+    });
+
+    if (totalWin > 0) {
+      setGameMessage(`🎉 Vitória! Ganhaste R$ ${totalWin.toLocaleString('pt-BR')}!`);
+      const finalBalance = currentBalance + totalWin;
+      setBalance(finalBalance);
+      setCurrentUser({...currentUser, balance: finalBalance});
+      await supabase.from('users').update({ balance: finalBalance }).eq('id', currentUser.id);
+      fetchUsers();
+    } else {
+      setGameMessage("Não foi desta vez. Tente novamente!");
+    }
+  };
+
+  // Roleta de Bônus (1x a 10x)
+  const spinBonusWheel = async () => {
+    setIsBonusSpinning(true);
+    let count = 0;
+    const wheelInterval = setInterval(() => {
+      const randomMult = Math.floor(Math.random() * 10) + 1;
+      setBonusMultiplier(randomMult);
+      count++;
+      if (count > 15) {
+        clearInterval(wheelInterval);
+        const finalMult = Math.floor(Math.random() * 10) + 1; // 1x a 10x
+        setBonusMultiplier(finalMult);
+        setIsBonusSpinning(false);
+        applyBonusReward(finalMult);
+      }
     }, 100);
   };
 
-  const finishSpin = async (currentBalance) => {
-    const result = [
-      symbols[Math.floor(Math.random() * symbols.length)],
-      symbols[Math.floor(Math.random() * symbols.length)],
-      symbols[Math.floor(Math.random() * symbols.length)]
-    ];
-    setSlots(result); setIsSpinning(false);
+  const applyBonusReward = async (mult) => {
+    const bonusPrize = betAmount * mult * 10; // Prémio escalado pelo bônus
+    setGameMessage(`🌟 BÔNUS CONCLUÍDO! Multiplicador ${mult}x! Prémio: R$ ${bonusPrize.toLocaleString('pt-BR')}`);
+    
+    const newBalance = balance + bonusPrize;
+    setBalance(newBalance);
+    setCurrentUser({...currentUser, balance: newBalance});
+    await supabase.from('users').update({ balance: newBalance }).eq('id', currentUser.id);
+    fetchUsers();
 
-    let winnings = 0;
-    if (result[0].name === result[1].name && result[1].name === result[2].name) {
-       if (result[0].name === 'sete') winnings = 50000;
-       else if (result[0].name === 'diamante') winnings = 20000;
-       else winnings = 5000;
-       setSpinMessage(`JACKPOT! Ganhaste R$ ${winnings.toLocaleString('pt-BR')}!`);
-    } else if (result[0].name === result[1].name || result[1].name === result[2].name || result[0].name === result[2].name) {
-       winnings = 1000;
-       setSpinMessage(`Boa! Ganhaste R$ ${winnings.toLocaleString('pt-BR')}!`);
-    } else {
-       setSpinMessage("Não foi desta vez...");
-    }
-
-    if (winnings > 0) {
-       const finalBalance = currentBalance + winnings;
-       setBalance(finalBalance); setCurrentUser({...currentUser, balance: finalBalance});
-       await supabase.from('users').update({ balance: finalBalance }).eq('id', currentUser.id);
-       fetchUsers();
-    }
+    setTimeout(() => {
+      setBonusActive(false);
+      setBonusMultiplier(null);
+    }, 4000);
   };return (
     <div className="min-h-screen bg-[#0b0b0e] text-white font-sans selection:bg-amber-500/30">
       <header className="bg-[#141418] border-b border-amber-500/20 px-6 py-4 flex justify-between items-center shadow-lg shadow-black/50">
@@ -195,64 +256,90 @@ function App() {
                 <p className="text-xs text-zinc-400 font-bold">{currentUser.username}</p>
                 <p className="text-sm text-amber-400 font-black">R$ {balance.toLocaleString('pt-BR')}</p>
               </div>
-              <button onClick={() => setIsUserPanelOpen(true)} className="w-10 h-10 bg-[#1a1a20] border border-amber-500/30 rounded-xl text-lg">👤</button>
-              {currentUser.is_admin && <button onClick={() => setIsAdminPanelOpen(true)} className="w-10 h-10 bg-amber-500 rounded-xl text-black text-lg">⚙️</button>}
+              <button onClick={() => setIsUserPanelOpen(true)} className="w-10 h-10 bg-[#1a1a20] border border-amber-500/30 rounded-xl text-lg flex items-center justify-center">👤</button>
+              {currentUser.is_admin && <button onClick={() => setIsAdminPanelOpen(true)} className="w-10 h-10 bg-amber-500 rounded-xl text-black text-lg flex items-center justify-center">⚙️</button>}
             </div>
           )}
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto p-6 mt-6">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-black text-white mb-2">Bem-vindo ao Cassino!</h2>
-          {!currentUser && <p className="text-zinc-400">Faça login para jogar e testar a sua sorte na Costa Rica.</p>}
+        <div className="text-center mb-6">
+          <h2 className="text-3xl font-black text-white mb-2">Cassino Estilo Tiger - Costa Rica</h2>
+          {!currentUser && <p className="text-zinc-400 text-sm">Faça login para jogar e testar a sua sorte.</p>}
         </div>
 
-        {/* CONTAINER DA ROLETA COM IMAGENS */}
-        <div className="bg-[#141418] border-2 border-amber-500 rounded-3xl p-8 max-w-2xl mx-auto text-center shadow-[0_0_50px_rgba(245,158,11,0.15)] mb-8">
-          <div className="flex justify-center items-center gap-4 mb-8">
-            {slots.map((slot, index) => (
-              <div key={index} className="w-24 h-24 md:w-32 md:h-32 bg-[#0b0b0e] border-2 border-zinc-700 rounded-2xl flex items-center justify-center overflow-hidden shadow-inner">
-                 <img 
-                   src={slot.img} 
-                   alt={slot.name} 
-                   className={`w-16 h-16 md:w-20 md:h-20 object-contain transition-transform ${isSpinning ? 'animate-pulse scale-110' : ''}`}
-                   onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }}
-                 />
-                 <span style={{ display: 'none' }} className={`text-5xl md:text-6xl ${isSpinning ? 'animate-bounce' : ''}`}>{slot.fallback}</span>
+        {/* MODO BÔNUS ATIVO (ROLETA 1x a 10x) */}
+        {bonusActive && (
+          <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="bg-[#141418] border-4 border-amber-500 w-full max-w-md rounded-3xl p-8 text-center shadow-[0_0_60px_rgba(245,158,11,0.4)]">
+              <h2 className="text-2xl font-black text-amber-400 mb-2">🎰 MODO BÔNUS ATIVADO!</h2>
+              <p className="text-xs text-zinc-400 mb-6">Gire a roleta de bônus para multiplicar o seu prêmio (1x a 10x)</p>
+              
+              <div className="w-36 h-36 mx-auto bg-[#0b0b0e] border-4 border-amber-400 rounded-full flex items-center justify-center text-4xl font-black text-amber-300 mb-8 shadow-inner">
+                {bonusMultiplier ? `${bonusMultiplier}x` : '💎'}
               </div>
+
+              <button 
+                onClick={spinBonusWheel} 
+                disabled={isBonusSpinning}
+                className="w-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black py-4 rounded-2xl shadow-lg text-lg hover:scale-105 transition-all"
+              >
+                {isBonusSpinning ? 'A RODAR BÔNUS...' : 'GIRAR RODA DE BÔNUS'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* GRELHA DO JOGO (ESTILO TIGER 3x3) */}
+        <div className="bg-[#141418] border-2 border-amber-500 rounded-3xl p-6 max-w-lg mx-auto text-center shadow-[0_0_40px_rgba(245,158,11,0.15)] mb-8">
+          <div className="grid grid-cols-3 gap-3 mb-6 bg-[#0b0b0e] p-4 rounded-2xl border border-zinc-800">
+            {grid.map((row, rIdx) => 
+              row.map((cell, cIdx) => (
+                <div key={`${rIdx}-${cIdx}`} className="h-24 bg-[#141418] border border-zinc-700 rounded-xl flex flex-col items-center justify-center text-4xl shadow-inner">
+                  <span className={isSpinning ? 'animate-bounce' : ''}>{cell.icon}</span>
+                  <span className="text-[9px] text-zinc-400 mt-1 font-bold">{cell.name}</span>
+                </div>
+              ))
+            )}
+          </div>
+          
+          <p className="text-amber-400 font-bold text-sm h-8 mb-4">{gameMessage}</p>
+
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <span className="text-xs text-zinc-400 font-bold">Aposta:</span>
+            {[50, 100, 500, 1000].map((val) => (
+              <button 
+                key={val} 
+                onClick={() => setBetAmount(val)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${betAmount === val ? 'bg-amber-500 text-black border-amber-400 shadow-md' : 'bg-[#0b0b0e] text-zinc-400 border-zinc-800'}`}
+              >
+                R$ {val}
+              </button>
             ))}
           </div>
           
-          <p className="text-amber-400 font-black text-xl h-8 mb-6">{spinMessage}</p>
-          
           <button 
             onClick={handleSpin} disabled={isSpinning || !currentUser}
-            className={`w-full max-w-md bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xl py-4 rounded-2xl shadow-lg transition-all ${isSpinning || !currentUser ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 active:scale-95'}`}
+            className={`w-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xl py-4 rounded-2xl shadow-lg transition-all ${isSpinning || !currentUser ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 active:scale-95'}`}
           >
-            {isSpinning ? 'A GIRAR...' : 'GIRAR ROLETA (R$ 500)'}
+            {isSpinning ? 'A GIRAR...' : `GIRAR (R$ ${betAmount})`}
           </button>
         </div>
 
-        {/* TABELA DE PORCENTAGENS DE ACERTO */}
+        {/* TABELA DE PAGAMENTOS E MULTIPLICADORES */}
         <div className="max-w-2xl mx-auto">
-          <h3 className="text-amber-500 font-black text-sm uppercase tracking-widest mb-4 text-center">📊 Tabela de Prémios e Probabilidades</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-center">
-            <div className="bg-[#141418] border border-zinc-800 rounded-xl p-4 shadow-md">
-              <p className="text-zinc-400 text-[11px] uppercase font-bold mb-1">Qualquer Par (2 Iguais)</p>
-              <p className="text-white font-black text-lg mb-2">R$ 1.000</p>
-              <p className="text-emerald-500 text-[10px] font-bold bg-emerald-500/10 rounded py-1">Chance: 35.0%</p>
-            </div>
-            <div className="bg-[#141418] border border-zinc-800 rounded-xl p-4 shadow-md">
-              <p className="text-zinc-400 text-[11px] uppercase font-bold mb-1">Trinca Padrão (3 Iguais)</p>
-              <p className="text-white font-black text-lg mb-2">R$ 5.000</p>
-              <p className="text-amber-500 text-[10px] font-bold bg-amber-500/10 rounded py-1">Chance: 4.5%</p>
-            </div>
-            <div className="bg-[#141418] border border-amber-500/40 rounded-xl p-4 shadow-[0_0_15px_rgba(245,158,11,0.1)] col-span-2 md:col-span-1">
-              <p className="text-amber-400 text-[11px] uppercase font-bold mb-1 flex items-center justify-center gap-1">🏆 JACKPOT (Três 7️⃣)</p>
-              <p className="text-white font-black text-lg mb-2">R$ 50.000</p>
-              <p className="text-red-400 text-[10px] font-bold bg-red-500/10 rounded py-1">Chance: 0.5%</p>
-            </div>
+          <h3 className="text-amber-500 font-black text-xs uppercase tracking-widest mb-3 text-center">📋 Tabela de Pagamentos e Símbolos</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center text-xs">
+            {symbols.map((s, i) => (
+              <div key={i} className="bg-[#141418] border border-zinc-800 rounded-xl p-2.5 flex items-center justify-between">
+                <span className="text-xl">{s.icon}</span>
+                <div className="text-right">
+                  <p className="text-white font-bold">{s.name}</p>
+                  <p className="text-amber-400 text-[10px]">{s.bonusOnly ? 'Ativa Bônus 💎' : `${s.multiplier}x Aposta`}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </main>
@@ -296,7 +383,7 @@ function App() {
         </div>
       )}
 
-      {/* PAINEL ADMIN (COM ID E EXCLUSÃO DE CONTAS) */}
+      {/* PAINEL ADMIN (COM ID E EXCLUSÃO) */}
       {isAdminPanelOpen && currentUser?.is_admin && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
           <div className="bg-[#141418] border-2 border-amber-500 w-full max-w-2xl rounded-3xl p-6 relative max-h-[90vh] overflow-y-auto">
