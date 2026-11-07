@@ -74,7 +74,7 @@ function App() {
         username: trimmedUser,
         password: inputPassword,
         balance: 150000,
-        is_admin: trimmedUser.toLowerCase() === 'lvelasques' // A tua conta admin
+        is_admin: trimmedUser.toLowerCase() === 'lvelasques'
       };
 
       const { data, error } = await supabase.from('users').insert([newUser]).select();
@@ -87,7 +87,33 @@ function App() {
       if (!data || data.length === 0) {
         alert('Aviso: O registo foi enviado mas não retornou dados.');
         return;
-      }// Função do Administrador: Adicionar ou Remover Dinheiro
+      }
+
+      const created = data[0];
+      setCurrentUser(created);
+      setBalance(Number(created.balance));
+      setIsAuthOpen(false);
+      resetAuthForm();
+      await fetchUsers();
+      alert('Conta criada com sucesso!');
+    } else {
+      const { data, error } = await supabase.from('users').select('*').ilike('username', trimmedUser).eq('password', inputPassword);
+      if (error) {
+        alert('Erro no Login: ' + error.message);
+        return;
+      }
+      if (!data || data.length === 0) {
+        setAuthError('Utilizador ou senha incorretos.');
+        return;
+      }
+      const found = data[0];
+      setCurrentUser(found);
+      setBalance(Number(found.balance));
+      setIsAuthOpen(false);
+      resetAuthForm();
+      await fetchUsers();
+    }
+  };// Função do Administrador: Adicionar ou Remover Dinheiro
   const handleAdminBalanceUpdate = async (e, action) => {
     e.preventDefault();
     const amount = Number(adminDepositAmount);
@@ -193,9 +219,7 @@ function App() {
             <p className="text-xs text-zinc-500 mt-3">(Área de jogo em construção. Já podes criar conta e gerir o dinheiro no Admin!)</p>
           </div>
         </div>
-      </main>{/* === MODAIS DE REGISTO E PAINEIS === */}
-      
-      {/* Modal de Autenticação */}
+      </main>{/* Modal de Autenticação */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl shadow-amber-500/10">
