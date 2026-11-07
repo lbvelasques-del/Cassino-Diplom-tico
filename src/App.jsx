@@ -341,4 +341,225 @@ export default function App() {
             <h2 className="text-amber-400 font-black text-xl mb-1 tracking-wide">
               {authMode === 'login' ? 'Entrar no Cassino' : 'Criar Conta Oficial'}
             </h2>
-            <p className="text-xs text-zinc-400 mb-6">Registo obrigatório para jogar</
+            <p className="text-xs text-zinc-400 mb-6">Registo obrigatório para jogar</p>
+
+            {authError && (
+              <div className="bg-red-500/10 border border-red-500/40 text-red-400 text-xs p-3 rounded-xl mb-4 font-semibold">
+                {authError}
+              </div>
+            )}
+
+            <form onSubmit={handleAuthSubmit} className="space-y-4">
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1 font-semibold">Nome de Utilizador</label>
+                <input 
+                  type="text" 
+                  value={inputUsername} 
+                  onChange={(e) => setInputUsername(e.target.value)} 
+                  required 
+                  className="w-full bg-[#0b0b0e] border border-zinc-800 focus:border-amber-500 rounded-xl px-4 py-3 text-white text-sm outline-none transition-all" 
+                  placeholder="Ex: LVelasques" 
+                />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1 font-semibold">Senha</label>
+                <input 
+                  type="password" 
+                  value={inputPassword} 
+                  onChange={(e) => setInputPassword(e.target.value)} 
+                  required 
+                  className="w-full bg-[#0b0b0e] border border-zinc-800 focus:border-amber-500 rounded-xl px-4 py-3 text-white text-sm outline-none transition-all" 
+                  placeholder="••••••••" 
+                />
+              </div>
+
+              {authMode === 'register' && (
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1 font-semibold">Repetir Senha</label>
+                  <input 
+                    type="password" 
+                    value={confirmPassword} 
+                    onChange={(e) => setConfirmPassword(e.target.value)} 
+                    required 
+                    className="w-full bg-[#0b0b0e] border border-zinc-800 focus:border-amber-500 rounded-xl px-4 py-3 text-white text-sm outline-none transition-all" 
+                    placeholder="••••••••" 
+                  />
+                </div>
+              )}
+
+              <button type="submit" className="w-full bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 text-black font-black py-3.5 rounded-xl text-sm transition-all shadow-lg shadow-amber-500/20 active:scale-95">
+                {authMode === 'login' ? 'Entrar na Plataforma' : 'Criar Nova Conta'}
+              </button>
+
+              <div className="text-center pt-2">
+                <button 
+                  type="button" 
+                  onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthError(''); }}
+                  className="text-xs text-amber-400 hover:underline font-semibold"
+                >
+                  {authMode === 'login' ? 'Não tem conta? Registe-se aqui' : 'Já tem conta? Faça login'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Painel do Utilizador */}
+      {isUserPanelOpen && currentUser && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl max-h-[90vh] overflow-y-auto">
+            <button onClick={() => { setIsUserPanelOpen(false); setPasswordChangeMsg(''); }} className="absolute top-4 right-4 text-zinc-400 hover:text-white text-lg">✕</button>
+            
+            <div className="flex items-center gap-3 mb-5 border-b border-zinc-800 pb-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 text-xl font-black">👤</div>
+              <div>
+                <h2 className="text-white font-bold text-lg">{currentUser.username}</h2>
+                <p className="text-xs text-amber-400 font-bold">Saldo: R$ {balance.toLocaleString('pt-BR')}</p>
+              </div>
+            </div>
+
+            <div className="space-y-5">
+              <div className="bg-[#0b0b0e] border border-zinc-800 p-4 rounded-2xl space-y-3">
+                <h3 className="text-xs text-amber-300 font-bold uppercase tracking-wide">Fazer Saque para o Jogo Diplomacia</h3>
+                {withdrawSuccess ? (
+                  <div className="text-center py-2 text-emerald-400 text-xs font-bold">
+                    ✅ Pedido de saque enviado com sucesso!
+                  </div>
+                ) : (
+                  <form onSubmit={handleWithdrawSubmit} className="space-y-3">
+                    <input 
+                      type="number" 
+                      placeholder="Valor do saque (R$)" 
+                      value={withdrawAmount} 
+                      onChange={(e) => setWithdrawAmount(e.target.value)} 
+                      required 
+                      className="w-full bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2.5 text-white text-xs outline-none" 
+                    />
+                    <button type="submit" className="w-full bg-amber-500 hover:bg-amber-400 text-black font-black py-2.5 rounded-xl text-xs shadow">
+                      Solicitar Saque
+                    </button>
+                  </form>
+                )}
+              </div>
+
+              <div className="bg-[#0b0b0e] border border-zinc-800 p-4 rounded-2xl space-y-3">
+                <h3 className="text-xs text-amber-300 font-bold uppercase tracking-wide">Alterar Senha</h3>
+                {passwordChangeMsg && <p className="text-xs text-emerald-400 font-semibold">{passwordChangeMsg}</p>}
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  if(oldPasswordInput !== currentUser.password) {
+                    alert('A senha atual está incorreta.');
+                    return;
+                  }
+                  if(newPasswordInput.length < 3) {
+                    alert('A nova senha é demasiado curta.');
+                    return;
+                  }
+                  currentUser.password = newPasswordInput;
+                  setPasswordChangeMsg('Senha alterada com sucesso!');
+                  setOldPasswordInput('');
+                  setNewPasswordInput('');
+                }} className="space-y-2.5">
+                  <input 
+                    type="password" 
+                    placeholder="Senha atual" 
+                    value={oldPasswordInput} 
+                    onChange={(e) => setOldPasswordInput(e.target.value)} 
+                    required 
+                    className="w-full bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs outline-none" 
+                  />
+                  <input 
+                    type="password" 
+                    placeholder="Nova senha" 
+                    value={newPasswordInput} 
+                    onChange={(e) => setNewPasswordInput(e.target.value)} 
+                    required 
+                    className="w-full bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs outline-none" 
+                  />
+                  <button type="submit" className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2 rounded-xl text-xs">
+                    Atualizar Senha
+                  </button>
+                </form>
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                <button 
+                  onClick={() => { setCurrentUser(null); setIsUserPanelOpen(false); setWithdrawSuccess(false); }}
+                  className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2.5 rounded-xl text-xs transition-all"
+                >
+                  🚪 Sair da Conta
+                </button>
+                <button 
+                  onClick={() => {
+                    if(confirm('Tem a certeza absoluta que deseja apagar a sua conta?')) {
+                      setUsersDb(prev => prev.filter(u => u.username !== currentUser.username));
+                      setCurrentUser(null);
+                      setIsUserPanelOpen(false);
+                      alert('Conta apagada com sucesso.');
+                    }
+                  }}
+                  className="bg-red-500/20 hover:bg-red-500/40 text-red-400 font-bold px-3 py-2.5 rounded-xl text-xs transition-all border border-red-500/30"
+                >
+                  🗑️ Apagar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Painel de Administrador Exclusivo (LVelasques) */}
+      {isAdminPanelOpen && currentUser && currentUser.isAdmin && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-lg flex items-center justify-center p-4">
+          <div className="bg-[#141418] border-2 border-amber-500 w-full max-w-lg rounded-3xl p-6 relative shadow-[0_0_50px_rgba(245,158,11,0.2)] max-h-[90vh] overflow-y-auto">
+            <button onClick={() => setIsAdminPanelOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white text-lg">✕</button>
+            <div className="flex items-center gap-3 mb-6 border-b border-zinc-800 pb-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-black font-black flex items-center justify-center text-xl shadow-lg">⚙️</div>
+              <div>
+                <h2 className="text-amber-400 font-black text-xl">Painel de Administrador (LVelasques)</h2>
+                <p className="text-xs text-zinc-400">Gestão global de saques para depósito no Diplomacia</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-xs text-amber-300 font-bold uppercase tracking-wider">Pedidos de Saque Pendentes ({withdrawalRequests.length})</h3>
+              
+              {withdrawalRequests.length === 0 ? (
+                <div className="bg-[#0b0b0e] border border-zinc-800/80 rounded-2xl p-6 text-center text-xs text-zinc-500">
+                  Nenhum pedido de saque pendente de momento.
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {withdrawalRequests.map((req) => (
+                    <div key={req.id} className="bg-[#0b0b0e] border border-amber-500/30 rounded-2xl p-3.5 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-white font-bold">Jogador: <span className="text-amber-400">{req.user}</span></p>
+                        <p className="text-xs text-zinc-400">Valor: <span className="text-amber-300 font-bold">R$ {req.amount.toLocaleString('pt-BR')}</span></p>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          setWithdrawalRequests(prev => prev.filter(item => item.id !== req.id));
+                          alert(`Saque de R$ ${req.amount} para ${req.user} marcado como depositado no jogo Diplomacia!`);
+                        }}
+                        className="bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs px-3 py-2 rounded-xl shadow transition-all"
+                      >
+                        ✅ Depositar no Jogo
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-zinc-800 text-center">
+              <button onClick={() => setIsAdminPanelOpen(false)} className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-3 rounded-xl text-xs transition-all">
+                Fechar Painel Admin
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
