@@ -9,9 +9,15 @@ export default function App() {
   const [winEffect, setWinEffect] = useState(false);
   const [lastWin, setLastWin] = useState(0);
   
+  // Estados para o novo modal de Registo/Login simples (sem e-mail)
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState('login'); // 'login' ou 'register'
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
-  const [email, setEmail] = useState('');
   const [pixKey, setPixKey] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawSuccess, setWithdrawSuccess] = useState(false);
@@ -53,6 +59,36 @@ export default function App() {
     }, turbo ? 300 : 800);
   };
 
+  const handleAuthSubmit = (e) => {
+    e.preventDefault();
+    setAuthError('');
+
+    if (authMode === 'register') {
+      if (password !== confirmPassword) {
+        setAuthError('As senhas não coincidem!');
+        return;
+      }
+      if (password.length < 4) {
+        setAuthError('A senha deve ter pelo menos 4 carateres.');
+        return;
+      }
+    }
+
+    // Validação do Admin ou Utilizador Simples
+    if (username.trim() !== '') {
+      if (username.toLowerCase() === 'admin') {
+        setUser({ name: 'Admin', isAdmin: true });
+        setBalance(99999999); // Saldo de Administrador
+      } else {
+        setUser({ name: username, isAdmin: false });
+      }
+      setIsAuthOpen(false);
+      setUsername('');
+      setPassword('');
+      setConfirmPassword('');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#09090b] text-white font-sans antialiased pb-12">
       {/* Header */}
@@ -71,7 +107,10 @@ export default function App() {
           {user ? (
             <div className="flex items-center gap-3 bg-[#16161a] border border-[#2a2a30] px-3 py-1.5 rounded-xl">
               <div className="text-right">
-                <p className="text-[10px] text-zinc-400 uppercase">Saldo</p>
+                <div className="flex items-center justify-end gap-1">
+                  <span className="text-[10px] text-amber-400 font-bold">{user.name}</span>
+                  {user.isAdmin && <span className="bg-amber-500 text-black text-[9px] font-black px-1 rounded">ADMIN</span>}
+                </div>
                 <p className="text-amber-400 font-bold text-sm">R$ {balance.toLocaleString('pt-BR')}</p>
               </div>
               <button 
@@ -83,7 +122,7 @@ export default function App() {
             </div>
           ) : (
             <button 
-              onClick={() => setIsAuthOpen(true)}
+              onClick={() => { setAuthMode('login'); setIsAuthOpen(true); }}
               className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xs px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-1.5"
             >
               👤 Entrar / Registar
@@ -160,19 +199,73 @@ export default function App() {
         </div>
       </main>
 
-      {/* Auth Modal */}
+      {/* Auth Modal (Login / Registo com repetição de senha, sem e-mail) */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#16161a] border border-[#2a2a30] w-full max-w-md rounded-3xl p-6 relative">
             <button onClick={() => setIsAuthOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white">✕</button>
-            <h2 className="text-white font-bold text-xl mb-1">Entrar na Conta</h2>
+            <h2 className="text-white font-bold text-xl mb-1">
+              {authMode === 'login' ? 'Aceder à Conta' : 'Criar Conta Simples'}
+            </h2>
             <p className="text-xs text-zinc-400 mb-6">Plataforma Oficial - Rede Pampas</p>
-            <form onSubmit={(e) => { e.preventDefault(); setUser({ email }); setIsAuthOpen(false); }} className="space-y-4">
-              <div>
-                <label className="text-xs text-zinc-400 block mb-1">E-mail</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full bg-[#0d0d0f] border border-[#2a2a30] rounded-xl px-4 py-3 text-white text-sm" placeholder="seu@email.com" />
+
+            {authError && (
+              <div className="bg-red-500/10 border border-red-500/40 text-red-400 text-xs p-3 rounded-xl mb-4">
+                {authError}
               </div>
-              <button type="submit" className="w-full bg-amber-500 text-black font-bold py-3.5 rounded-xl text-sm">Entrar Agora</button>
+            )}
+
+            <form onSubmit={handleAuthSubmit} className="space-y-4">
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1">Nome de Utilizador</label>
+                <input 
+                  type="text" 
+                  value={username} 
+                  onChange={(e) => setUsername(e.target.value)} 
+                  required 
+                  className="w-full bg-[#0d0d0f] border border-[#2a2a30] rounded-xl px-4 py-3 text-white text-sm" 
+                  placeholder="Ex: seu_utilizador (ou admin)" 
+                />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1">Senha</label>
+                <input 
+                  type="password" 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)} 
+                  required 
+                  className="w-full bg-[#0d0d0f] border border-[#2a2a30] rounded-xl px-4 py-3 text-white text-sm" 
+                  placeholder="••••••••" 
+                />
+              </div>
+
+              {authMode === 'register' && (
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1">Repetir Senha</label>
+                  <input 
+                    type="password" 
+                    value={confirmPassword} 
+                    onChange={(e) => setConfirmPassword(e.target.value)} 
+                    required 
+                    className="w-full bg-[#0d0d0f] border border-[#2a2a30] rounded-xl px-4 py-3 text-white text-sm" 
+                    placeholder="••••••••" 
+                  />
+                </div>
+              )}
+
+              <button type="submit" className="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold py-3.5 rounded-xl text-sm transition-all shadow-lg">
+                {authMode === 'login' ? 'Entrar na Conta' : 'Registar Conta'}
+              </button>
+
+              <div className="text-center pt-2">
+                <button 
+                  type="button" 
+                  onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthError(''); }}
+                  className="text-xs text-amber-400 hover:underline"
+                >
+                  {authMode === 'login' ? 'Não tem conta? Registe-se aqui' : 'Já tem conta? Faça login'}
+                </button>
+              </div>
             </form>
           </div>
         </div>
