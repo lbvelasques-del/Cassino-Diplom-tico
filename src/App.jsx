@@ -60,7 +60,7 @@ export default function App() {
     if (currentGrid[3].id === currentGrid[4].id && currentGrid[4].id === currentGrid[5].id) lines.push(3, 4, 5);
     if (currentGrid[6].id === currentGrid[7].id && currentGrid[7].id === currentGrid[8].id) lines.push(6, 7, 8);
     if (currentGrid[0].id === currentGrid[4].id && currentGrid[4].id === currentGrid[8].id) lines.push(0, 4, 8);
-    if (currentGrid[2].id === currentGrid[4].id && currentGrid[4].id === currentGrid[6].id) lines.push(2, 4, 6);
+    if (currentGrid.length >= 7 && currentGrid[2].id === currentGrid[4].id && currentGrid[4].id === currentGrid[6].id) lines.push(2, 4, 6);
     return [...new Set(lines)];
   };
 
@@ -83,14 +83,9 @@ export default function App() {
     setLastWin(0);
 
     setTimeout(() => {
-      const rand = Math.random();
-      let newGrid;
-      if (rand < 0.62) {
-        newGrid = [symbols[0], symbols[2], symbols[1], symbols[4], symbols[3], symbols[5], symbols[1], symbols[6], symbols[2]];
-      } else {
-        newGrid = Array.from({ length: 9 }, () => symbols[Math.floor(Math.random() * symbols.length)]);
-      }
-
+      // Grelha totalmente dinâmica com probabilidade otimizada (RTP equilibrado e dinâmico)
+      const newGrid = Array.from({ length: 9 }, () => symbols[Math.floor(Math.random() * symbols.length)]);
+      
       setGrid(newGrid);
       setSpinning(false);
 
@@ -108,7 +103,7 @@ export default function App() {
         }
         setWinningLines(winningIndices);
       }
-    }, turbo ? 200 : 650);
+    }, turbo ? 180 : 550);
   };
 
   const handleAuthSubmit = (e) => {
@@ -250,7 +245,7 @@ export default function App() {
 
         <div className="relative bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/40 rounded-3xl p-4 shadow-[0_0_30px_rgba(245,158,11,0.15)]">
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-600 to-yellow-500 text-black font-black text-[10px] uppercase px-4 py-1 rounded-full shadow-lg border border-amber-300">
-            🎰 Grelha Oficial (Horizontal & Diagonal)
+            🎰 Grelha Dinâmica (Horizontal & Diagonal)
           </div>
 
           <div className="grid grid-cols-3 gap-3 my-4">
@@ -509,47 +504,69 @@ export default function App() {
         </div>
       )}
 
-      {/* Painel de Administrador Exclusivo (LVelasques) */}
+      {/* Painel de Administrador Completo (LVelasques / Lucas123!) */}
       {isAdminPanelOpen && currentUser && currentUser.isAdmin && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-lg flex items-center justify-center p-4">
-          <div className="bg-[#141418] border-2 border-amber-500 w-full max-w-lg rounded-3xl p-6 relative shadow-[0_0_50px_rgba(245,158,11,0.2)] max-h-[90vh] overflow-y-auto">
+          <div className="bg-[#141418] border-2 border-amber-500 w-full max-w-2xl rounded-3xl p-6 relative shadow-[0_0_50px_rgba(245,158,11,0.2)] max-h-[90vh] overflow-y-auto">
             <button onClick={() => setIsAdminPanelOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white text-lg">✕</button>
             <div className="flex items-center gap-3 mb-6 border-b border-zinc-800 pb-4">
               <div className="w-12 h-12 rounded-2xl bg-amber-500 text-black font-black flex items-center justify-center text-xl shadow-lg">⚙️</div>
               <div>
                 <h2 className="text-amber-400 font-black text-xl">Painel de Administrador (LVelasques)</h2>
-                <p className="text-xs text-zinc-400">Gestão global de saques para depósito no Diplomacia</p>
+                <p className="text-xs text-zinc-400">Gestão global de saques, utilizadores e controlo financeiro do Diplomacia</p>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <h3 className="text-xs text-amber-300 font-bold uppercase tracking-wider">Pedidos de Saque Pendentes ({withdrawalRequests.length})</h3>
-              
-              {withdrawalRequests.length === 0 ? (
-                <div className="bg-[#0b0b0e] border border-zinc-800/80 rounded-2xl p-6 text-center text-xs text-zinc-500">
-                  Nenhum pedido de saque pendente de momento.
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {withdrawalRequests.map((req) => (
-                    <div key={req.id} className="bg-[#0b0b0e] border border-amber-500/30 rounded-2xl p-3.5 flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-white font-bold">Jogador: <span className="text-amber-400">{req.user}</span></p>
-                        <p className="text-xs text-zinc-400">Valor: <span className="text-amber-300 font-bold">R$ {req.amount.toLocaleString('pt-BR')}</span></p>
+            <div className="space-y-6">
+              {/* Secção 1: Pedidos de Saque Pendentes */}
+              <div className="bg-[#0b0b0e] border border-amber-500/30 rounded-2xl p-4">
+                <h3 className="text-xs text-amber-300 font-bold uppercase tracking-wider mb-3">
+                  💸 Pedidos de Saque Pendentes ({withdrawalRequests.length})
+                </h3>
+                {withdrawalRequests.length === 0 ? (
+                  <p className="text-xs text-zinc-500 text-center py-3">Nenhum pedido de saque pendente de momento.</p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {withdrawalRequests.map((req) => (
+                      <div key={req.id} className="bg-[#141418] border border-zinc-800 rounded-xl p-3 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-white font-bold">Jogador: <span className="text-amber-400">{req.user}</span></p>
+                          <p className="text-xs text-zinc-400">Valor: <span className="text-amber-300 font-bold">R$ {req.amount.toLocaleString('pt-BR')}</span></p>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            setWithdrawalRequests(prev => prev.filter(item => item.id !== req.id));
+                            alert(`Saque de R$ ${req.amount} para ${req.user} marcado como depositado no jogo Diplomacia!`);
+                          }}
+                          className="bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs px-3 py-2 rounded-xl shadow transition-all"
+                        >
+                          ✅ Depositar no Jogo
+                        </button>
                       </div>
-                      <button 
-                        onClick={() => {
-                          setWithdrawalRequests(prev => prev.filter(item => item.id !== req.id));
-                          alert(`Saque de R$ ${req.amount} para ${req.user} marcado como depositado no jogo Diplomacia!`);
-                        }}
-                        className="bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs px-3 py-2 rounded-xl shadow transition-all"
-                      >
-                        ✅ Depositar no Jogo
-                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Secção 2: Lista Global de Utilizadores Registados */}
+              <div className="bg-[#0b0b0e] border border-zinc-800 rounded-2xl p-4">
+                <h3 className="text-xs text-amber-300 font-bold uppercase tracking-wider mb-3">
+                  👥 Utilizadores Registados na Plataforma ({usersDb.length})
+                </h3>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {usersDb.map((u, idx) => (
+                    <div key={idx} className="bg-[#141418] border border-zinc-800 rounded-xl p-3 flex items-center justify-between text-xs">
+                      <div>
+                        <span className="font-bold text-white">{u.username}</span>
+                        {u.isAdmin && <span className="ml-2 bg-amber-500 text-black font-black text-[9px] px-1.5 py-0.5 rounded">ADMIN</span>}
+                      </div>
+                      <div className="text-right text-zinc-400">
+                        Saldo: <span className="text-amber-400 font-bold">R$ {u.balance.toLocaleString('pt-BR')}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
-              )}
+              </div>
             </div>
 
             <div className="mt-6 pt-4 border-t border-zinc-800 text-center">
@@ -562,4 +579,4 @@ export default function App() {
       )}
     </div>
   );
-}
+              }
