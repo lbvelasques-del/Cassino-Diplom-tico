@@ -1,8 +1,4 @@
 import React, { useState } from 'react';
-import { 
-  Coins, User, ArrowUpRight, Award, Zap, 
-  Play, Landmark, X, CheckCircle2 
-} from 'lucide-react';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -59,10 +55,11 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#09090b] text-white font-sans antialiased pb-12">
+      {/* Header */}
       <header className="sticky top-0 z-50 bg-[#0d0d0f]/90 backdrop-blur-md border-b border-[#26262b] px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center shadow-lg shadow-amber-500/20">
-            <Coins className="w-6 h-6 text-black" />
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center shadow-lg shadow-amber-500/20 text-black font-black">
+            🪙
           </div>
           <div>
             <h1 className="text-amber-400 font-black text-sm tracking-wider uppercase">Cassino da Costa Rica</h1>
@@ -81,7 +78,7 @@ export default function App() {
                 onClick={() => setIsWithdrawOpen(true)}
                 className="bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs px-3 py-1.5 rounded-lg transition-all flex items-center gap-1"
               >
-                <ArrowUpRight className="w-3.5 h-3.5" /> Saque
+                ↗️ Saque
               </button>
             </div>
           ) : (
@@ -89,18 +86,18 @@ export default function App() {
               onClick={() => setIsAuthOpen(true)}
               className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xs px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-1.5"
             >
-              <User className="w-4 h-4" /> Entrar / Registar
+              👤 Entrar / Registar
             </button>
           )}
         </div>
       </header>
 
+      {/* Banner */}
       <div className="bg-gradient-to-r from-amber-950/40 via-zinc-900 to-amber-950/40 border-y border-amber-500/20 py-2 px-4 text-center">
         <div className="flex items-center justify-center gap-2 text-xs text-amber-300 font-semibold">
-          <Award className="w-4 h-4 text-amber-400 animate-pulse" />
-          <span>REDE PAMPAS — PATROCINADOR MASTER OFICIAL</span>
+          🏆 <span>REDE PAMPAS — PATROCINADOR MASTER OFICIAL</span>
         </div>
-      </div>
+      </div>{/* Main Game */}
       <main className="max-w-md mx-auto p-4 space-y-4 pt-6">
         <div className="relative bg-gradient-to-b from-[#16161a] to-[#0a0a0c] border-2 border-amber-500/30 rounded-3xl p-4 shadow-2xl">
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-black font-black text-[10px] uppercase px-3 py-0.5 rounded-full shadow-md">
@@ -116,6 +113,7 @@ export default function App() {
           </div>
         </div>
 
+        {/* Bet Selector */}
         <div className="bg-[#121215] border border-[#26262b] rounded-2xl p-4 shadow-xl">
           <div className="flex justify-between items-center mb-3">
             <span className="text-xs text-zinc-400 font-semibold uppercase">Escolha a Aposta</span>
@@ -147,8 +145,7 @@ export default function App() {
             onClick={() => setTurbo(!turbo)}
             className={`py-4 px-5 rounded-2xl font-bold text-xs border transition-all ${turbo ? 'bg-amber-500/20 text-amber-400 border-amber-500/50' : 'bg-[#16161a] text-zinc-400 border-[#2a2a30]'}`}
           >
-            <Zap className="w-5 h-5 mx-auto mb-1" />
-            TURBO {turbo ? 'ON' : 'OFF'}
+            ⚡ TURBO {turbo ? 'ON' : 'OFF'}
           </button>
 
           <button
@@ -156,16 +153,16 @@ export default function App() {
             onClick={spin}
             className="flex-1 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black font-black text-lg py-4 rounded-2xl shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all"
           >
-            <Play className="w-6 h-6 fill-current" />
-            {spinning ? 'A GIRAR...' : 'GIRAR'}
+            ▶️ {spinning ? 'A GIRAR...' : 'GIRAR'}
           </button>
         </div>
       </main>
 
+      {/* Auth Modal */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#16161a] border border-[#2a2a30] w-full max-w-md rounded-3xl p-6 relative">
-            <button onClick={() => setIsAuthOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white"><X className="w-5 h-5" /></button>
+            <button onClick={() => setIsAuthOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white">✕</button>
             <h2 className="text-white font-bold text-xl mb-1">Entrar na Conta</h2>
             <p className="text-xs text-zinc-400 mb-6">Plataforma Oficial - Rede Pampas</p>
             <form onSubmit={(e) => { e.preventDefault(); setUser({ email }); setIsAuthOpen(false); }} className="space-y-4">
@@ -179,12 +176,13 @@ export default function App() {
         </div>
       )}
 
+      {/* Withdraw Modal */}
       {isWithdrawOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#16161a] border border-[#2a2a30] w-full max-w-md rounded-3xl p-6 relative">
-            <button onClick={() => { setIsWithdrawOpen(false); setWithdrawSuccess(false); }} className="absolute top-4 right-4 text-zinc-400 hover:text-white"><X className="w-5 h-5" /></button>
+            <button onClick={() => { setIsWithdrawOpen(false); setWithdrawSuccess(false); }} className="absolute top-4 right-4 text-zinc-400 hover:text-white">✕</button>
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400"><Landmark className="w-5 h-5" /></div>
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">🏦</div>
               <div>
                 <h2 className="text-white font-bold text-lg">Painel de Saques</h2>
                 <p className="text-xs text-zinc-400">Levantamento rápido via PIX</p>
@@ -193,7 +191,7 @@ export default function App() {
 
             {withdrawSuccess ? (
               <div className="text-center py-6">
-                <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
+                <div className="text-4xl mb-3">✅</div>
                 <h3 className="text-white font-bold text-base">Saque Solicitado com Sucesso!</h3>
                 <button onClick={() => { setWithdrawSuccess(false); setIsWithdrawOpen(false); }} className="mt-6 w-full bg-amber-500 text-black font-bold py-3 rounded-xl text-sm">Concluir</button>
               </div>
