@@ -97,7 +97,8 @@ export default function App() {
         <div className="flex items-center justify-center gap-2 text-xs text-amber-300 font-semibold">
           🏆 <span>REDE PAMPAS — PATROCINADOR MASTER OFICIAL</span>
         </div>
-      </div>{/* Main Game */}
+      </div>
+      {/* Main Game */}
       <main className="max-w-md mx-auto p-4 space-y-4 pt-6">
         <div className="relative bg-gradient-to-b from-[#16161a] to-[#0a0a0c] border-2 border-amber-500/30 rounded-3xl p-4 shadow-2xl">
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-black font-black text-[10px] uppercase px-3 py-0.5 rounded-full shadow-md">
@@ -157,7 +158,6 @@ export default function App() {
           </button>
         </div>
       </main>
-
       {/* Auth Modal */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
