@@ -30,7 +30,7 @@ export default function App() {
   const [withdrawSuccess, setWithdrawSuccess] = useState(false);
   const [withdrawalRequests, setWithdrawalRequests] = useState([]);
 
-  // Estado da ferramenta de depósito do Admin para contas de utilizadores
+  // Estados da ferramenta de gestão financeira do Admin
   const [adminTargetUser, setAdminTargetUser] = useState('');
   const [adminDepositAmount, setAdminDepositAmount] = useState('');
 
@@ -57,7 +57,6 @@ export default function App() {
   
   const bets = [30000, 60000, 100000, 300000, 500000, 1000000, 3000000, 5000000];
 
-  // Apenas Horizontais e Diagonais (Vertical Excluída)
   const checkHorizontalAndDiagonalWins = (currentGrid) => {
     let lines = [];
     if (currentGrid[0].id === currentGrid[1].id && currentGrid[1].id === currentGrid[2].id) lines.push(0, 1, 2);
@@ -87,23 +86,24 @@ export default function App() {
     setLastWin(0);
 
     setTimeout(() => {
-      // Cálculo dinâmico da taxa de acerto conforme a aposta (30k = 70% de taxa máxima) e lucro atual (>50%)
-      let winProbability = 0.70; // 70% para apostas baixas (30k)
-      if (betAmount > 30000) {
-        // Reduz progressivamente para apostas mais altas para proteger a banca
-        winProbability = Math.max(0.35, 0.70 - (betAmount / 10000000));
-      }
-
+      // RTP Profissional: 35% de chance de vitória para o jogador, 65% para a casa
+      const winProbability = 0.35; 
       const rand = Math.random();
-      let newGrid;
+      
+      let newGrid = Array.from({ length: 9 }, () => symbols[Math.floor(Math.random() * symbols.length)]);
 
       if (rand < winProbability) {
-        // Gera uma jogada vencedora em linha horizontal ou diagonal
+        // VITÓRIA: Preenche apenas UMA linha, deixando o resto natural
         const winningSym = symbols[Math.floor(Math.random() * symbols.length)];
-        newGrid = Array.from({ length: 9 }, () => winningSym);
+        const winLines = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 4, 8], [2, 4, 6]];
+        const chosenLine = winLines[Math.floor(Math.random() * winLines.length)];
+        
+        chosenLine.forEach(idx => { newGrid[idx] = winningSym; });
       } else {
-        // Jogada normal baralhada
-        newGrid = Array.from({ length: 9 }, () => symbols[Math.floor(Math.random() * symbols.length)]);
+        // DERROTA: Garante que nenhuma linha premiada é formada acidentalmente
+        while (checkHorizontalAndDiagonalWins(newGrid).length > 0) {
+          newGrid = Array.from({ length: 9 }, () => symbols[Math.floor(Math.random() * symbols.length)]);
+        }
       }
 
       setGrid(newGrid);
@@ -157,7 +157,6 @@ export default function App() {
       setIsAuthOpen(false);
       resetAuthForm();
     } else {
-      // Correção robusta para permitir login e re-login de qualquer conta (incluindo admin)
       const found = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase() && u.password === inputPassword);
       if (!found) {
         setAuthError('Utilizador ou senha incorretos.');
@@ -198,6 +197,46 @@ export default function App() {
     setWithdrawalRequests(prev => [newReq, ...prev]);
     setWithdrawSuccess(true);
     setWithdrawAmount('');
+  };
+
+  const handleAdminBalanceUpdate = (e, type) => {
+    e.preventDefault();
+    const targetUserTrim = adminTargetUser.trim();
+    const amountVal = parseFloat(adminDepositAmount);
+
+    if (!targetUserTrim || isNaN(amountVal) || amountVal <= 0) {
+      alert('Insira um nome de utilizador válido e um valor superior a zero.');
+      return;
+    }
+
+    const userIndex = usersDb.findIndex(u => u.username.toLowerCase() === targetUserTrim.toLowerCase());
+    if (userIndex === -1) {
+      alert('Utilizador não encontrado na base de dados.');
+      return;
+    }
+
+    const updatedUsers = [...usersDb];
+    if (type === 'add') {
+      updatedUsers[userIndex].balance += amountVal;
+      alert(`Sucesso: Adicionado R$ ${amountVal.toLocaleString('pt-BR')} à conta de ${updatedUsers[userIndex].username}.`);
+    } else if (type === 'remove') {
+      if (updatedUsers[userIndex].balance < amountVal) {
+        alert(`Erro: O utilizador ${updatedUsers[userIndex].username} não tem saldo suficiente para remover este valor.`);
+        return;
+      }
+      updatedUsers[userIndex].balance -= amountVal;
+      alert(`Sucesso: Removido R$ ${amountVal.toLocaleString('pt-BR')} da conta de ${updatedUsers[userIndex].username}.`);
+    }
+
+    setUsersDb(updatedUsers);
+    
+    // Atualiza o saldo em tempo real se o admin estiver a editar a própria conta
+    if (currentUser && currentUser.username.toLowerCase() === updatedUsers[userIndex].username.toLowerCase()) {
+      setBalance(updatedUsers[userIndex].balance);
+    }
+    
+    setAdminTargetUser('');
+    setAdminDepositAmount('');
   };return (
     <div className="min-h-screen bg-[#070709] text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       {/* Header Luminoso */}
@@ -248,9 +287,9 @@ export default function App() {
         </div>
       </header>
 
-      {/* Banner Master com Destaque Total ao Patrocinador */}
+      {/* Banner Master - Destaque Limpo */}
       <div className="bg-gradient-to-r from-amber-950/70 via-[#121216] to-amber-950/70 border-y border-amber-500/40 py-3 px-4 text-center shadow-xl">
-        <div className="flex items-center justify-center gap-2 text-xs text-amber-300 font-black tracking-widest uppercase">
+        <div className="flex items-center justify-center gap-2 text-xs text-amber-300 font-black tracking-widest uppercase drop-shadow-md">
           ✨ <span>REDE PAMPAS — PATROCINADOR MASTER OFICIAL</span> ✨
         </div>
       </div>
@@ -264,7 +303,8 @@ export default function App() {
           </div>
         )}
 
-        <div className="relative bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/40 rounded-3xl p-4 shadow-[0_0_30px_rgba(245,158,11,0.15)]">
+        {/* Grelha Limpa sem rótulos em cima */}
+        <div className="relative bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/40 rounded-3xl p-4 shadow-[0_0_30px_rgba(245,158,11,0.15)] mt-2">
           <div className="grid grid-cols-3 gap-3 my-2">
             {grid.map((sym, idx) => {
               const isWinningCell = winningLines.includes(idx);
@@ -313,7 +353,7 @@ export default function App() {
 
         {lastWin > 0 && (
           <div className="bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-amber-500/20 border border-amber-500/60 rounded-2xl p-3 text-center shadow-[0_0_20px_rgba(245,158,11,0.3)] animate-pulse">
-            <p className="text-xs text-amber-300 font-extrabold uppercase tracking-widest">🎉 VITÓRIA (LINHA / DIAGONAL)!</p>
+            <p className="text-xs text-amber-300 font-extrabold uppercase tracking-widest">🎉 VITÓRIA NA LINHA!</p>
             <p className="text-amber-400 font-black text-xl drop-shadow-md">+ R$ {lastWin.toLocaleString('pt-BR')}</p>
           </div>
         )}
@@ -521,7 +561,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Painel de Administrador Exclusivo (LVelasques / Lucas123!) com Ferramenta de Depósito Direto */}
+      {/* Painel de Administrador Exclusivo (LVelasques) com Ferramentas Avançadas */}
       {isAdminPanelOpen && currentUser && currentUser.isAdmin && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-lg flex items-center justify-center p-4">
           <div className="bg-[#141418] border-2 border-amber-500 w-full max-w-2xl rounded-3xl p-6 relative shadow-[0_0_50px_rgba(245,158,11,0.2)] max-h-[90vh] overflow-y-auto">
@@ -529,73 +569,58 @@ export default function App() {
             <div className="flex items-center gap-3 mb-6 border-b border-zinc-800 pb-4">
               <div className="w-12 h-12 rounded-2xl bg-amber-500 text-black font-black flex items-center justify-center text-xl shadow-lg">⚙️</div>
               <div>
-                <h2 className="text-amber-400 font-black text-xl">Painel de Administrador (LVelasques)</h2>
-                <p className="text-xs text-zinc-400">Gestão global de saques, utilizadores e depósitos automáticos</p>
+                <h2 className="text-amber-400 font-black text-xl">Painel Admin (LVelasques)</h2>
+                <p className="text-xs text-zinc-400">Gestão de saldos, saques e utilizadores</p>
               </div>
             </div>
 
             <div className="space-y-6">
-              {/* Ferramenta Admin: Adicionar Dinheiro / Depositar nas Contas dos Utilizadores */}
+              {/* Ferramenta Admin: Adicionar / Remover Saldo Manualmente */}
               <div className="bg-[#0b0b0e] border border-amber-500/40 rounded-2xl p-4">
                 <h3 className="text-xs text-amber-300 font-bold uppercase tracking-wider mb-3">
-                  💰 Depositar Saldo em Conta de Utilizador
+                  💰 Gestão de Saldo de Utilizadores
                 </h3>
-                <form onSubmit={(e) => {
-                  e.preventDefault();
-                  const targetUserTrim = adminTargetUser.trim();
-                  const amountVal = parseFloat(adminDepositAmount);
-
-                  if (!targetUserTrim || isNaN(amountVal) || amountVal <= 0) {
-                    alert('Insira um nome de utilizador válido e um valor de depósito superior a zero.');
-                    return;
-                  }
-
-                  const userFound = usersDb.find(u => u.username.toLowerCase() === targetUserTrim.toLowerCase());
-                  if (!userFound) {
-                    alert('Utilizador não encontrado na base de dados.');
-                    return;
-                  }
-
-                  userFound.balance += amountVal;
-                  if (currentUser && currentUser.username.toLowerCase() === userFound.username.toLowerCase()) {
-                    setBalance(userFound.balance);
-                  }
-
-                  alert(`Depósito de R$ ${amountVal.toLocaleString('pt-BR')} efetuado com sucesso na conta de ${userFound.username}!`);
-                  setAdminTargetUser('');
-                  setAdminDepositAmount('');
-                }} className="space-y-3">
+                <form className="space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     <input 
                       type="text" 
                       placeholder="Nome do Utilizador" 
                       value={adminTargetUser} 
                       onChange={(e) => setAdminTargetUser(e.target.value)} 
-                      required 
                       className="bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2.5 text-white text-xs outline-none" 
                     />
                     <input 
                       type="number" 
-                      placeholder="Valor do Depósito (R$)" 
+                      placeholder="Valor (R$)" 
                       value={adminDepositAmount} 
                       onChange={(e) => setAdminDepositAmount(e.target.value)} 
-                      required 
                       className="bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2.5 text-white text-xs outline-none" 
                     />
                   </div>
-                  <button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-black py-2.5 rounded-xl text-xs shadow transition-all">
-                    ➕ Adicionar Saldo ao Utilizador
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={(e) => handleAdminBalanceUpdate(e, 'add')} 
+                      className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black font-black py-2.5 rounded-xl text-xs shadow transition-all"
+                    >
+                      ➕ Adicionar Dinheiro
+                    </button>
+                    <button 
+                      onClick={(e) => handleAdminBalanceUpdate(e, 'remove')} 
+                      className="flex-1 bg-red-500 hover:bg-red-400 text-black font-black py-2.5 rounded-xl text-xs shadow transition-all"
+                    >
+                      ➖ Remover Dinheiro
+                    </button>
+                  </div>
                 </form>
               </div>
 
-              {/* Secção 1: Pedidos de Saque Pendentes */}
+              {/* Pedidos de Saque Pendentes */}
               <div className="bg-[#0b0b0e] border border-amber-500/30 rounded-2xl p-4">
                 <h3 className="text-xs text-amber-300 font-bold uppercase tracking-wider mb-3">
                   💸 Pedidos de Saque Pendentes ({withdrawalRequests.length})
                 </h3>
                 {withdrawalRequests.length === 0 ? (
-                  <p className="text-xs text-zinc-500 text-center py-3">Nenhum pedido de saque pendente de momento.</p>
+                  <p className="text-xs text-zinc-500 text-center py-3">Nenhum pedido de saque pendente.</p>
                 ) : (
                   <div className="space-y-2.5">
                     {withdrawalRequests.map((req) => (
@@ -607,7 +632,7 @@ export default function App() {
                         <button 
                           onClick={() => {
                             setWithdrawalRequests(prev => prev.filter(item => item.id !== req.id));
-                            alert(`Saque de R$ ${req.amount} para ${req.user} marcado como depositado no jogo Diplomacia!`);
+                            alert(`Saque de R$ ${req.amount} para ${req.user} depositado no jogo Diplomacia!`);
                           }}
                           className="bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs px-3 py-2 rounded-xl shadow transition-all"
                         >
@@ -619,10 +644,10 @@ export default function App() {
                 )}
               </div>
 
-              {/* Secção 2: Lista Global de Utilizadores Registados */}
+              {/* Lista de Contas */}
               <div className="bg-[#0b0b0e] border border-zinc-800 rounded-2xl p-4">
                 <h3 className="text-xs text-amber-300 font-bold uppercase tracking-wider mb-3">
-                  👥 Utilizadores Registados na Plataforma ({usersDb.length})
+                  👥 Utilizadores Registados ({usersDb.length})
                 </h3>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {usersDb.map((u, idx) => (
