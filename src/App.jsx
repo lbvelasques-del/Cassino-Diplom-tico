@@ -23,7 +23,7 @@ function App() {
   const [withdrawSuccess, setWithdrawSuccess] = useState(false);
   const [withdrawalRequests, setWithdrawalRequests] = useState([]);
 
-  // Símbolos temáticos originais do vosso layout
+  // Símbolos temáticos oficiais com os pagamentos combinados
   const themeSymbols = [
     { name: 'Petróleo', icon: '🛢️', mult: 1.0 },
     { name: 'Banco', icon: '🏛️', mult: 1.2 },
@@ -32,17 +32,17 @@ function App() {
     { name: 'Pampas', icon: '🦌', mult: 1.5 }
   ];
 
-  // Grelha 3x3 original
+  // Grelha 3x3 inicial
   const [grid, setGrid] = useState([
-    [themeSymbols[0], themeSymbols[0], themeSymbols[3]],
-    [themeSymbols[1], themeSymbols[2], themeSymbols[3]],
-    [themeSymbols[1], themeSymbols[4], themeSymbols[4]]
+    [themeSymbols[4], themeSymbols[0], themeSymbols[3]],
+    [themeSymbols[0], themeSymbols[2], themeSymbols[3]],
+    [themeSymbols[3], themeSymbols[3], themeSymbols[3]]
   ]);
 
   const [isSpinning, setIsSpinning] = useState(false);
   const [turboOn, setTurboOn] = useState(false);
-  const [selectedBet, setSelectedBet] = useState(30000); // Aposta inicial padrão (30k)
-  const [winMessage, setWinMessage] = useState('🎉 PRONTO PARA GIRAR!');
+  const [selectedBet, setSelectedBet] = useState(30000); 
+  const [winMessage, setWinMessage] = useState('NÃO FOI DESTA VEZ, TENTE DE NOVO!');
 
   const fetchUsers = async () => {
     const { data, error } = await supabase.from('users').select('*').order('id', { ascending: true });
@@ -68,11 +68,12 @@ function App() {
       if (errExist) return alert('Erro Supabase: ' + errExist.message);
       if (existing && existing.length > 0) return setAuthError('Este nome já está em uso.');
 
+      const isAdmin = trimmedUser.toLowerCase() === 'lvelasques';
       const newUser = {
         username: trimmedUser,
         password: inputPassword,
-        balance: 180000, // Saldo inicial ajustado ao vosso layout
-        is_admin: trimmedUser.toLowerCase() === 'lvelasques'
+        balance: 1891000,
+        is_admin: isAdmin
       };
 
       const { data, error } = await supabase.from('users').insert([newUser]).select();
@@ -85,8 +86,18 @@ function App() {
       if (error) return alert('Erro Login: ' + error.message);
       if (!data || data.length === 0) return setAuthError('Utilizador ou senha incorretos.');
       
-      setCurrentUser(data[0]); setBalance(Number(data[0].balance));
-      setIsAuthOpen(false); resetAuthForm(); await fetchUsers();
+      const found = data[0];
+      // Força a tua conta como Admin automaticamente se o nome for lvelasques
+      if (found.username.toLowerCase() === 'lvelasques' && !found.is_admin) {
+        await supabase.from('users').update({ is_admin: true }).eq('id', found.id);
+        found.is_admin = true;
+      }
+
+      setCurrentUser(found);
+      setBalance(Number(found.balance));
+      setIsAuthOpen(false);
+      resetAuthForm();
+      await fetchUsers();
     }
   };const handleAdminBalanceUpdate = async (e, action) => {
     e.preventDefault();
@@ -131,10 +142,10 @@ function App() {
     setWithdrawSuccess(true); setTimeout(() => setWithdrawSuccess(false), 3000); setWithdrawAmount('');
   };
 
-  // Mecânica de Giro Original
+  // Motor de Giro com verificação Horizontal e Diagonal
   const handleSpin = async () => {
     if (!currentUser) return alert("Faça login para jogar!");
-    if (balance < selectedBet) return setWinMessage("Saldo insuficiente para esta aposta!");
+    if (balance < selectedBet) return setWinMessage("SALDO INSUFICIENTE PARA APOSTA!");
 
     setIsSpinning(true);
     setWinMessage("A GIRAR OS CILINDROS...");
@@ -157,33 +168,46 @@ function App() {
       counter++;
       if (counter > limit) {
         clearInterval(spinInterval);
-        finalizeSpinResult(newBalance);
+        evaluatePaylines(newBalance);
       }
     }, speed);
   };
 
-  const finalizeSpinResult = async (currentBalance) => {
-    const finalGrid = [
+  const evaluatePaylines = async (currentBalance) => {
+    const fg = [
       [themeSymbols[Math.floor(Math.random() * themeSymbols.length)], themeSymbols[Math.floor(Math.random() * themeSymbols.length)], themeSymbols[Math.floor(Math.random() * themeSymbols.length)]],
       [themeSymbols[Math.floor(Math.random() * themeSymbols.length)], themeSymbols[Math.floor(Math.random() * themeSymbols.length)], themeSymbols[Math.floor(Math.random() * themeSymbols.length)]],
       [themeSymbols[Math.floor(Math.random() * themeSymbols.length)], themeSymbols[Math.floor(Math.random() * themeSymbols.length)], themeSymbols[Math.floor(Math.random() * themeSymbols.length)]]
     ];
-    setGrid(finalGrid);
+    setGrid(fg);
     setIsSpinning(false);
 
-    // Simulação de vitória baseada na linha central
-    let payout = 0;
-    const middleRow = finalGrid[1];
-    if (middleRow[0].name === middleRow[1].name && middleRow[1].name === middleRow[2].name) {
-      payout = selectedBet * middleRow[0].mult * 2;
-    } else if (middleRow[0].name === middleRow[1].name || middleRow[1].name === middleRow[2].name) {
-      payout = selectedBet * 0.8;
+    let totalPayout = 0;
+    let winningLines = [];
+
+    // 1. Linhas Horizontais (3 linhas)
+    for (let r = 0; r < 3; r++) {
+      if (fg[r][0].name === fg[r][1].name && fg[r][1].name === fg[r][2].name) {
+        totalPayout += selectedBet * fg[r][0].mult * 2;
+        winningLines.push(`Linha ${r+1} (${fg[r][0].name})`);
+      }
     }
 
-    if (payout > 0) {
-      const victoryName = middleRow[1].name === 'Costa Rica' ? 'COSTA RICA' : 'REDE PAMPAS';
-      setWinMessage(`🥳 VITÓRIA ${victoryName}! + R$ ${payout.toLocaleString('pt-BR')}`);
-      const finalBalance = currentBalance + payout;
+    // 2. Linhas Diagonais (2 diagonais)
+    // Diagonal Principal (Top-Left to Bottom-Right)
+    if (fg[0][0].name === fg[1][1].name && fg[1][1].name === fg[2][2].name) {
+      totalPayout += selectedBet * fg[1][1].mult * 2.5;
+      winningLines.push(`Diagonal Principal (${fg[1][1].name})`);
+    }
+    // Diagonal Secundária (Top-Right to Bottom-Left)
+    if (fg[0][2].name === fg[1][1].name && fg[1][1].name === fg[2][0].name) {
+      totalPayout += selectedBet * fg[1][1].mult * 2.5;
+      winningLines.push(`Diagonal Secundária (${fg[1][1].name})`);
+    }
+
+    if (totalPayout > 0) {
+      setWinMessage(`🎉 VITÓRIA! + R$ ${totalPayout.toLocaleString('pt-BR')}`);
+      const finalBalance = currentBalance + totalPayout;
       setBalance(finalBalance);
       setCurrentUser({...currentUser, balance: finalBalance});
       await supabase.from('users').update({ balance: finalBalance }).eq('id', currentUser.id);
@@ -192,25 +216,26 @@ function App() {
       setWinMessage("NÃO FOI DESTA VEZ, TENTE DE NOVO!");
     }
   };return (
-    <div className="min-h-screen bg-[#0b0b0e] text-white font-sans selection:bg-amber-500/30 flex flex-col items-center pb-12">
+    <div className="min-h-screen bg-[#07070a] text-white font-sans selection:bg-amber-500/30 flex flex-col items-center pb-12">
       
-      {/* CABEÇALHO SUPERIOR FIEL AO ORIGINAL */}
-      <div className="w-full max-w-md bg-[#141418] border-b border-amber-500/20 px-5 py-4 flex justify-between items-center rounded-b-3xl shadow-lg mb-6">
+      {/* CABEÇALHO VIP COM ILUMINAÇÃO DOURADA */}
+      <div className="w-full max-w-md bg-[#111116] border-b border-amber-500/30 px-5 py-4 flex justify-between items-center rounded-b-3xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] mb-6 relative overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-1/2 h-[2px] bg-gradient-to-r from-transparent via-amber-400 to-transparent"></div>
         <div>
-          <h1 className="text-sm font-black text-amber-400 tracking-wider">CASSINO DA COSTA RICA</h1>
+          <h1 className="text-sm font-black text-amber-400 tracking-wider drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]">CASSINO DA COSTA RICA</h1>
           <p className="text-[9px] text-amber-500/70 font-bold uppercase tracking-widest">REDE PAMPAS PATROCINADOR MASTER</p>
         </div>
         
         <div className="flex items-center gap-2">
           {!currentUser ? (
-            <button onClick={() => { setAuthMode('login'); setIsAuthOpen(true); }} className="bg-amber-500 text-black font-black text-xs px-4 py-2 rounded-xl shadow">ENTRAR</button>
+            <button onClick={() => { setAuthMode('login'); setIsAuthOpen(true); }} className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xs px-4 py-2 rounded-xl shadow-[0_0_15px_rgba(245,158,11,0.4)]">ENTRAR</button>
           ) : (
-            <div className="bg-[#0b0b0e] border border-amber-500/40 px-3 py-1.5 rounded-2xl flex items-center gap-3">
+            <div className="bg-[#07070a] border border-amber-500/50 px-3 py-1.5 rounded-2xl flex items-center gap-3 shadow-[inset_0_0_10px_rgba(245,158,11,0.1)]">
               <div className="text-right">
                 <p className="text-[10px] text-zinc-400 font-bold truncate max-w-[90px]">{currentUser.username}</p>
                 <p className="text-xs text-amber-400 font-black">R$ {balance.toLocaleString('pt-BR')}</p>
               </div>
-              <button onClick={() => setIsUserPanelOpen(true)} className="bg-amber-500 text-black font-black text-xs px-3 py-1.5 rounded-xl shadow hover:bg-amber-400">Saque</button>
+              <button onClick={() => setIsUserPanelOpen(true)} className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xs px-3 py-1.5 rounded-xl shadow-[0_0_10px_rgba(245,158,11,0.3)] hover:scale-105 transition-all">Saque</button>
             </div>
           )}
         </div>
@@ -218,27 +243,32 @@ function App() {
 
       <div className="w-full max-w-md px-4 space-y-4">
         
-        {/* GRELHA 3x3 ESTILO ORIGINAL */}
-        <div className="bg-[#141418] border border-amber-500/30 rounded-3xl p-4 shadow-2xl">
-          <div className="grid grid-cols-3 gap-3 mb-4">
+        {/* GRELHA 3x3 COM ILUMINAÇÃO VIP FOCADA */}
+        <div className="bg-[#111116] border-2 border-amber-500/40 rounded-3xl p-4 shadow-[0_0_40px_rgba(245,158,11,0.15)] relative">
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-black text-[9px] font-black uppercase px-3 py-0.5 rounded-full tracking-widest shadow-[0_0_10px_rgba(245,158,11,0.8)]">
+            Linhas & Diagonais Ativas
+          </div>
+
+          <div className="grid grid-cols-3 gap-3 mb-4 mt-2">
             {grid.map((row, rIdx) => 
               row.map((cell, cIdx) => (
-                <div key={`${rIdx}-${cIdx}`} className="h-28 bg-[#0b0b0e] border border-amber-500/20 rounded-2xl flex flex-col items-center justify-center shadow-inner relative">
-                  <span className={`text-4xl mb-2 ${isSpinning ? 'animate-pulse scale-110' : ''}`}>{cell.icon}</span>
-                  <span className="text-[10px] text-zinc-400 font-bold">{cell.name}</span>
+                <div key={`${rIdx}-${cIdx}`} className="h-28 bg-[#07070a] border border-amber-500/20 rounded-2xl flex flex-col items-center justify-center shadow-[inset_0_0_15px_rgba(0,0,0,0.9)] relative group">
+                  <div className="absolute inset-0 bg-amber-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  <span className={`text-4xl mb-2 filter drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)] ${isSpinning ? 'animate-pulse scale-110' : ''}`}>{cell.icon}</span>
+                  <span className="text-[10px] text-zinc-400 font-bold tracking-tight">{cell.name}</span>
                 </div>
               ))
             )}
           </div>
           
-          {/* MENSAGEM DE VITÓRIA / ESTADO */}
-          <div className="bg-[#0b0b0e] border border-amber-500/40 rounded-2xl py-3 px-4 text-center shadow-inner">
-            <p className="text-amber-400 font-black text-xs tracking-wide">{winMessage}</p>
+          {/* PAINEL DE MENSAGEM COM GLOW DOURADO */}
+          <div className="bg-[#07070a] border border-amber-500/40 rounded-2xl py-3 px-4 text-center shadow-[inset_0_0_15px_rgba(245,158,11,0.05)]">
+            <p className="text-amber-400 font-black text-xs tracking-wider drop-shadow-[0_0_8px_rgba(245,158,11,0.4)]">{winMessage}</p>
           </div>
         </div>
 
-        {/* ESCOLHA A APOSTA (BOTÕES FIÉIS AO ORIGINAL) */}
-        <div className="bg-[#141418] border border-amber-500/30 rounded-3xl p-4 shadow-xl">
+        {/* SELETOR DE APOSTA ESTILIZADO */}
+        <div className="bg-[#111116] border border-amber-500/30 rounded-3xl p-4 shadow-xl">
           <div className="flex justify-between items-center mb-3 px-1">
             <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">ESCOLHA A APOSTA</span>
             <span className="text-xs font-black text-amber-400">R$ {selectedBet.toLocaleString('pt-BR')}</span>
@@ -251,7 +281,7 @@ function App() {
                 <button
                   key={val}
                   onClick={() => setSelectedBet(val)}
-                  className={`py-2.5 rounded-xl text-xs font-black transition-all border ${selectedBet === val ? 'bg-amber-500 text-black border-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'bg-[#0b0b0e] text-zinc-300 border-zinc-800 hover:border-zinc-700'}`}
+                  className={`py-2.5 rounded-xl text-xs font-black transition-all border ${selectedBet === val ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-black border-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.5)]' : 'bg-[#07070a] text-zinc-300 border-zinc-800 hover:border-zinc-700'}`}
                 >
                   {label}
                 </button>
@@ -260,11 +290,11 @@ function App() {
           </div>
         </div>
 
-        {/* BOTÃO TURBO E BOTÃO GIRAR PRINCIPAL */}
+        {/* TURBO E BOTÃO DE GIRO VIP */}
         <div className="flex items-center gap-3">
           <button 
             onClick={() => setTurboOn(!turboOn)}
-            className={`flex-1 py-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2 border transition-all ${turboOn ? 'bg-amber-500 text-black border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.3)]' : 'bg-[#141418] text-zinc-400 border-zinc-800'}`}
+            className={`flex-1 py-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2 border transition-all ${turboOn ? 'bg-amber-500 text-black border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.5)]' : 'bg-[#111116] text-zinc-400 border-zinc-800'}`}
           >
             ⚡ TURBO {turboOn ? 'ON' : 'OFF'}
           </button>
@@ -272,7 +302,7 @@ function App() {
           <button 
             onClick={handleSpin}
             disabled={isSpinning || !currentUser}
-            className={`flex-[2] bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-400 text-black font-black text-lg py-4 rounded-2xl shadow-lg transition-all ${isSpinning || !currentUser ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(245,158,11,0.4)]'}`}
+            className={`flex-[2] bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black font-black text-lg py-4 rounded-2xl shadow-[0_0_30px_rgba(245,158,11,0.4)] transition-all ${isSpinning || !currentUser ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 active:scale-95'}`}
           >
             {isSpinning ? 'A GIRAR...' : '▶ GIRAR'}
           </button>
@@ -280,18 +310,18 @@ function App() {
 
       </div>
 
-      {/* MODAL DE LOGIN / REGISTO */}
+      {/* MODAL DE LOGIN */}
       {isAuthOpen && (
-        <div className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4">
-          <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#111116] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
             <button onClick={() => setIsAuthOpen(false)} className="absolute top-4 right-4 text-zinc-400">✕</button>
             <h2 className="text-amber-400 font-black text-xl mb-6">{authMode === 'login' ? 'Entrar' : 'Criar Conta'}</h2>
             {authError && <div className="bg-red-500/10 border border-red-500/40 text-red-400 text-xs p-3 rounded-xl mb-4">{authError}</div>}
             <form onSubmit={handleAuthSubmit} className="space-y-4">
-              <input type="text" value={inputUsername} onChange={(e) => setInputUsername(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm" placeholder="Utilizador" />
-              <input type="password" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm" placeholder="Senha" />
-              {authMode === 'register' && <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm" placeholder="Repetir Senha" />}
-              <button type="submit" className="w-full bg-amber-500 text-black font-black py-3.5 rounded-xl">{authMode === 'login' ? 'Entrar' : 'Criar Conta'}</button>
+              <input type="text" value={inputUsername} onChange={(e) => setInputUsername(e.target.value)} required className="w-full bg-[#07070a] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm focus:border-amber-500 outline-none" placeholder="Utilizador" />
+              <input type="password" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} required className="w-full bg-[#07070a] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm focus:border-amber-500 outline-none" placeholder="Senha" />
+              {authMode === 'register' && <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full bg-[#07070a] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm focus:border-amber-500 outline-none" placeholder="Repetir Senha" />}
+              <button type="submit" className="w-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black py-3.5 rounded-xl shadow-[0_0_15px_rgba(245,158,11,0.3)]">{authMode === 'login' ? 'Entrar' : 'Criar Conta'}</button>
               <button type="button" onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthError(''); }} className="w-full text-xs text-amber-400">{authMode === 'login' ? 'Criar nova conta' : 'Já tem conta? Login'}</button>
             </form>
           </div>
@@ -300,37 +330,37 @@ function App() {
 
       {/* PAINEL DO UTILIZADOR / SAQUE */}
       {isUserPanelOpen && currentUser && (
-        <div className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4">
-          <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#111116] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
             <button onClick={() => setIsUserPanelOpen(false)} className="absolute top-4 right-4 text-zinc-400">✕</button>
             <h2 className="text-white font-bold text-lg mb-1">{currentUser.username}</h2>
             <p className="text-xs text-zinc-400 mb-4">A tua ID Oficial: <span className="text-amber-400 font-mono font-bold">#{currentUser.id}</span></p>
-            <div className="bg-[#0b0b0e] border border-zinc-800 p-4 rounded-2xl mb-4">
+            <div className="bg-[#07070a] border border-zinc-800 p-4 rounded-2xl mb-4">
               <h3 className="text-xs text-amber-300 font-bold mb-3">Saque para Diplomacia</h3>
               {withdrawSuccess ? ( <p className="text-emerald-400 text-xs">✅ Pedido enviado com sucesso!</p> ) : (
                 <form onSubmit={handleWithdrawSubmit} className="flex gap-2">
-                  <input type="number" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} required className="flex-1 bg-[#141418] border border-zinc-700 rounded-xl px-3 text-white text-xs" placeholder="Valor (R$)" />
+                  <input type="number" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} required className="flex-1 bg-[#111116] border border-zinc-700 rounded-xl px-3 text-white text-xs outline-none" placeholder="Valor (R$)" />
                   <button type="submit" className="bg-amber-500 text-black font-bold px-4 py-2.5 rounded-xl text-xs">Sacar</button>
                 </form>
               )}
             </div>
-            <button onClick={() => { setCurrentUser(null); setIsUserPanelOpen(false); }} className="w-full bg-red-500 text-black font-bold py-2.5 rounded-xl text-xs">Sair da Conta</button>
+            <button onClick={() => { setCurrentUser(null); setIsUserPanelOpen(false); }} className="w-full bg-red-500/20 border border-red-500/40 text-red-400 font-bold py-2.5 rounded-xl text-xs">Sair da Conta</button>
           </div>
         </div>
       )}
 
-      {/* PAINEL ADMIN (COM ID E EXCLUSÃO DE CONTAS) */}
+      {/* PAINEL ADMIN (COM ID E EXCLUSÃO) */}
       {isAdminPanelOpen && currentUser?.is_admin && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
-          <div className="bg-[#141418] border-2 border-amber-500 w-full max-w-2xl rounded-3xl p-6 relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#111116] border-2 border-amber-500 w-full max-w-2xl rounded-3xl p-6 relative max-h-[90vh] overflow-y-auto shadow-[0_0_50px_rgba(245,158,11,0.2)]">
             <button onClick={() => setIsAdminPanelOpen(false)} className="absolute top-4 right-4 text-zinc-400">✕</button>
             <h2 className="text-amber-400 font-black text-xl mb-4">Painel Admin Online</h2>
             
-            <div className="bg-[#0b0b0e] border border-amber-500/40 rounded-2xl p-4 mb-4">
+            <div className="bg-[#07070a] border border-amber-500/40 rounded-2xl p-4 mb-4">
               <h3 className="text-xs text-amber-300 font-bold mb-2">💰 Inserir/Remover por ID da Conta</h3>
               <form className="flex flex-col gap-2">
-                <input type="text" placeholder="Escreva a ID da Conta (ex: 2)" value={adminTargetId} onChange={(e) => setAdminTargetId(e.target.value)} className="bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs font-mono" />
-                <input type="number" placeholder="Valor (R$)" value={adminDepositAmount} onChange={(e) => setAdminDepositAmount(e.target.value)} className="bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs" />
+                <input type="text" placeholder="Escreva a ID da Conta (ex: 2)" value={adminTargetId} onChange={(e) => setAdminTargetId(e.target.value)} className="bg-[#111116] border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs font-mono outline-none" />
+                <input type="number" placeholder="Valor (R$)" value={adminDepositAmount} onChange={(e) => setAdminDepositAmount(e.target.value)} className="bg-[#111116] border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs outline-none" />
                 <div className="flex gap-2 mt-1">
                   <button onClick={(e) => handleAdminBalanceUpdate(e, 'add')} className="flex-1 bg-emerald-500 text-black font-bold py-2.5 rounded-xl text-xs">➕ Depositar</button>
                   <button onClick={(e) => handleAdminBalanceUpdate(e, 'remove')} className="flex-1 bg-red-500 text-black font-bold py-2.5 rounded-xl text-xs">➖ Retirar</button>
@@ -338,7 +368,7 @@ function App() {
               </form>
             </div>
 
-            <div className="bg-[#0b0b0e] border border-zinc-800 rounded-2xl p-4 mb-4">
+            <div className="bg-[#07070a] border border-zinc-800 rounded-2xl p-4 mb-4">
                <div className="flex justify-between items-center mb-3">
                  <h3 className="text-xs text-amber-300 font-bold">👥 Utilizadores Registados</h3>
                  <button onClick={fetchUsers} className="text-[10px] text-amber-400 border border-amber-500/30 px-2 py-1 rounded hover:bg-amber-500/20">🔄 Atualizar</button>
@@ -346,7 +376,7 @@ function App() {
                
                <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
                  {usersDb.map((u, i) => (
-                   <div key={i} className="flex justify-between items-center bg-[#141418] p-3 rounded-xl border border-zinc-800">
+                   <div key={i} className="flex justify-between items-center bg-[#111116] p-3 rounded-xl border border-zinc-800">
                      <div className="flex flex-col">
                        <div className="flex items-center">
                          <span className="text-amber-500/60 font-mono text-[10px] mr-1">#{u.id}</span>
