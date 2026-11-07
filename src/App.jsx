@@ -55,7 +55,9 @@ export default function App() {
         setWinEffect(true);
       }
     }, turbo ? 300 : 800);
-  };return (
+  };
+
+  return (
     <div className="min-h-screen bg-[#09090b] text-white font-sans antialiased pb-12">
       <header className="sticky top-0 z-50 bg-[#0d0d0f]/90 backdrop-blur-md border-b border-[#26262b] px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -98,7 +100,8 @@ export default function App() {
           <Award className="w-4 h-4 text-amber-400 animate-pulse" />
           <span>REDE PAMPAS — PATROCINADOR MASTER OFICIAL</span>
         </div>
-      </div><main className="max-w-md mx-auto p-4 space-y-4 pt-6">
+      </div>
+      <main className="max-w-md mx-auto p-4 space-y-4 pt-6">
         <div className="relative bg-gradient-to-b from-[#16161a] to-[#0a0a0c] border-2 border-amber-500/30 rounded-3xl p-4 shadow-2xl">
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-black font-black text-[10px] uppercase px-3 py-0.5 rounded-full shadow-md">
             ✨ Padrão VIP Costa Rica
@@ -157,7 +160,9 @@ export default function App() {
             {spinning ? 'A GIRAR...' : 'GIRAR'}
           </button>
         </div>
-      </main>{isAuthOpen && (
+      </main>
+
+      {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#16161a] border border-[#2a2a30] w-full max-w-md rounded-3xl p-6 relative">
             <button onClick={() => setIsAuthOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white"><X className="w-5 h-5" /></button>
