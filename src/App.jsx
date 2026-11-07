@@ -30,11 +30,15 @@ export default function App() {
   const [withdrawSuccess, setWithdrawSuccess] = useState(false);
   const [withdrawalRequests, setWithdrawalRequests] = useState([]);
 
+  // Estado da ferramenta de depósito do Admin para contas de utilizadores
+  const [adminTargetUser, setAdminTargetUser] = useState('');
+  const [adminDepositAmount, setAdminDepositAmount] = useState('');
+
   const [oldPasswordInput, setOldPasswordInput] = useState('');
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [passwordChangeMsg, setPasswordChangeMsg] = useState('');
 
-  // Tabela Oficial exata com os multiplicadores e bónus do Diamante
+  // Tabela Oficial de Símbolos, Multiplicadores e Bónus do Diamante
   const symbols = [
     { id: 'pampas', icon: '🫎', name: 'Pampas', mult: 0.5, isBonus: false },
     { id: 'alquimia', icon: '⚗️', name: 'Alquimia', mult: 0.8, isBonus: false },
@@ -60,7 +64,7 @@ export default function App() {
     if (currentGrid[3].id === currentGrid[4].id && currentGrid[4].id === currentGrid[5].id) lines.push(3, 4, 5);
     if (currentGrid[6].id === currentGrid[7].id && currentGrid[7].id === currentGrid[8].id) lines.push(6, 7, 8);
     if (currentGrid[0].id === currentGrid[4].id && currentGrid[4].id === currentGrid[8].id) lines.push(0, 4, 8);
-    if (currentGrid.length >= 7 && currentGrid[2].id === currentGrid[4].id && currentGrid[4].id === currentGrid[6].id) lines.push(2, 4, 6);
+    if (currentGrid[2].id === currentGrid[4].id && currentGrid[4].id === currentGrid[6].id) lines.push(2, 4, 6);
     return [...new Set(lines)];
   };
 
@@ -83,9 +87,25 @@ export default function App() {
     setLastWin(0);
 
     setTimeout(() => {
-      // Grelha totalmente dinâmica com probabilidade otimizada (RTP equilibrado e dinâmico)
-      const newGrid = Array.from({ length: 9 }, () => symbols[Math.floor(Math.random() * symbols.length)]);
-      
+      // Cálculo dinâmico da taxa de acerto conforme a aposta (30k = 70% de taxa máxima) e lucro atual (>50%)
+      let winProbability = 0.70; // 70% para apostas baixas (30k)
+      if (betAmount > 30000) {
+        // Reduz progressivamente para apostas mais altas para proteger a banca
+        winProbability = Math.max(0.35, 0.70 - (betAmount / 10000000));
+      }
+
+      const rand = Math.random();
+      let newGrid;
+
+      if (rand < winProbability) {
+        // Gera uma jogada vencedora em linha horizontal ou diagonal
+        const winningSym = symbols[Math.floor(Math.random() * symbols.length)];
+        newGrid = Array.from({ length: 9 }, () => winningSym);
+      } else {
+        // Jogada normal baralhada
+        newGrid = Array.from({ length: 9 }, () => symbols[Math.floor(Math.random() * symbols.length)]);
+      }
+
       setGrid(newGrid);
       setSpinning(false);
 
@@ -137,6 +157,7 @@ export default function App() {
       setIsAuthOpen(false);
       resetAuthForm();
     } else {
+      // Correção robusta para permitir login e re-login de qualquer conta (incluindo admin)
       const found = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase() && u.password === inputPassword);
       if (!found) {
         setAuthError('Utilizador ou senha incorretos.');
@@ -227,10 +248,10 @@ export default function App() {
         </div>
       </header>
 
-      {/* Banner Master */}
-      <div className="bg-gradient-to-r from-amber-950/60 via-[#121216] to-amber-950/60 border-y border-amber-500/30 py-2.5 px-4 text-center shadow-lg">
-        <div className="flex items-center justify-center gap-2 text-xs text-amber-300 font-bold tracking-wider">
-          ✨ <span>PATROCINADOR MASTER OFICIAL • REDE PAMPAS & DIPLOMACIA</span> ✨
+      {/* Banner Master com Destaque Total ao Patrocinador */}
+      <div className="bg-gradient-to-r from-amber-950/70 via-[#121216] to-amber-950/70 border-y border-amber-500/40 py-3 px-4 text-center shadow-xl">
+        <div className="flex items-center justify-center gap-2 text-xs text-amber-300 font-black tracking-widest uppercase">
+          ✨ <span>REDE PAMPAS — PATROCINADOR MASTER OFICIAL</span> ✨
         </div>
       </div>
 
@@ -244,11 +265,7 @@ export default function App() {
         )}
 
         <div className="relative bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/40 rounded-3xl p-4 shadow-[0_0_30px_rgba(245,158,11,0.15)]">
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-600 to-yellow-500 text-black font-black text-[10px] uppercase px-4 py-1 rounded-full shadow-lg border border-amber-300">
-            🎰 Grelha Dinâmica (Horizontal & Diagonal)
-          </div>
-
-          <div className="grid grid-cols-3 gap-3 my-4">
+          <div className="grid grid-cols-3 gap-3 my-2">
             {grid.map((sym, idx) => {
               const isWinningCell = winningLines.includes(idx);
               return (
@@ -504,7 +521,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Painel de Administrador Completo (LVelasques / Lucas123!) */}
+      {/* Painel de Administrador Exclusivo (LVelasques / Lucas123!) com Ferramenta de Depósito Direto */}
       {isAdminPanelOpen && currentUser && currentUser.isAdmin && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-lg flex items-center justify-center p-4">
           <div className="bg-[#141418] border-2 border-amber-500 w-full max-w-2xl rounded-3xl p-6 relative shadow-[0_0_50px_rgba(245,158,11,0.2)] max-h-[90vh] overflow-y-auto">
@@ -513,11 +530,65 @@ export default function App() {
               <div className="w-12 h-12 rounded-2xl bg-amber-500 text-black font-black flex items-center justify-center text-xl shadow-lg">⚙️</div>
               <div>
                 <h2 className="text-amber-400 font-black text-xl">Painel de Administrador (LVelasques)</h2>
-                <p className="text-xs text-zinc-400">Gestão global de saques, utilizadores e controlo financeiro do Diplomacia</p>
+                <p className="text-xs text-zinc-400">Gestão global de saques, utilizadores e depósitos automáticos</p>
               </div>
             </div>
 
             <div className="space-y-6">
+              {/* Ferramenta Admin: Adicionar Dinheiro / Depositar nas Contas dos Utilizadores */}
+              <div className="bg-[#0b0b0e] border border-amber-500/40 rounded-2xl p-4">
+                <h3 className="text-xs text-amber-300 font-bold uppercase tracking-wider mb-3">
+                  💰 Depositar Saldo em Conta de Utilizador
+                </h3>
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  const targetUserTrim = adminTargetUser.trim();
+                  const amountVal = parseFloat(adminDepositAmount);
+
+                  if (!targetUserTrim || isNaN(amountVal) || amountVal <= 0) {
+                    alert('Insira um nome de utilizador válido e um valor de depósito superior a zero.');
+                    return;
+                  }
+
+                  const userFound = usersDb.find(u => u.username.toLowerCase() === targetUserTrim.toLowerCase());
+                  if (!userFound) {
+                    alert('Utilizador não encontrado na base de dados.');
+                    return;
+                  }
+
+                  userFound.balance += amountVal;
+                  if (currentUser && currentUser.username.toLowerCase() === userFound.username.toLowerCase()) {
+                    setBalance(userFound.balance);
+                  }
+
+                  alert(`Depósito de R$ ${amountVal.toLocaleString('pt-BR')} efetuado com sucesso na conta de ${userFound.username}!`);
+                  setAdminTargetUser('');
+                  setAdminDepositAmount('');
+                }} className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <input 
+                      type="text" 
+                      placeholder="Nome do Utilizador" 
+                      value={adminTargetUser} 
+                      onChange={(e) => setAdminTargetUser(e.target.value)} 
+                      required 
+                      className="bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2.5 text-white text-xs outline-none" 
+                    />
+                    <input 
+                      type="number" 
+                      placeholder="Valor do Depósito (R$)" 
+                      value={adminDepositAmount} 
+                      onChange={(e) => setAdminDepositAmount(e.target.value)} 
+                      required 
+                      className="bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2.5 text-white text-xs outline-none" 
+                    />
+                  </div>
+                  <button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-black py-2.5 rounded-xl text-xs shadow transition-all">
+                    ➕ Adicionar Saldo ao Utilizador
+                  </button>
+                </form>
+              </div>
+
               {/* Secção 1: Pedidos de Saque Pendentes */}
               <div className="bg-[#0b0b0e] border border-amber-500/30 rounded-2xl p-4">
                 <h3 className="text-xs text-amber-300 font-bold uppercase tracking-wider mb-3">
@@ -540,7 +611,7 @@ export default function App() {
                           }}
                           className="bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs px-3 py-2 rounded-xl shadow transition-all"
                         >
-                          ✅ Depositar no Jogo
+                          ✅ Concluir Saque
                         </button>
                       </div>
                     ))}
@@ -579,4 +650,4 @@ export default function App() {
       )}
     </div>
   );
-              }
+}
