@@ -7,6 +7,7 @@ import RoletaDiplomatica from './RoletaDiplomatica';
 import PampasGoal from './PampasGoal';
 import PampasTowers from './PampasTowers';
 import PampasHiLo from './PampasHiLo';
+import PampasDice from './PampasDice';
 
 const SUPABASE_URL = 'https://tieduoyppbigsaxxjhfl.supabase.co'; 
 const SUPABASE_ANON_KEY = 'sb_publishable_EvhGbTRSSqDK426spZx1sw_uRhXIJX2';
@@ -15,7 +16,7 @@ const isSupabaseConfigured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KE
 const supabase = isSupabaseConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 export default function App() {
-  const [activeGame, setActiveGame] = useState('lobby'); // 'lobby', 'costarica', 'diamond', 'crash', 'roleta', 'goal', 'towers', 'hilo'
+  const [activeGame, setActiveGame] = useState('lobby'); // 'lobby', 'costarica', 'diamond', 'crash', 'roleta', 'goal', 'towers', 'hilo', 'dice'
 
   const [usersDb, setUsersDb] = useState(() => {
     const saved = localStorage.getItem('pampas_users_db');
@@ -253,7 +254,7 @@ export default function App() {
     localStorage.setItem('pampas_users_db', JSON.stringify(updatedList));
     if (currentUser && currentUser.id === id) handleLogout();
   };
-    if (activeGame === 'costarica') {
+        if (activeGame === 'costarica') {
     return (
       <div>
         <div className="bg-black px-4 py-2.5 flex items-center justify-between border-b border-zinc-900 sticky top-0 z-50">
@@ -365,6 +366,22 @@ export default function App() {
     );
   }
 
+  if (activeGame === 'dice') {
+    return (
+      <div>
+        <div className="bg-black px-4 py-2.5 flex items-center justify-between border-b border-zinc-900 sticky top-0 z-50">
+          <button onClick={() => setActiveGame('lobby')} className="bg-zinc-800 hover:bg-zinc-700 text-amber-400 font-bold px-3 py-1.5 rounded-xl text-xs border border-zinc-700 transition-all">
+            🏠 Voltar ao Lobby
+          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-amber-400 font-black">R$ {balance.toLocaleString('pt-BR')}</span>
+          </div>
+        </div>
+        <PampasDice />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       <header className="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-zinc-900 px-4 py-3 flex items-center justify-between shadow-2xl">
@@ -404,7 +421,7 @@ export default function App() {
           </h1>
           <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Escolha a sua plataforma de apostas unificadas</p>
         </div>
-                {/* Lista dos 7 Jogos Oficiais */}
+                {/* Lista dos 8 Jogos Oficiais */}
         <div className="space-y-4 pt-2">
           <div onClick={() => setActiveGame('costarica')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-[0_10px_30px_rgba(0,0,0,0.8)] transition-all hover:scale-105 group space-y-2">
             <h3 className="text-lg font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-500 drop-shadow-[0_3px_10px_rgba(245,158,11,0.5)]">
@@ -471,6 +488,16 @@ export default function App() {
               🃏 PAMPAS HI-LO
             </h3>
             <p className="text-xs text-zinc-300 font-medium">A adivinhação rápida de cartas altas ou baixas em sequência.</p>
+            <div className="pt-2">
+              <span className="inline-block bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xs px-5 py-2 rounded-xl shadow-[0_5px_15px_rgba(245,158,11,0.4)]">JOGAR AGORA ▶</span>
+            </div>
+          </div>
+
+          <div onClick={() => setActiveGame('dice')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-[0_10px_30px_rgba(0,0,0,0.8)] transition-all hover:scale-105 group space-y-2">
+            <h3 className="text-lg font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-500 drop-shadow-[0_3px_10px_rgba(245,158,11,0.5)]">
+              🎲 PAMPAS DICE
+            </h3>
+            <p className="text-xs text-zinc-300 font-medium">O seletor de probabilidade e dados com multiplicador personalizado.</p>
             <div className="pt-2">
               <span className="inline-block bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xs px-5 py-2 rounded-xl shadow-[0_5px_15px_rgba(245,158,11,0.4)]">JOGAR AGORA ▶</span>
             </div>
@@ -608,4 +635,5 @@ export default function App() {
       )}
     </div>
   );
-}
+          }
+                
