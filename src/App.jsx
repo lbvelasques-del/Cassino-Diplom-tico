@@ -251,7 +251,7 @@ export default function App() {
     localStorage.setItem('pampas_users_db', JSON.stringify(updatedList));
     if (currentUser && currentUser.id === id) handleLogout();
   };
-        if (activeGame === 'costarica') {
+      if (activeGame === 'costarica') {
     return (
       <div>
         <div className="bg-black px-4 py-2.5 flex items-center justify-between border-b border-zinc-900 sticky top-0 z-50">
@@ -333,9 +333,10 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
+      {/* Cabeçalho sem brilho no patrocinador */}
       <header className="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-zinc-900 px-4 py-3 flex items-center justify-between shadow-2xl">
         <div className="flex items-center py-1 cursor-pointer" onClick={() => setActiveGame('lobby')}>
-          <img src="/Grupopampas.png" alt="Patrocinador" className="h-12 w-auto max-w-[180px] object-contain drop-shadow-[0_0_10px_rgba(245,158,11,0.3)]" />
+          <img src="/Grupopampas.png" alt="Patrocinador" className="h-12 w-auto max-w-[180px] object-contain" />
         </div>
 
         <div className="flex items-center gap-2">
@@ -359,13 +360,14 @@ export default function App() {
       </header>
 
       <main className="max-w-md mx-auto p-4 space-y-6 pt-6 text-center">
+        {/* Logótipo do cassino sem brilho nem animação */}
         <div className="flex flex-col items-center justify-center space-y-3 pt-2">
           <img 
             src="/CassinaCR.png" 
             alt="Logótipo Cassino" 
-            className="h-28 w-auto max-w-[320px] object-contain drop-shadow-[0_10px_25px_rgba(245,158,11,0.5)] animate-pulse" 
+            className="h-28 w-auto max-w-[320px] object-contain" 
           />
-          <h1 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-500 drop-shadow-[0_5px_15px_rgba(245,158,11,0.6)]">
+          <h1 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-500">
             LOBBY DE ELITE
           </h1>
           <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Escolha a sua plataforma de apostas unificadas</p>
@@ -416,7 +418,7 @@ export default function App() {
             <h3 className="text-lg font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-500 drop-shadow-[0_3px_10px_rgba(245,158,11,0.5)]">
               ⚽ PAMPAS GOAL
             </h3>
-            <p className="text-xs text-zinc-300 font-medium">A batalha diplomática de pênaltis com os ativos oficiais do portal.</p>
+            <p className="text-xs text-zinc-300 font-medium">A batalha defensiva de pênaltis com o goleiro de elite.</p>
             <div className="pt-2">
               <span className="inline-block bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xs px-5 py-2 rounded-xl shadow-[0_5px_15px_rgba(245,158,11,0.4)]">JOGAR AGORA ▶</span>
             </div>
