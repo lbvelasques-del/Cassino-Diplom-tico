@@ -266,11 +266,11 @@ export default function App() {
     return (
       <div>
         <div className="bg-black px-4 py-2.5 flex items-center justify-between border-b border-zinc-900 sticky top-0 z-50">
-          <button onClick={() => setActiveGame('lobby')} className="bg-zinc-800 hover:bg-zinc-700 text-cyan-400 font-bold px-3 py-1.5 rounded-xl text-xs border border-zinc-700 transition-all">
+          <button onClick={() => setActiveGame('lobby')} className="bg-zinc-800 hover:bg-zinc-700 text-amber-400 font-bold px-3 py-1.5 rounded-xl text-xs border border-zinc-700 transition-all">
             🏠 Voltar ao Lobby
           </button>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-cyan-400 font-black">R$ {balance.toLocaleString('pt-BR')}</span>
+            <span className="text-xs text-amber-400 font-black">R$ {balance.toLocaleString('pt-BR')}</span>
           </div>
         </div>
         <DiamondStriker />
@@ -280,14 +280,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
-      <header className="sticky top-0 z-50 bg-black border-b border-zinc-900 px-4 py-3 flex items-center justify-between shadow-lg">
-        <div className="flex items-center py-1">
-          <img 
-            src="/Grupopampas.png" 
-            alt="Grupo Pampas" 
-            className="h-16 w-auto max-w-[220px] object-contain cursor-pointer" 
-            onClick={() => setActiveGame('lobby')}
-          />
+      <header className="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-zinc-900 px-4 py-3 flex items-center justify-between shadow-2xl">
+        <div className="flex items-center py-1 cursor-pointer" onClick={() => setActiveGame('lobby')}>
+          <img src="/Grupopampas.png" alt="Patrocinador" className="h-12 w-auto max-w-[180px] object-contain drop-shadow-[0_0_10px_rgba(245,158,11,0.3)]" />
         </div>
 
         <div className="flex items-center gap-2">
@@ -310,31 +305,45 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-md mx-auto p-4 space-y-6 pt-8 text-center">
-        <div className="space-y-2">
-          <h1 className="text-2xl font-black tracking-wider text-amber-400">LOBBY DO GRUPO PAMPAS</h1>
-          <p className="text-xs text-zinc-400">Escolha a sua plataforma com saldo unificado</p>
+      <main className="max-w-md mx-auto p-4 space-y-6 pt-6 text-center">
+        {/* Logótipo Superior 3D com a Imagem do Cassino */}
+        <div className="flex flex-col items-center justify-center space-y-3 pt-2">
+          <img 
+            src="/CassinaCR.png" 
+            alt="Logótipo Cassino" 
+            className="h-28 w-auto max-w-[320px] object-contain drop-shadow-[0_10px_25px_rgba(245,158,11,0.5)] animate-pulse" 
+          />
+          <h1 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-500 drop-shadow-[0_5px_15px_rgba(245,158,11,0.6)]">
+            LOBBY DE ELITE
+          </h1>
+          <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Escolha a sua plataforma de apostas unificadas</p>
         </div>
 
-        <div className="space-y-4">
-          <div onClick={() => setActiveGame('costarica')} className="bg-[#0f0f12] border-2 border-amber-500/50 hover:border-amber-400 rounded-3xl p-6 cursor-pointer shadow-xl transition-all hover:scale-105 group space-y-2">
-            <h3 className="text-xl font-black text-amber-400 group-hover:text-amber-300">👑 CASSINO DA COSTA RICA</h3>
-            <p className="text-xs text-zinc-400">O caça-níqueis oficial com roleta de bônus e símbolos diplomáticos.</p>
-            <div className="pt-2">
-              <span className="bg-amber-500 text-black font-black text-xs px-4 py-2 rounded-xl shadow">JOGAR AGORA ▶</span>
+        {/* Seleção de Jogos com Tipografia 3D Dourada */}
+        <div className="space-y-4 pt-2">
+          <div onClick={() => setActiveGame('costarica')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-6 cursor-pointer shadow-[0_10px_30px_rgba(0,0,0,0.8)] transition-all hover:scale-105 group space-y-2">
+            <h3 className="text-xl font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-500 drop-shadow-[0_3px_10px_rgba(245,158,11,0.5)] group-hover:scale-105 transition-transform">
+              👑 CAÇA-NÍQUEL DOS PAMPAS
+            </h3>
+            <p className="text-xs text-zinc-300 font-medium">O caça-níqueis oficial com roleta de bônus e símbolos diplomáticos.</p>
+            <div className="pt-3">
+              <span className="inline-block bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xs px-5 py-2.5 rounded-xl shadow-[0_5px_15px_rgba(245,158,11,0.4)]">JOGAR AGORA ▶</span>
             </div>
           </div>
 
-          <div onClick={() => setActiveGame('diamond')} className="bg-[#0f0f12] border-2 border-cyan-500/50 hover:border-cyan-400 rounded-3xl p-6 cursor-pointer shadow-xl transition-all hover:scale-105 group space-y-2">
-            <h3 className="text-xl font-black text-cyan-400 group-hover:text-cyan-300">💎 DIAMOND MINES</h3>
-            <p className="text-xs text-zinc-400">O emocionante jogo de campo minado e multiplicadores de diamantes.</p>
-            <div className="pt-2">
-              <span className="bg-cyan-500 text-black font-black text-xs px-4 py-2 rounded-xl shadow">JOGAR AGORA ▶</span>
+          <div onClick={() => setActiveGame('diamond')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-6 cursor-pointer shadow-[0_10px_30px_rgba(0,0,0,0.8)] transition-all hover:scale-105 group space-y-2">
+            <h3 className="text-xl font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-500 drop-shadow-[0_3px_10px_rgba(245,158,11,0.5)] group-hover:scale-105 transition-transform">
+              ⚔️ GUERRA DAS AMÉRICAS
+            </h3>
+            <p className="text-xs text-zinc-300 font-medium">O emocionante jogo de estratégia tática e multiplicadores em campo minado.</p>
+            <div className="pt-3">
+              <span className="inline-block bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xs px-5 py-2.5 rounded-xl shadow-[0_5px_15px_rgba(245,158,11,0.4)]">JOGAR AGORA ▶</span>
             </div>
           </div>
         </div>
       </main>
 
+      {/* Modais mantidos intactos */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
@@ -351,12 +360,12 @@ export default function App() {
               </div>
               <div>
                 <label className="text-xs text-zinc-400 block mb-1 font-semibold">Senha</label>
-                <input type="password" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 focus:border-cyan-500 rounded-xl px-4 py-3 text-white text-sm outline-none" placeholder="••••••••" />
+                <input type="password" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 focus:border-amber-500 rounded-xl px-4 py-3 text-white text-sm outline-none" placeholder="••••••••" />
               </div>
               {authMode === 'register' && (
                 <div>
                   <label className="text-xs text-zinc-400 block mb-1 font-semibold">Confirmar Senha</label>
-                  <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 focus:border-cyan-500 rounded-xl px-4 py-3 text-white text-sm outline-none" placeholder="••••••••" />
+                  <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 focus:border-amber-500 rounded-xl px-4 py-3 text-white text-sm outline-none" placeholder="••••••••" />
                 </div>
               )}
               <button type="submit" className="w-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black py-3.5 rounded-xl text-sm shadow-lg">{authMode === 'login' ? 'Entrar na Plataforma' : 'Criar Nova Conta'}</button>
