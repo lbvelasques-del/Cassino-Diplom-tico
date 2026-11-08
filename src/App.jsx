@@ -86,14 +86,15 @@ export default function App() {
     }
   }, [currentUser]);
 
+  // ✅ Caminhos ajustados para as imagens que subiste na raiz do repositório
   const symbols = [
-    { id: 'pampas', icon: '/src/public/pampas.png', name: 'Pampas', mult: 0.5, weight: 25, isBonus: false },
-    { id: 'alquimia', icon: '/src/public/alquimia.png', name: 'Alquimia', mult: 0.8, weight: 24, isBonus: false },
-    { id: 'petroleo', icon: '/src/public/petroleo.png', name: 'Petróleo', mult: 1.0, weight: 22, isBonus: false },
-    { id: 'brasil', icon: '/src/public/brasil.png', name: 'Brasil', mult: 2.0, weight: 20, isBonus: false },
-    { id: 'moeda', icon: '/src/public/moeda.png', name: 'Moeda', mult: 1.5, weight: 19, isBonus: false },
-    { id: 'costarica', icon: '/src/public/costarica.png', name: 'Costa Rica', mult: 3.0, weight: 16, isBonus: false },
-    { id: 'diamante', icon: '/src/public/diamante.png', name: 'Diamante', mult: 5.0, weight: 10, isBonus: true }
+    { id: 'pampas', icon: '/pampas.png', name: 'Pampas', mult: 0.5, weight: 25, isBonus: false },
+    { id: 'alquimia', icon: '/alquimia.png', name: 'Alquimia', mult: 0.8, weight: 24, isBonus: false },
+    { id: 'petroleo', icon: '/petroleo.png', name: 'Petróleo', mult: 1.0, weight: 22, isBonus: false },
+    { id: 'brasil', icon: '/brasil.png', name: 'Brasil', mult: 2.0, weight: 20, isBonus: false },
+    { id: 'moeda', icon: '/moeda.png', name: 'Moeda', mult: 1.5, weight: 19, isBonus: false },
+    { id: 'costarica', icon: '/costarica.png', name: 'Costa Rica', mult: 3.0, weight: 16, isBonus: false },
+    { id: 'diamante', icon: '/diamante.png', name: 'Diamante', mult: 5.0, weight: 10, isBonus: true }
   ];
 
   const totalWeight = symbols.reduce((acc, s) => acc + s.weight, 0);
@@ -530,7 +531,7 @@ export default function App() {
               </div>
 
               <div className="bg-[#0b0b0e] border border-zinc-800 p-4 rounded-2xl space-y-3">
-                <h3 className="text-xs text-zinc-400 font-bold uppercase">Trocar Senha</h3>
+                <h3 className="text-xs text-amber-300 font-bold uppercase">Trocar Senha</h3>
                 {passwordSuccess ? (
                   <div className="text-center py-2 text-emerald-400 text-xs font-bold">✅ Senha atualizada!</div>
                 ) : (
@@ -607,4 +608,4 @@ export default function App() {
       )}
     </div>
   );
-      }
+                  }
