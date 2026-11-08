@@ -87,55 +87,19 @@ export default function PampasGoal() {
     setGameActive(true);
     setKeeperPos('center');
     setBallPos('center');
-    setMessage('🛡️ Escolha o canto onde o goleiro deve defender a bola!');
+    setMessage('🛡️ O adversário vai chutar! Escolha o canto para defender!');
   };
 
-  const chooseCorner = (cornerIndex) => {
+  const defendCorner = (userChoiceIndex) => {
     if (!gameActive || shooting) return;
     setShooting(true);
-    
+
     const corners = ['left', 'center', 'right'];
-    const chosenSide = corners[cornerIndex];
-    setBallPos(chosenSide);
-    setMessage('⚽ A disparar a bola...');
-
-    // Goleiro decide o lado de forma inteligente baseada na aposta
-    setTimeout(() => {
-      const keeperChoiceIndex = Math.floor(Math.random() * 3);
-      const keeperSide = corners[keeperChoiceIndex];
-      setKeeperPos(keeperSide);
-
-      // O utilizador ganha se o goleiro defender no mesmo canto escolhido
-      const successfullyDefended = chosenSide === keeperSide;
-
-      setShooting(false);
-      setGameActive(false);
-
-      if (successfullyDefended) {
-        const prize = betAmount * 2; // Multiplicador de 2x ao defender com sucesso
-        updateBalanceOnDb(currentUser.id, balance - betAmount + prize);
-        setMessage(`🏆 DEFESA PERFEITA! Goleiro agarrou a bola! Ganhou R$ ${prize.toLocaleString('pt-BR', {maximumFractionDigits: 0})}`);
-      } else {
-        setMessage(`❌ GOL DO ADVERSÁRIO! O goleiro saltou para o lado errado.`);
-      }
-    }, 1200);
-  };
-
-  const handleAuthSubmit = (e) => {
-    e.preventDefault();
-    setAuthError('');
-    const foundUser = usersDb.find(u => u.username.toLowerCase() === inputUsername.trim().toLowerCase() && u.password === inputPassword);
-    if (foundUser) {
-      setCurrentUser(foundUser);
-      setBalance(Number(foundUser.balance));
-      setIsAuthOpen(false);
-      setInputUsername('');
-      setInputPassword('');
-    } else {
-      setAuthError('Dados incorretos.');
-    }
-  };
-    return (
+    const userChosenSide = corners[userChoiceIndex];
+    
+    // O utilizador comanda o goleiro para o lado que apertou
+    setKeeper
+      return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       {/* Patrocinador Global no Topo */}
       <div className="py-6 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-3">
@@ -153,7 +117,7 @@ export default function PampasGoal() {
       <main className="max-w-md mx-auto p-4 space-y-4 pt-5">
         <div className="bg-black border-2 border-amber-500/60 rounded-3xl p-6 shadow-2xl space-y-5 text-center">
           
-          {/* Ecrã da Baliza de Alto Nível Profissional */}
+          {/* Ecrã da Baliza */}
           <div className="relative h-52 bg-black border-2 border-amber-500/50 rounded-2xl flex flex-col items-center justify-center overflow-hidden p-4 shadow-inner">
             
             {/* Trave e Redes da Baliza */}
@@ -162,7 +126,7 @@ export default function PampasGoal() {
               <span className="text-[10px] text-amber-400/80 font-bold uppercase">Canto Dir</span>
             </div>
 
-            {/* Imagem do Goleiro com Animação Fluida de Defesa */}
+            {/* Imagem do Goleiro (Vai exatamente para onde o utilizador clicou) */}
             <div className={`absolute z-20 transition-all duration-300 ease-out ${
               keeperPos === 'left' ? '-translate-x-20 -translate-y-1 scale-105' : 
               keeperPos === 'right' ? 'translate-x-20 -translate-y-1 scale-105' : 
@@ -176,7 +140,7 @@ export default function PampasGoal() {
               />
             </div>
 
-            {/* Bola em Direção ao Alvo */}
+            {/* Bola (Chutada pela máquina de forma aleatória) */}
             {shooting && (
               <div className={`absolute z-30 transition-all duration-500 ${
                 ballPos === 'left' ? '-translate-x-20 translate-y-6' : 
@@ -189,7 +153,7 @@ export default function PampasGoal() {
           </div>
 
           {message && (
-            <div className={`p-3 text-center rounded-xl font-black text-xs uppercase tracking-wide animate-pulse ${message.includes('DEFESA PERFEITA') ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : message.includes('GOL') ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-black text-amber-400 border border-amber-500/40'}`}>
+            <div className={`p-3 text-center rounded-xl font-black text-xs uppercase tracking-wide animate-pulse ${message.includes('DEFESA ESPETACULAR') ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : message.includes('GOOOOL') ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-black text-amber-400 border border-amber-500/40'}`}>
               {message}
             </div>
           )}
@@ -205,22 +169,22 @@ export default function PampasGoal() {
             </select>
           </div>
 
-          {/* Controles Profissionais de Defesa */}
+          {/* Controles para o Utilizador defender */}
           {!gameActive ? (
             <button onClick={startGame} className="w-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 text-black font-black text-sm py-3.5 rounded-xl shadow-[0_5px_20px_rgba(245,158,11,0.4)] transition-all active:scale-95">
               🛡️ PREPARAR DEFESA (INICIAR)
             </button>
           ) : (
             <div className="space-y-3">
-              <label className="text-[10px] text-zinc-400 font-bold uppercase block">Escolha o Canto para o Goleiro Defender</label>
+              <label className="text-[10px] text-zinc-400 font-bold uppercase block">Para onde o Goleiro deve saltar?</label>
               <div className="grid grid-cols-3 gap-2">
-                <button disabled={shooting} onClick={() => chooseCorner(0)} className="py-3.5 bg-black border border-amber-500/60 hover:bg-amber-500 hover:text-black rounded-xl font-black text-xs text-amber-400 transition-all shadow-md">
+                <button disabled={shooting} onClick={() => defendCorner(0)} className="py-3.5 bg-black border border-amber-500/60 hover:bg-amber-500 hover:text-black rounded-xl font-black text-xs text-amber-400 transition-all shadow-md">
                   ⬅️ ESQUERDA
                 </button>
-                <button disabled={shooting} onClick={() => chooseCorner(1)} className="py-3.5 bg-black border border-amber-500/60 hover:bg-amber-500 hover:text-black rounded-xl font-black text-xs text-amber-400 transition-all shadow-md">
+                <button disabled={shooting} onClick={() => defendCorner(1)} className="py-3.5 bg-black border border-amber-500/60 hover:bg-amber-500 hover:text-black rounded-xl font-black text-xs text-amber-400 transition-all shadow-md">
                   ⬆️ CENTRO
                 </button>
-                <button disabled={shooting} onClick={() => chooseCorner(2)} className="py-3.5 bg-black border border-amber-500/60 hover:bg-amber-500 hover:text-black rounded-xl font-black text-xs text-amber-400 transition-all shadow-md">
+                <button disabled={shooting} onClick={() => defendCorner(2)} className="py-3.5 bg-black border border-amber-500/60 hover:bg-amber-500 hover:text-black rounded-xl font-black text-xs text-amber-400 transition-all shadow-md">
                   ➡️ DIREITA
                 </button>
               </div>
@@ -247,5 +211,5 @@ export default function PampasGoal() {
       )}
     </div>
   );
-}
-
+  }
+  
