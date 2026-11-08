@@ -13,7 +13,7 @@ export default function App() {
   const [winningLines, setWinningLines] = useState([]);
   const [lastWin, setLastWin] = useState(0);
   
-  // Estados da Nova Roleta de Bônus (1x a 10x)
+  // Estados da Roleta de Bônus (1x a 10x)
   const [bonusWheelActive, setBonusWheelActive] = useState(false);
   const [wheelMultiplier, setWheelMultiplier] = useState(null);
   const [spinningWheel, setSpinningWheel] = useState(false);
@@ -31,24 +31,21 @@ export default function App() {
   const [withdrawSuccess, setWithdrawSuccess] = useState(false);
   const [withdrawalRequests, setWithdrawalRequests] = useState([]);
 
-  // Gestão Admin
-  const [adminTargetUser, setAdminTargetUser] = useState('');
+  const [adminTargetId, setAdminTargetId] = useState('');
   const [adminDepositAmount, setAdminDepositAmount] = useState('');
 
-  const [oldPasswordInput, setOldPasswordInput] = useState('');
-  const [newPasswordInput, setNewPasswordInput] = useState('');
-  const [passwordChangeMsg, setPasswordChangeMsg] = useState('');
-
-  // Símbolos com as novas probabilidades e multiplicadores pedidos
+  // Símbolos com Cálculo de Pesos Proporcionais até 100%
   const symbols = [
-    { id: 'pampas', icon: '🫎', name: 'Pampas', mult: 0.5, prob: 0.50, isBonus: false },
-    { id: 'alquimia', icon: '⚗️', name: 'Alquimia', mult: 0.8, prob: 0.48, isBonus: false },
-    { id: 'petroleo', icon: '🛢️', name: 'Petróleo', mult: 1.0, prob: 0.45, isBonus: false },
-    { id: 'moeda', icon: '🪙', name: 'Moeda', mult: 1.5, prob: 0.38, isBonus: false },
-    { id: 'brasil', icon: '🇧🇷', name: 'Brasil', mult: 2.0, prob: 0.40, isBonus: false },
-    { id: 'costarica', icon: '🇨🇷', name: 'Costa Rica', mult: 3.0, prob: 0.33, isBonus: false },
-    { id: 'diamante', icon: '💎', name: 'Diamante', mult: 0, prob: 0.20, isBonus: true }
+    { id: 'pampas', icon: '🫎', name: 'Pampas', mult: 0.5, weight: 25, isBonus: false },
+    { id: 'alquimia', icon: '⚗️', name: 'Alquimia', mult: 0.8, weight: 24, isBonus: false },
+    { id: 'petroleo', icon: '🛢️', name: 'Petróleo', mult: 1.0, weight: 22, isBonus: false },
+    { id: 'brasil', icon: '🇧🇷', name: 'Brasil', mult: 2.0, weight: 20, isBonus: false },
+    { id: 'moeda', icon: '🪙', name: 'Moeda', mult: 1.5, weight: 19, isBonus: false },
+    { id: 'costarica', icon: '🇨🇷', name: 'Costa Rica', mult: 3.0, weight: 16, isBonus: false },
+    { id: 'diamante', icon: '💎', name: 'Diamante', mult: 5.0, weight: 10, isBonus: true }
   ];
+
+  const totalWeight = symbols.reduce((acc, s) => acc + s.weight, 0);
 
   const [grid, setGrid] = useState([
     symbols[0], symbols[1], symbols[2], 
@@ -68,12 +65,21 @@ export default function App() {
     return [...new Set(lines)];
   };
 
+  const getRandomSymbolByWeight = () => {
+    let randomNum = Math.random() * totalWeight;
+    for (let sym of symbols) {
+      if (randomNum < sym.weight) return sym;
+      randomNum -= sym.weight;
+    }
+    return symbols[0];
+  };
+
   const spin = () => {
     if (!currentUser) {
       setIsAuthOpen(true);
       return;
     }
-    if (balance < betAmount || spinning) return;
+    if (balance < betAmount || spinning || bonusWheelActive) return;
     
     setBalance(prev => prev - betAmount);
     setSpinning(true);
@@ -81,30 +87,17 @@ export default function App() {
     setLastWin(0);
 
     setTimeout(() => {
-      // Seleção ponderada baseada na probabilidade específica de cada símbolo
-      const randVal = Math.random();
-      let accumulated = 0;
-      let chosenSym = symbols[0];
+      const globalWinChance = 0.25; // Taxa de acerto global de 25%
+      let newGrid = Array.from({ length: 9 }, () => getRandomSymbolByWeight());
 
-      for (let sym of symbols) {
-        accumulated += sym.prob;
-        if (randVal <= accumulated) {
-          chosenSym = sym;
-          break;
-        }
-      }
-
-      let newGrid = Array.from({ length: 9 }, () => symbols[Math.floor(Math.random() * symbols.length)]);
-      
-      // Decisão de vitória vs derrota mantendo a vantagem da casa controlada
-      const winCheck = Math.random();
-      if (winCheck < chosenSym.prob) {
+      if (Math.random() < globalWinChance) {
+        const chosenSym = getRandomSymbolByWeight();
         const winLines = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 4, 8], [2, 4, 6]];
         const chosenLine = winLines[Math.floor(Math.random() * winLines.length)];
         chosenLine.forEach(idx => { newGrid[idx] = chosenSym; });
       } else {
         while (checkHorizontalAndDiagonalWins(newGrid).length > 0) {
-          newGrid = Array.from({ length: 9 }, () => symbols[Math.floor(Math.random() * symbols.length)]);
+          newGrid = Array.from({ length: 9 }, () => getRandomSymbolByWeight());
         }
       }
 
@@ -215,39 +208,50 @@ export default function App() {
 
   const handleAdminBalanceUpdate = (e, type) => {
     e.preventDefault();
-    const targetUserTrim = adminTargetUser.trim();
+    const targetIdVal = adminTargetId.trim();
     const amountVal = parseFloat(adminDepositAmount);
 
-    if (!targetUserTrim || isNaN(amountVal) || amountVal <= 0) {
-      alert('Insira um nome de utilizador válido e um valor superior a zero.');
+    if (!targetIdVal || isNaN(amountVal) || amountVal <= 0) {
+      alert('Insira uma ID válida e um valor superior a zero.');
       return;
     }
 
-    const userIndex = usersDb.findIndex(u => u.username.toLowerCase() === targetUserTrim.toLowerCase());
+    const userIndex = usersDb.findIndex(u => String(u.id) === targetIdVal);
     if (userIndex === -1) {
-      alert('Utilizador não encontrado na base de dados.');
+      alert('Conta não encontrada com esta ID.');
       return;
     }
 
     const updatedUsers = [...usersDb];
     if (type === 'add') {
       updatedUsers[userIndex].balance += amountVal;
-      alert(`Sucesso: Adicionado R$ ${amountVal.toLocaleString('pt-BR')} à conta de ${updatedUsers[userIndex].username}.`);
+      alert(`Sucesso: Adicionado R$ ${amountVal.toLocaleString('pt-BR')} à conta ID #${updatedUsers[userIndex].id}.`);
     } else if (type === 'remove') {
       if (updatedUsers[userIndex].balance < amountVal) {
-        alert(`Erro: Saldo insuficiente para remover este valor.`);
+        alert('Erro: Saldo insuficiente para remover este valor.');
         return;
       }
       updatedUsers[userIndex].balance -= amountVal;
-      alert(`Sucesso: Removido R$ ${amountVal.toLocaleString('pt-BR')} da conta de ${updatedUsers[userIndex].username}.`);
+      alert(`Sucesso: Removido R$ ${amountVal.toLocaleString('pt-BR')} da conta ID #${updatedUsers[userIndex].id}.`);
     }
 
     setUsersDb(updatedUsers);
-    if (currentUser && currentUser.username.toLowerCase() === updatedUsers[userIndex].username.toLowerCase()) {
+    if (currentUser && currentUser.id === updatedUsers[userIndex].id) {
       setBalance(updatedUsers[userIndex].balance);
     }
-    setAdminTargetUser('');
+    setAdminTargetId('');
     setAdminDepositAmount('');
+  };
+
+  const handleDeleteUser = (id, username) => {
+    const confirmar = window.confirm(`ATENÇÃO! Deseja apagar permanentemente a conta de ${username} (ID: #${id})?`);
+    if (!confirmar) return;
+
+    setUsersDb(prev => prev.filter(u => u.id !== id));
+    if (currentUser && currentUser.id === id) {
+      setCurrentUser(null);
+    }
+    alert(`Conta de ${username} eliminada com sucesso.`);
   };return (
     <div className="min-h-screen bg-[#070709] text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       {/* Header Luminoso */}
@@ -311,7 +315,7 @@ export default function App() {
         {bonusWheelActive && (
           <div className="bg-gradient-to-r from-yellow-500/20 via-amber-500/30 to-yellow-500/20 border-2 border-amber-400 rounded-3xl p-5 text-center shadow-[0_0_30px_rgba(245,158,11,0.5)] animate-pulse space-y-3">
             <p className="text-xs text-amber-300 font-black uppercase tracking-wider">💎 LINHA DE DIAMANTE ATIVA! 💎</p>
-            <p className="text-white font-bold text-sm">Gire a Roleta de Bônus (1x a 10x aposta)</p>
+            <p className="text-white font-bold text-sm">Gire a Roleta de Bônus (1x a 10x a aposta)</p>
             {wheelMultiplier && (
               <p className="text-2xl text-amber-400 font-black">🎉 Multiplicador: {wheelMultiplier}x (+R$ {(betAmount * wheelMultiplier).toLocaleString('pt-BR')})</p>
             )}
@@ -402,7 +406,7 @@ export default function App() {
         </div>
       </main>
 
-      {/* Modal de Autenticação (Com Confirmação de Senha) */}
+      {/* Modal de Autenticação */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
@@ -478,12 +482,12 @@ export default function App() {
       {isUserPanelOpen && currentUser && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl max-h-[90vh] overflow-y-auto">
-            <button onClick={() => { setIsUserPanelOpen(false); }} className="absolute top-4 right-4 text-zinc-400 hover:text-white text-lg">✕</button>
+            <button onClick={() => setIsUserPanelOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white text-lg">✕</button>
             <div className="flex items-center gap-3 mb-5 border-b border-zinc-800 pb-4">
               <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 text-xl font-black">👤</div>
               <div>
                 <h2 className="text-white font-bold text-lg">{currentUser.username}</h2>
-                <p className="text-xs text-amber-400 font-bold">Saldo: R$ {balance.toLocaleString('pt-BR')}</p>
+                <p className="text-xs text-amber-400 font-bold">Saldo: R$ {balance.toLocaleString('pt-BR')} | ID: #{currentUser.id}</p>
               </div>
             </div>
             <div className="space-y-5">
@@ -511,7 +515,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Painel Administrador */}
+      {/* Painel Administrador (Com ID e Exclusão) */}
       {isAdminPanelOpen && currentUser && currentUser.isAdmin && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-lg flex items-center justify-center p-4">
           <div className="bg-[#141418] border-2 border-amber-500 w-full max-w-2xl rounded-3xl p-6 relative shadow-[0_0_50px_rgba(245,158,11,0.2)] max-h-[90vh] overflow-y-auto">
@@ -519,21 +523,21 @@ export default function App() {
             <div className="flex items-center gap-3 mb-6 border-b border-zinc-800 pb-4">
               <div className="w-12 h-12 rounded-2xl bg-amber-500 text-black font-black flex items-center justify-center text-xl shadow-lg">⚙️</div>
               <div>
-                <h2 className="text-amber-400 font-black text-xl">Painel Admin (LVelasques)</h2>
-                <p className="text-xs text-zinc-400">Gestão de saldos e utilizadores</p>
+                <h2 className="text-amber-400 font-black text-xl">Painel Admin (Gestão por ID)</h2>
+                <p className="text-xs text-zinc-400">Depósitos, saques e eliminação de contas</p>
               </div>
             </div>
             <div className="space-y-6">
               <div className="bg-[#0b0b0e] border border-amber-500/40 rounded-2xl p-4">
-                <h3 className="text-xs text-amber-300 font-bold uppercase mb-3">💰 Gestão de Saldo de Utilizadores</h3>
+                <h3 className="text-xs text-amber-300 font-bold uppercase mb-3">💰 Gestão de Saldo por ID da Conta</h3>
                 <form className="space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     <input 
                       type="text" 
-                      placeholder="Nome do Utilizador" 
-                      value={adminTargetUser} 
-                      onChange={(e) => setAdminTargetUser(e.target.value)} 
-                      className="bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2.5 text-white text-xs outline-none" 
+                      placeholder="ID da Conta (ex: 1)" 
+                      value={adminTargetId} 
+                      onChange={(e) => setAdminTargetId(e.target.value)} 
+                      className="bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2.5 text-white text-xs outline-none font-mono" 
                     />
                     <input 
                       type="number" 
@@ -550,17 +554,26 @@ export default function App() {
                 </form>
               </div>
 
+              {/* Lista de Contas com Botão de Exclusão */}
               <div className="bg-[#0b0b0e] border border-zinc-800 rounded-2xl p-4">
                 <h3 className="text-xs text-amber-300 font-bold uppercase mb-3">👥 Utilizadores Registados ({usersDb.length})</h3>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {usersDb.map((u, idx) => (
                     <div key={idx} className="bg-[#141418] border border-zinc-800 rounded-xl p-3 flex items-center justify-between text-xs">
                       <div>
+                        <span className="text-amber-500/60 font-mono text-[10px] mr-1">#{u.id}</span>
                         <span className="font-bold text-white">{u.username}</span>
                         {u.isAdmin && <span className="ml-2 bg-amber-500 text-black font-black text-[9px] px-1.5 py-0.5 rounded">ADMIN</span>}
                       </div>
-                      <div className="text-right text-zinc-400">
-                        Saldo: <span className="text-amber-400 font-bold">R$ {u.balance.toLocaleString('pt-BR')}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-amber-400 font-bold">R$ {u.balance.toLocaleString('pt-BR')}</span>
+                        <button 
+                          onClick={() => handleDeleteUser(u.id, u.username)}
+                          className="bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500 hover:text-black w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-all"
+                          title="Excluir Conta"
+                        >
+                          🗑️
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -575,4 +588,4 @@ export default function App() {
       )}
     </div>
   );
-}
+                }
