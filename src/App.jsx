@@ -61,7 +61,7 @@ export default function App() {
           }
           return;
         }
-      } catch (e) { console.warn("Supabase falhou, usando local"); }
+      } catch (e) { }
     }
     const local = localStorage.getItem('pampas_users_db');
     if (local) setUsersDb(JSON.parse(local));
@@ -208,8 +208,7 @@ export default function App() {
     setWithdrawAmount('');
   };
 
-  const handleAdminBalanceUpdate = async (e, type) => {
-    e.preventDefault();
+  const handleAdminBalanceUpdate = async (type) => {
     const targetIdVal = adminTargetId.trim();
     const amountVal = parseFloat(adminDepositAmount);
 
@@ -238,6 +237,7 @@ export default function App() {
     alert(`Sucesso! Saldo atualizado.`);
     setAdminTargetId('');
     setAdminDepositAmount('');
+    fetchUsersDb();
   };
 
   const handleDeleteUser = async (id, username) => {
@@ -371,7 +371,7 @@ export default function App() {
         </div>
       </main>
 
-      {/* Modais de Autenticação, Perfil e Painel Admin Completo */}
+      {/* Modais de Autenticação */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
@@ -399,6 +399,7 @@ export default function App() {
         </div>
       )}
 
+      {/* Modal de Perfil do Utilizador */}
       {isUserPanelOpen && currentUser && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -445,6 +446,7 @@ export default function App() {
         </div>
       )}
 
+      {/* Painel Admin Completo com a Listagem de Utilizadores */}
       {isAdminPanelOpen && currentUser && (currentUser.isAdmin || currentUser.username.toLowerCase() === 'lvelasques') && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-lg flex items-center justify-center p-4">
           <div className="bg-[#141418] border-2 border-amber-500 w-full max-w-2xl rounded-3xl p-6 relative shadow-[0_0_50px_rgba(245,158,11,0.2)] max-h-[90vh] overflow-y-auto">
@@ -459,16 +461,16 @@ export default function App() {
             <div className="space-y-6">
               <div className="bg-[#0b0b0e] border border-amber-500/40 rounded-2xl p-4">
                 <h3 className="text-xs text-amber-300 font-bold uppercase mb-3">💰 Gestão de Saldo por ID</h3>
-                <form className="space-y-3">
+                <div className="space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     <input type="text" placeholder="ID da Conta (ex: 1)" value={adminTargetId} onChange={(e) => setAdminTargetId(e.target.value)} className="bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2.5 text-white text-xs outline-none font-mono" />
                     <input type="number" placeholder="Valor (R$)" value={adminDepositAmount} onChange={(e) => setAdminDepositAmount(e.target.value)} className="bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2.5 text-white text-xs outline-none" />
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={(e) => handleAdminBalanceUpdate(e, 'add')} className="flex-1 bg-emerald-500 text-black font-black py-2.5 rounded-xl text-xs">➕ Adicionar Dinheiro</button>
-                    <button onClick={(e) => handleAdminBalanceUpdate(e, 'remove')} className="flex-1 bg-red-500 text-black font-black py-2.5 rounded-xl text-xs">➖ Remover Dinheiro</button>
+                    <button type="button" onClick={() => handleAdminBalanceUpdate('add')} className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black font-black py-2.5 rounded-xl text-xs transition-all">➕ Adicionar Dinheiro</button>
+                    <button type="button" onClick={() => handleAdminBalanceUpdate('remove')} className="flex-1 bg-red-500 hover:bg-red-400 text-black font-black py-2.5 rounded-xl text-xs transition-all">➖ Remover Dinheiro</button>
                   </div>
-                </form>
+                </div>
               </div>
 
               <div className="bg-[#0b0b0e] border border-zinc-800 rounded-2xl p-4">
