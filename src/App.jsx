@@ -381,13 +381,13 @@ export default function App() {
     if (currentUser && currentUser.id === id) handleLogout();
   };return (
     <div className="min-h-screen bg-[#070709] text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
-      {/* ✅ Cabeçalho com a imagem CassinaCR.png a ocupar toda a identidade principal */}
-      <header className="sticky top-0 z-50 bg-[#0c0c0f]/95 backdrop-blur-xl border-b border-amber-500/20 px-4 py-2.5 flex items-center justify-between shadow-2xl shadow-amber-500/5">
+      {/* ✅ Cabeçalho com CassinaCR.png ampliado e visível */}
+      <header className="sticky top-0 z-50 bg-[#0c0c0f]/95 backdrop-blur-xl border-b border-amber-500/20 px-4 py-3 flex items-center justify-between shadow-2xl shadow-amber-500/5">
         <div className="flex items-center">
           <img 
             src="/CassinaCR.png" 
             alt="Cassino da Costa Rica" 
-            className="h-10 max-w-[150px] object-contain filter drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]" 
+            className="h-12 w-auto max-w-[170px] object-contain filter drop-shadow-[0_0_12px_rgba(245,158,11,0.6)]" 
           />
         </div>
 
@@ -411,12 +411,12 @@ export default function App() {
         </div>
       </header>
 
-      {/* ✅ Faixa do patrocinador removida: apenas o logótipo Grupopampas.png centralizado e limpo */}
-      <div className="py-3 px-4 text-center bg-[#070709] border-b border-amber-500/20 flex items-center justify-center">
+      {/* ✅ Grupopampas.png grande e expandido de ponta a ponta na área marcada */}
+      <div className="py-4 px-4 text-center bg-[#070709] border-b border-amber-500/30 flex items-center justify-center shadow-lg">
         <img 
           src="/Grupopampas.png" 
           alt="Grupo Pampas" 
-          className="h-8 max-w-[180px] object-contain filter drop-shadow-[0_0_12px_rgba(245,158,11,0.6)] hover:scale-105 transition-transform" 
+          className="h-12 w-auto max-w-[260px] object-contain filter drop-shadow-[0_0_16px_rgba(245,158,11,0.8)] hover:scale-105 transition-transform" 
         />
       </div>
 
@@ -613,4 +613,4 @@ export default function App() {
       )}
     </div>
   );
-}
+      }
