@@ -26,7 +26,6 @@ export default function AvalancheDiplomatica() {
     return saved ? JSON.parse(saved).balance : 150000;
   });
 
-  // Grelha 6 colunas x 5 linhas = 30 posições
   const [grid, setGrid] = useState(() => Array(30).fill(null).map(() => getRandomSymbol()));
   const [betAmount, setBetAmount] = useState(30000);
   const [spinning, setSpinning] = useState(false);
@@ -76,15 +75,15 @@ export default function AvalancheDiplomatica() {
 
   function getRandomSymbol() {
     const symbols = [
-      { id: 'pampas', icon: '/pampas.png', mult: 0.4 },
-      { id: 'petroleo', icon: '/petroleo.png', mult: 0.8 },
-      { id: 'brasil', icon: '/brasil.png', mult: 1.5 },
-      { id: 'diamante', icon: '/diamante.png', mult: 3.0 },
-      { id: 'bola', icon: '/bola.png', mult: 6.0 }
+      { id: 'pampas', icon: '/pampas.png', mult: 0.3 },
+      { id: 'petroleo', icon: '/petroleo.png', mult: 0.6 },
+      { id: 'brasil', icon: '/brasil.png', mult: 1.0 },
+      { id: 'diamante', icon: '/diamante.png', mult: 2.0 },
+      { id: 'bola', icon: '/bola.png', mult: 4.0 }
     ];
-    // Orbe de Multiplicador com probabilidade controlada (4%)
-    if (Math.random() < 0.04) {
-      const orbMults = [2, 3, 5, 10, 20];
+    // Orbe de Multiplicador controlado (3% de chance, valores baixos)
+    if (Math.random() < 0.03) {
+      const orbMults = [1, 2, 3];
       const m = orbMults[Math.floor(Math.random() * orbMults.length)];
       return { id: 'orb', icon: '💎', isOrb: true, multValue: m };
     }
@@ -111,16 +110,9 @@ export default function AvalancheDiplomatica() {
   };
 
   const processAvalanche = (currentGrid, bet, currentRoundWin, currentMult, cascadeCount) => {
-    // 🛡️ TRAVA DE SEGURANÇA: Máximo de 5 cascatas seguidas para proteger a banca
-    if (cascadeCount >= 5) {
-      const finalPayout = currentRoundWin > 0 ? currentRoundWin * currentMult : 0;
-      if (finalPayout > 0) {
-        updateBalanceOnDb(currentUser.id, balance - bet + finalPayout);
-        setMessage(`🏆 LIMITE DE SEGURANÇA ATINGIDO! Prémio: R$ ${finalPayout.toLocaleString('pt-BR')}`);
-      } else {
-        setMessage('Fim da rodada.');
-      }
-      setSpinning(false);
+    // Trava de segurança: máximo de 4 cascatas por rodada
+    if (cascadeCount >= 4) {
+      finalizePayout(currentRoundWin, currentMult, bet);
       return;
     }
 
@@ -139,7 +131,6 @@ export default function AvalancheDiplomatica() {
     let roundPrize = 0;
 
     Object.keys(counts).forEach(symId => {
-      // Exige pelo menos 9 símbolos iguais na grelha para pagar
       if (counts[symId] >= 9) {
         winningSymbols.push(symId);
         const baseSymbol = currentGrid.find(c => c.id === symId);
@@ -168,20 +159,41 @@ export default function AvalancheDiplomatica() {
         });
         setGrid(nextGrid);
         
-        // Avança o contador da cascata recursivamente com segurança
         processAvalanche(nextGrid, bet, newTotalWin, currentMult, cascadeCount + 1);
       }, 800);
 
     } else {
-      if (currentRoundWin > 0) {
-        const finalPayout = currentRoundWin * currentMult;
-        updateBalanceOnDb(currentUser.id, balance - bet + finalPayout);
-        setMessage(`🏆 FIM DA AVALANCHE! Prémio total: R$ ${finalPayout.toLocaleString('pt-BR')}`);
-      } else {
-        setMessage('Tente novamente na próxima avalanche!');
-      }
-      setSpinning(false);
+      finalizePayout(currentRoundWin, currentMult, bet);
     }
+  };
+
+  // 🛡️ TRAVA DE LUCRO DA CASA POR ESCALÃO DE APOSTA
+  const finalizePayout = (currentRoundWin, currentMult, bet) => {
+    // Define o teto de multiplicador com base no valor da aposta exigido
+    let maxAllowedMult = 20; // Padrão para apostas até 500k
+    if (bet >= 1000000 && bet < 5000000) {
+      maxAllowedMult = 10; // Para 1M
+    } else if (bet >= 5000000) {
+      maxAllowedMult = 7;  // Para 5M
+    }
+
+    // Aplica o teto rigoroso no multiplicador final
+    const cappedMult = Math.min(currentMult, maxAllowedMult);
+    let finalPayout = currentRoundWin > 0 ? currentRoundWin * cappedMult : 0;
+
+    // Teto financeiro absoluto baseado na aposta x multiplicador máximo
+    const absoluteMaxWin = bet * maxAllowedMult;
+    if (finalPayout > absoluteMaxWin) {
+      finalPayout = absoluteMaxWin;
+    }
+
+    if (finalPayout > 0) {
+      updateBalanceOnDb(currentUser.id, balance - bet + finalPayout);
+      setMessage(`🏆 FIM DA AVALANCHE! Prémio: R$ ${finalPayout.toLocaleString('pt-BR')}`);
+    } else {
+      setMessage('Tente novamente na próxima avalanche!');
+    }
+    setSpinning(false);
   };
 
   return (
@@ -215,7 +227,6 @@ export default function AvalancheDiplomatica() {
             {message}
           </div>
 
-          {/* Grelha 6x5 (6 colunas, 5 linhas) */}
           <div className="grid grid-cols-6 gap-1.5 p-2 bg-black border-2 border-zinc-800 rounded-xl shadow-inner relative z-10">
             {grid.map((cell, i) => {
               let cellStyle = "h-14 rounded-lg flex flex-col items-center justify-center text-xl transition-all duration-300 ";
@@ -255,6 +266,7 @@ export default function AvalancheDiplomatica() {
                 <option value={100000}>R$ 100k</option>
                 <option value={500000}>R$ 500k</option>
                 <option value={1000000}>R$ 1M</option>
+                <option value={5000000}>R$ 5M</option>
               </select>
             </div>
           </div>
@@ -271,4 +283,4 @@ export default function AvalancheDiplomatica() {
       </main>
     </div>
   );
-}
+              }
