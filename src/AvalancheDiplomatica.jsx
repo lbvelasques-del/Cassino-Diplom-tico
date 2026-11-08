@@ -30,7 +30,7 @@ export default function AvalancheDiplomatica() {
   const [grid, setGrid] = useState(() => Array(30).fill(null).map(() => getRandomSymbol()));
   const [betAmount, setBetAmount] = useState(30000);
   const [spinning, setSpinning] = useState(false);
-  const [message, setMessage] = useState('Encontre 8+ símbolos iguais em qualquer lugar!');
+  const [message, setMessage] = useState('Encontre 9+ símbolos iguais em qualquer lugar!');
   const [totalWin, setTotalWin] = useState(0);
   const [accumulatedMultiplier, setAccumulatedMultiplier] = useState(1);
 
@@ -76,15 +76,15 @@ export default function AvalancheDiplomatica() {
 
   function getRandomSymbol() {
     const symbols = [
-      { id: 'pampas', icon: '/pampas.png', mult: 0.5 },
-      { id: 'petroleo', icon: '/petroleo.png', mult: 1.0 },
-      { id: 'brasil', icon: '/brasil.png', mult: 2.0 },
-      { id: 'diamante', icon: '/diamante.png', mult: 5.0 },
-      { id: 'bola', icon: '/bola.png', mult: 10.0 }
+      { id: 'pampas', icon: '/pampas.png', mult: 0.4 },
+      { id: 'petroleo', icon: '/petroleo.png', mult: 0.8 },
+      { id: 'brasil', icon: '/brasil.png', mult: 1.5 },
+      { id: 'diamante', icon: '/diamante.png', mult: 3.0 },
+      { id: 'bola', icon: '/bola.png', mult: 6.0 }
     ];
-    // Chance de cair Orbe de Multiplicador (2x a 100x)
-    if (Math.random() < 0.08) {
-      const orbMults = [2, 5, 10, 25, 50, 100];
+    // Orbe de Multiplicador com probabilidade controlada (4%)
+    if (Math.random() < 0.04) {
+      const orbMults = [2, 3, 5, 10, 20];
       const m = orbMults[Math.floor(Math.random() * orbMults.length)];
       return { id: 'orb', icon: '💎', isOrb: true, multValue: m };
     }
@@ -102,17 +102,28 @@ export default function AvalancheDiplomatica() {
     updateBalanceOnDb(currentUser.id, balance - betAmount);
     setMessage('🌪️ Avalanche a iniciar...');
 
-    // Gera nova grelha inicial
     let currentGrid = Array(30).fill(null).map(() => getRandomSymbol());
     setGrid(currentGrid);
 
     setTimeout(() => {
-      processAvalanche(currentGrid, betAmount, 0, 1);
+      processAvalanche(currentGrid, betAmount, 0, 1, 0);
     }, 600);
   };
 
-  const processAvalanche = (currentGrid, bet, currentRoundWin, currentMult) => {
-    // Conta quantos símbolos de cada tipo existem na tela
+  const processAvalanche = (currentGrid, bet, currentRoundWin, currentMult, cascadeCount) => {
+    // 🛡️ TRAVA DE SEGURANÇA: Máximo de 5 cascatas seguidas para proteger a banca
+    if (cascadeCount >= 5) {
+      const finalPayout = currentRoundWin > 0 ? currentRoundWin * currentMult : 0;
+      if (finalPayout > 0) {
+        updateBalanceOnDb(currentUser.id, balance - bet + finalPayout);
+        setMessage(`🏆 LIMITE DE SEGURANÇA ATINGIDO! Prémio: R$ ${finalPayout.toLocaleString('pt-BR')}`);
+      } else {
+        setMessage('Fim da rodada.');
+      }
+      setSpinning(false);
+      return;
+    }
+
     const counts = {};
     let orbValuesInThisDrop = 0;
 
@@ -124,16 +135,16 @@ export default function AvalancheDiplomatica() {
       }
     });
 
-    // Regra Pay Anywhere: se houver 8 ou mais símbolos iguais, gera vitória
     let winningSymbols = [];
     let roundPrize = 0;
 
     Object.keys(counts).forEach(symId => {
-      if (counts[symId] >= 8) {
+      // Exige pelo menos 9 símbolos iguais na grelha para pagar
+      if (counts[symId] >= 9) {
         winningSymbols.push(symId);
         const baseSymbol = currentGrid.find(c => c.id === symId);
         const symbolMultiplier = baseSymbol ? baseSymbol.mult : 1;
-        roundPrize += bet * symbolMultiplier * (counts[symId] / 8);
+        roundPrize += bet * symbolMultiplier * (counts[symId] / 9);
       }
     });
 
@@ -146,24 +157,22 @@ export default function AvalancheDiplomatica() {
       const multipliedPrize = roundPrize > 0 ? roundPrize * currentMult : 0;
       const newTotalWin = currentRoundWin + multipliedPrize;
       setTotalWin(newTotalWin);
-      setMessage(`💥 VITÓRIA EM CASCATA! R$ ${newTotalWin.toLocaleString('pt-BR')}`);
+      setMessage(`💥 CASCATA #${cascadeCount + 1}! R$ ${newTotalWin.toLocaleString('pt-BR')}`);
 
-      // Efeito de Explosão: remove os símbolos vencedores e faz cair novos do topo
       setTimeout(() => {
         let nextGrid = currentGrid.map(cell => {
           if (winningSymbols.includes(cell.id) || cell.id === 'orb') {
-            return getRandomSymbol(); // Cai novo símbolo na posição vazia
+            return getRandomSymbol();
           }
           return cell;
         });
         setGrid(nextGrid);
         
-        // Continua a cascata recursivamente
-        processAvalanche(nextGrid, bet, newTotalWin, currentMult);
+        // Avança o contador da cascata recursivamente com segurança
+        processAvalanche(nextGrid, bet, newTotalWin, currentMult, cascadeCount + 1);
       }, 800);
 
     } else {
-      // Fim da sequência de cascatas
       if (currentRoundWin > 0) {
         const finalPayout = currentRoundWin * currentMult;
         updateBalanceOnDb(currentUser.id, balance - bet + finalPayout);
@@ -174,7 +183,8 @@ export default function AvalancheDiplomatica() {
       setSpinning(false);
     }
   };
-        return (
+
+  return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       
       <div className="py-6 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-3">
@@ -262,4 +272,3 @@ export default function AvalancheDiplomatica() {
     </div>
   );
 }
-
