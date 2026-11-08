@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// Configuração Supabase (Garante a sincronização em tempo real entre todos os jogadores)
-const SUPABASE_URL = 'https://oifzpgnwhqctjuzcynwi.supabase.co'; // Substitui se necessário pela tua URL do Supabase
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; // Mantém a tua chave se já a tens no projeto
+// 👉 COLA AQUI AS TUA CREDENCIAIS REAIS DO SUPABASE
+const SUPABASE_URL = 'https://oifzpgnwhqctjuzcynwi.supabase.co'; 
+const SUPABASE_ANON_KEY = 'SUA_CHAVE_ANON_KEY_DO_SUPABASE';
 
-const supabase = createClient(
-  process.env.REACT_APP_SUPABASE_URL || 'https://oifzpgnwhqctjuzcynwi.supabase.co', 
-  process.env.REACT_APP_SUPABASE_ANON_KEY || 'public-anon-key'
-);
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export default function App() {
   const [usersDb, setUsersDb] = useState([]);
@@ -41,7 +38,7 @@ export default function App() {
   const [adminTargetId, setAdminTargetId] = useState('');
   const [adminDepositAmount, setAdminDepositAmount] = useState('');
 
-  // Função para buscar utilizadores na nuvem em tempo real
+  // Sincronização em tempo real com a nuvem do Supabase
   const fetchUsersDb = async () => {
     try {
       const { data, error } = await supabase.from('users').select('*').order('id', { ascending: true });
@@ -55,15 +52,13 @@ export default function App() {
         }
       }
     } catch (e) {
-      // Fallback local se a tabela Supabase ainda não estiver criada no projeto Vercel
-      const local = localStorage.getItem('pampas_users_db');
-      if (local) setUsersDb(JSON.parse(local));
+      console.error('Erro ao sincronizar com o Supabase', e);
     }
   };
 
   useEffect(() => {
     fetchUsersDb();
-    const interval = setInterval(fetchUsersDb, 2000); // Atualiza o painel a cada 2 segundos
+    const interval = setInterval(fetchUsersDb, 2500); // Atualiza os dados a cada 2.5 segundos
     return () => clearInterval(interval);
   }, [currentUser]);
 
@@ -200,21 +195,16 @@ export default function App() {
       try {
         const { data, error } = await supabase.from('users').insert([newUser]).select();
         if (error) {
-          setAuthError('Erro ao registar utilizador.');
+          setAuthError('Erro ao registar utilizador na nuvem.');
           return;
         }
         if (data && data[0]) {
           setCurrentUser(data[0]);
-          setBalance(data[0].balance);
+          setBalance(Number(data[0].balance));
         }
       } catch (err) {
-        // Fallback local caso o Supabase não esteja ativo
-        const localUser = { id: Date.now(), ...newUser };
-        const updated = [...usersDb, localUser];
-        setUsersDb(updated);
-        localStorage.setItem('pampas_users_db', JSON.stringify(updated));
-        setCurrentUser(localUser);
-        setBalance(localUser.balance);
+        setAuthError('Erro de conexão com o Supabase.');
+        return;
       }
 
       setIsAuthOpen(false);
@@ -281,7 +271,7 @@ export default function App() {
 
     const targetUser = usersDb.find(u => String(u.id) === targetIdVal);
     if (!targetUser) {
-      alert('Conta não encontrada com esta ID.');
+      alert('Conta não encontrada com esta ID na nuvem.');
       return;
     }
 
@@ -579,7 +569,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Painel Administrador (Com ID e Exclusão) */}
+      {/* Painel Administrador (Com ID e Exclusão em Tempo Real) */}
       {isAdminPanelOpen && currentUser && (currentUser.isAdmin || currentUser.username.toLowerCase() === 'lvelasques') && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-lg flex items-center justify-center p-4">
           <div className="bg-[#141418] border-2 border-amber-500 w-full max-w-2xl rounded-3xl p-6 relative shadow-[0_0_50px_rgba(245,158,11,0.2)] max-h-[90vh] overflow-y-auto">
@@ -587,8 +577,8 @@ export default function App() {
             <div className="flex items-center gap-3 mb-6 border-b border-zinc-800 pb-4">
               <div className="w-12 h-12 rounded-2xl bg-amber-500 text-black font-black flex items-center justify-center text-xl shadow-lg">⚙️</div>
               <div>
-                <h2 className="text-amber-400 font-black text-xl">Painel Admin (Gestão por ID)</h2>
-                <p className="text-xs text-zinc-400">Depósitos, saques e eliminação de contas em tempo real</p>
+                <h2 className="text-amber-400 font-black text-xl">Painel Admin (Nuvem em Tempo Real)</h2>
+                <p className="text-xs text-zinc-400">Depósitos, saques e contas dos colegas atualizadas via Supabase</p>
               </div>
             </div>
             <div className="space-y-6">
@@ -655,4 +645,4 @@ export default function App() {
       )}
     </div>
   );
-}
+                  }
