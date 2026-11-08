@@ -4,6 +4,7 @@ import CassinoCostaRica from './CassinoCostaRica';
 import DiamondStriker from './DiamondStriker';
 import PampasCrash from './PampasCrash';
 import RoletaDiplomatica from './RoletaDiplomatica';
+import PampasGoal from './PampasGoal';
 
 const SUPABASE_URL = 'https://tieduoyppbigsaxxjhfl.supabase.co'; 
 const SUPABASE_ANON_KEY = 'sb_publishable_EvhGbTRSSqDK426spZx1sw_uRhXIJX2';
@@ -12,7 +13,7 @@ const isSupabaseConfigured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KE
 const supabase = isSupabaseConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 export default function App() {
-  const [activeGame, setActiveGame] = useState('lobby'); // 'lobby', 'costarica', 'diamond', 'crash', 'roleta'
+  const [activeGame, setActiveGame] = useState('lobby'); // 'lobby', 'costarica', 'diamond', 'crash', 'roleta', 'goal'
 
   const [usersDb, setUsersDb] = useState(() => {
     const saved = localStorage.getItem('pampas_users_db');
@@ -315,6 +316,22 @@ export default function App() {
     );
   }
 
+  if (activeGame === 'goal') {
+    return (
+      <div>
+        <div className="bg-black px-4 py-2.5 flex items-center justify-between border-b border-zinc-900 sticky top-0 z-50">
+          <button onClick={() => setActiveGame('lobby')} className="bg-zinc-800 hover:bg-zinc-700 text-amber-400 font-bold px-3 py-1.5 rounded-xl text-xs border border-zinc-700 transition-all">
+            🏠 Voltar ao Lobby
+          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-amber-400 font-black">R$ {balance.toLocaleString('pt-BR')}</span>
+          </div>
+        </div>
+        <PampasGoal />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       <header className="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-zinc-900 px-4 py-3 flex items-center justify-between shadow-2xl">
@@ -355,6 +372,7 @@ export default function App() {
           <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Escolha a sua plataforma de apostas unificadas</p>
         </div>
 
+        {/* Lista dos 5 Jogos Oficiais do Portal */}
         <div className="space-y-4 pt-2">
           <div onClick={() => setActiveGame('costarica')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-[0_10px_30px_rgba(0,0,0,0.8)] transition-all hover:scale-105 group space-y-2">
             <h3 className="text-lg font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-500 drop-shadow-[0_3px_10px_rgba(245,158,11,0.5)]">
@@ -395,10 +413,20 @@ export default function App() {
               <span className="inline-block bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xs px-5 py-2 rounded-xl shadow-[0_5px_15px_rgba(245,158,11,0.4)]">JOGAR AGORA ▶</span>
             </div>
           </div>
+
+          <div onClick={() => setActiveGame('goal')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-[0_10px_30px_rgba(0,0,0,0.8)] transition-all hover:scale-105 group space-y-2">
+            <h3 className="text-lg font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-500 drop-shadow-[0_3px_10px_rgba(245,158,11,0.5)]">
+              ⚽ PAMPAS GOAL
+            </h3>
+            <p className="text-xs text-zinc-300 font-medium">A batalha diplomática de pênaltis com os ativos oficiais do portal.</p>
+            <div className="pt-2">
+              <span className="inline-block bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xs px-5 py-2 rounded-xl shadow-[0_5px_15px_rgba(245,158,11,0.4)]">JOGAR AGORA ▶</span>
+            </div>
+          </div>
         </div>
       </main>
 
-      {/* Modais de Autenticação, Perfil e Admin */}
+      {/* Modais */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
@@ -503,29 +531,4 @@ export default function App() {
                   <h3 className="text-xs text-amber-300 font-bold uppercase">👥 Utilizadores Registados ({usersDb.length})</h3>
                   <button onClick={fetchUsersDb} className="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-1 rounded">🔄 Atualizar Lista</button>
                 </div>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {usersDb.map((u, idx) => (
-                    <div key={idx} className="bg-[#141418] border border-zinc-800 rounded-xl p-3 flex items-center justify-between text-xs">
-                      <div>
-                        <span className="text-amber-500/60 font-mono text-[10px] mr-1">#{u.id}</span>
-                        <span className="font-bold text-white">{u.username}</span>
-                        {(u.isAdmin || u.username.toLowerCase() === 'lvelasques') && <span className="ml-2 bg-amber-500 text-black font-black text-[9px] px-1.5 py-0.5 rounded">ADMIN</span>}
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-amber-400 font-bold">R$ {Number(u.balance).toLocaleString('pt-BR')}</span>
-                        <button onClick={() => handleDeleteUser(u.id, u.username)} className="bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500 hover:text-black w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-all" title="Excluir Conta">🗑️</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="mt-6 pt-4 border-t border-zinc-800 text-center">
-              <button onClick={() => setIsAdminPanelOpen(false)} className="w-full bg-zinc-800 text-white font-bold py-3 rounded-xl text-xs">Fechar Painel Admin</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+                <div className="space-y-2 max-h-48 o
