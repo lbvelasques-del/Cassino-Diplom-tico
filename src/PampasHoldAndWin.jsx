@@ -26,15 +26,16 @@ export default function PampasHoldAndWin() {
     return saved ? JSON.parse(saved).balance : 150000;
   });
 
-  // Grelha 5x3 = 15 posições
-  const [grid, setGrid] = useState(Array(15).fill({ type: 'normal', icon: '👑' }));
+  const [grid, setGrid] = useState(Array(15).fill({ type: 'normal', icon: '⚽' }));
   const [betAmount, setBetAmount] = useState(30000);
   const [spinning, setSpinning] = useState(false);
   const [message, setMessage] = useState('Gire para encontrar 6 moedas!');
   
-  // Estados do Bônus Hold & Win
   const [bonusMode, setBonusMode] = useState(false);
   const [respins, setRespins] = useState(3);
+  
+  // Novo estado para guardar as posições que ganharam e destacá-las
+  const [winningIndices, setWinningIndices] = useState([]);
 
   const fetchUsersDb = async () => {
     if (isSupabaseConfigured) {
@@ -77,7 +78,7 @@ export default function PampasHoldAndWin() {
   };
 
   const generateCoin = (bet) => {
-    const mults = [1, 1, 2, 2, 3, 5, 10, 20, 50]; // Multiplicadores possíveis da moeda
+    const mults = [1, 1, 2, 2, 3, 5, 10, 20, 50]; 
     const m = mults[Math.floor(Math.random() * mults.length)];
     return { type: 'coin', icon: '🪙', val: bet * m, mult: m };
   };
@@ -86,13 +87,14 @@ export default function PampasHoldAndWin() {
     const coins = finalGrid.filter(s => s.type === 'coin');
     const totalCoinValue = coins.reduce((acc, curr) => acc + curr.val, 0);
     const isGrand = coins.length === 15;
-    const grandPrize = isGrand ? betAmount * 500 : 0; // GRAND JACKPOT = 500x a aposta
+    const grandPrize = isGrand ? betAmount * 500 : 0; 
     const totalPrize = totalCoinValue + grandPrize;
 
     updateBalanceOnDb(currentUser.id, balance + totalPrize);
     setMessage(`🏆 BÔNUS CONCLUÍDO! Ganhaste R$ ${totalPrize.toLocaleString('pt-BR')} ${isGrand ? '🔥 GRAND JACKPOT! 🔥' : ''}`);
     setBonusMode(false);
     setSpinning(false);
+    setWinningIndices([]);
   };
 
   const handleSpin = () => {
@@ -101,6 +103,7 @@ export default function PampasHoldAndWin() {
     if (spinning) return;
 
     setSpinning(true);
+    setWinningIndices([]); // Limpa o brilho da vitória anterior
     
     if (!bonusMode) {
       updateBalanceOnDb(currentUser.id, balance - betAmount);
@@ -111,13 +114,12 @@ export default function PampasHoldAndWin() {
 
     setTimeout(() => {
       if (bonusMode) {
-        // --- MODO BÔNUS (Respins) ---
         let newGrid = [...grid];
         let newCoinsLanded = false;
         
         for(let i=0; i<15; i++) {
-          if (newGrid[i].type !== 'coin') { // Posições vazias rodam
-            if (Math.random() < 0.15) { // 15% de chance de cair nova moeda
+          if (newGrid[i].type !== 'coin') { 
+            if (Math.random() < 0.15) { 
               newGrid[i] = generateCoin(betAmount);
               newCoinsLanded = true;
             } else {
@@ -129,108 +131,77 @@ export default function PampasHoldAndWin() {
 
         const currentCoinsCount = newGrid.filter(s => s.type === 'coin').length;
         const nextRespins = newCoinsLanded ? 3 : respins - 1;
-        setRespins(nextRespins);
-
-        if (nextRespins === 0 || currentCoinsCount === 15) {
-          setTimeout(() => collectBonus(newGrid), 1000); // Fim do Bônus
-        } else {
-          setMessage(newCoinsLanded ? '🪙 Nova Moeda! Respins resetados para 3!' : `Respins restantes: ${nextRespins}`);
-          setSpinning(false);
-        }
-
-      } else {
-        // --- MODO JOGO BASE ---
-        let newGrid = [];
-        for(let i=0; i<15; i++) {
-          if (Math.random() < 0.12) { // 12% de chance de Moeda no jogo base
-            newGrid.push(generateCoin(betAmount));
-          } else {
-            const syms = ['🍒', '🍇', '🔔', '💎', '👑'];
-            newGrid.push({ type: 'normal', icon: syms[Math.floor(Math.random() * syms.length)] });
-          }
-        }
-        setGrid(newGrid);
-
-        // Verifica Linhas Horizontais (mínimo 3 iguais da esquerda)
-        let lineWin = 0;
-        const checkRow = (r) => {
-          const start = r * 5;
-          if (newGrid[start].type === 'normal' &&
-              newGrid[start].icon === newGrid[start+1].icon &&
-              newGrid[start+1].icon === newGrid[start+2].icon) {
-            const mults = { '🍒': 1, '🍇': 2, '🔔': 4, '💎': 10, '👑': 20 };
-            lineWin += betAmount * mults[newGrid[start].icon];
-          }
-        };
-        checkRow(0); checkRow(1); checkRow(2); // Linha de cima, meio e baixo
-
-        const coins = newGrid.filter(s => s.type === 'coin');
-        
-        if (coins.length >= 6) {
-          // ATIVA O BÔNUS
-          if (lineWin > 0) updateBalanceOnDb(currentUser.id, balance - betAmount + lineWin);
-          setMessage(`🔥 HOLD & WIN ATIVADO! (${coins.length} Moedas) 🔥`);
-          
-          setTimeout(() => {
-            setBonusMode(true);
-            setRespins(3);
-            // Limpa os símbolos normais, deixa só moedas
-            setGrid(newGrid.map(s => s.type === 'coin' ? s : { type: 'blank', icon: '' }));
-            setSpinning(false);
-          }, 2000);
-        } else {
-          // NÃO DEU BÔNUS, SÓ AVALIA LINHAS
-          if (lineWin > 0) {
-            updateBalanceOnDb(currentUser.id, balance - betAmount + lineWin);
-            setMessage(`✅ Ganhaste R$ ${lineWin.toLocaleString('pt-BR')} nas linhas!`);
-          } else {
-            setMessage('Tente novamente!');
-          }
-          setSpinning(false);
-        }
-      }
-    }, 800);
-  };
-        return (
+        setRes
+          return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
-      <div className={`py-6 px-4 text-center border-b ${bonusMode ? 'bg-red-950 border-red-500' : 'bg-black border-zinc-900'} flex flex-col items-center justify-center space-y-3 transition-colors duration-500`}>
-        <h1 className="text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-500">
+      
+      {/* Cabeçalho Todo Preto com Destaque Dourado */}
+      <div className="py-6 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-3">
+        <h1 className="text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-500 drop-shadow-[0_2px_10px_rgba(245,158,11,0.2)]">
           O COFRE DO BARÃO
         </h1>
-        <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">
+        <p className="text-xs font-semibold uppercase tracking-wider">
           {bonusMode ? (
-            <span className="text-red-400 animate-pulse font-black">🔥 MODO BÔNUS ATIVO: {respins} RESPINS 🔥</span>
+            <span className="text-amber-400 animate-pulse font-black drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]">🔥 BÔNUS ATIVO: {respins} RESPINS 🔥</span>
           ) : (
-            'Pampas Hold & Win Slots'
+            <span className="text-zinc-400">Pampas Hold & Win Slots</span>
           )}
         </p>
       </div>
 
       <main className="max-w-md mx-auto p-4 space-y-4 pt-4">
-        <div className={`border-2 rounded-3xl p-5 shadow-2xl space-y-4 text-center transition-colors duration-500 ${bonusMode ? 'bg-red-950/40 border-red-500/80 shadow-[0_0_30px_rgba(239,68,68,0.3)]' : 'bg-black border-amber-500/60'}`}>
+        
+        {/* Painel do Jogo - Black & Gold */}
+        <div className="bg-black border-2 border-amber-500/60 rounded-3xl p-5 shadow-[0_0_30px_rgba(0,0,0,0.8)] space-y-4 text-center relative overflow-hidden">
           
-          <div className="p-3 bg-black border border-amber-500/40 text-amber-400 text-center rounded-xl font-black text-xs uppercase tracking-wide h-10 flex items-center justify-center">
+          {/* Caixa de Mensagem (Brilha quando ganha) */}
+          <div className={`p-3 border text-center rounded-xl font-black text-xs uppercase tracking-wide h-10 flex items-center justify-center transition-all duration-300 ${winningIndices.length > 0 ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.5)] scale-105' : 'bg-[#0a0a0e] border-amber-500/40 text-amber-400'}`}>
             {message}
           </div>
 
           {/* Grelha 5x3 do Caça-Níquel */}
-          <div className="grid grid-cols-5 gap-1.5 p-2 bg-[#0a0a0e] border-2 border-zinc-800 rounded-xl shadow-inner">
-            {grid.map((sym, i) => (
-              <div key={i} className={`h-16 rounded-lg flex flex-col items-center justify-center text-3xl transition-all duration-300 ${sym.type === 'coin' ? 'bg-gradient-to-br from-yellow-300 to-amber-600 border-2 border-yellow-200 shadow-[0_0_10px_rgba(245,158,11,0.5)]' : sym.type === 'blank' ? 'bg-black/50 border border-zinc-900' : 'bg-[#14141a] border border-zinc-800'}`}>
-                {sym.icon}
-                {sym.type === 'coin' && (
-                  <span className="text-[8px] font-black text-black leading-none mt-1">
-                    {sym.mult}x
-                  </span>
-                )}
-              </div>
-            ))}
+          <div className="grid grid-cols-5 gap-1.5 p-2 bg-[#0a0a0e] border-2 border-zinc-800 rounded-xl shadow-inner relative z-10">
+            {grid.map((sym, i) => {
+              const isWinning = winningIndices.includes(i);
+              
+              // Lógica de CSS Dinâmico (Turbinar a Animação)
+              let cellStyle = "h-16 rounded-lg flex flex-col items-center justify-center text-3xl transition-all duration-300 ";
+              
+              if (spinning) {
+                // Efeito do rolo a girar (tremor e blur)
+                cellStyle += "opacity-50 scale-95 blur-[1px] ";
+              } else if (isWinning) {
+                // Efeito de VITÓRIA (Pulsa, fica maior e com borda brilhante)
+                cellStyle += "bg-amber-500/30 border-2 border-amber-300 shadow-[0_0_25px_rgba(253,230,138,0.9)] scale-110 z-20 ";
+              } else if (sym.type === 'coin') {
+                // Estilo da Moeda (Dourada)
+                cellStyle += "bg-gradient-to-br from-yellow-300 to-amber-600 border-2 border-yellow-200 shadow-[0_0_15px_rgba(245,158,11,0.6)] ";
+              } else if (sym.type === 'blank') {
+                // Fundo apagado durante os respins
+                cellStyle += "bg-black/50 border border-zinc-900 opacity-20 ";
+              } else {
+                // Símbolo Normal parado
+                cellStyle += "bg-[#14141a] border border-zinc-800 ";
+              }
+
+              return (
+                <div key={i} className={cellStyle}>
+                  {sym.icon}
+                  {sym.type === 'coin' && (
+                    <span className="text-[8px] font-black text-black leading-none mt-1">
+                      {sym.mult}x
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
-          <div className="flex justify-between items-center bg-black border border-amber-500/30 rounded-2xl p-3">
+          {/* Controlos e Jackpot */}
+          <div className="flex justify-between items-center bg-[#0a0a0e] border border-amber-500/30 rounded-2xl p-3 relative z-10">
             <div className="text-left">
               <span className="text-[9px] text-zinc-400 uppercase font-bold block">Aposta</span>
-              <select disabled={spinning || bonusMode} value={betAmount} onChange={(e) => setBetAmount(Number(e.target.value))} className="bg-transparent text-amber-400 font-black outline-none text-xs appearance-none">
+              <select disabled={spinning || bonusMode} value={betAmount} onChange={(e) => setBetAmount(Number(e.target.value))} className="bg-transparent text-amber-400 font-black outline-none text-xs appearance-none cursor-pointer">
                 <option value={10000}>R$ 10k</option>
                 <option value={30000}>R$ 30k</option>
                 <option value={100000}>R$ 100k</option>
@@ -244,17 +215,18 @@ export default function PampasHoldAndWin() {
             </div>
           </div>
 
+          {/* Botão Principal */}
           <button 
             disabled={spinning} 
             onClick={handleSpin} 
-            className={`w-full font-black text-sm py-4 rounded-xl shadow-[0_5px_20px_rgba(245,158,11,0.4)] transition-all active:scale-95 ${bonusMode ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-500/50' : 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 text-black'}`}
+            className={`w-full font-black text-sm py-4 rounded-xl shadow-[0_5px_20px_rgba(245,158,11,0.4)] transition-all active:scale-95 relative z-10 ${bonusMode ? 'bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 text-white shadow-red-500/50 border border-red-400' : 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 text-black border border-yellow-300'}`}
           >
             {spinning ? 'A GIRAR...' : bonusMode ? '🔥 RESPIN 🔥' : '🎰 GIRAR'}
           </button>
-
+          
         </div>
       </main>
     </div>
   );
-}
-
+      }
+      
