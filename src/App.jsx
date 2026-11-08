@@ -380,20 +380,20 @@ export default function App() {
     localStorage.setItem('pampas_users_db', JSON.stringify(updatedList));
     if (currentUser && currentUser.id === id) handleLogout();
   };return (
-    <div className="min-h-screen bg-[#070709] text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
-      {/* ✅ Cabeçalho com o Logótipo do Grupo Pampas (Grupopampas.png) grande e imponente no topo */}
-      <header className="sticky top-0 z-50 bg-[#0c0c0f]/95 backdrop-blur-xl border-b border-amber-500/20 px-4 py-3 flex items-center justify-between shadow-2xl shadow-amber-500/5">
+    <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
+      {/* ✅ Cabeçalho Superior com fundo preto puro e Grupo Pampas (Grupopampas.png) muito grande e limpo */}
+      <header className="sticky top-0 z-50 bg-black border-b border-zinc-900 px-4 py-3 flex items-center justify-between shadow-lg">
         <div className="flex items-center py-1">
           <img 
             src="/Grupopampas.png" 
             alt="Grupo Pampas" 
-            className="h-12 w-auto max-w-[190px] object-contain filter drop-shadow-[0_0_12px_rgba(245,158,11,0.6)]" 
+            className="h-16 w-auto max-w-[220px] object-contain" 
           />
         </div>
 
         <div className="flex items-center gap-2">
           {currentUser ? (
-            <div className="flex items-center gap-2.5 bg-[#141418] border border-amber-500/30 px-3 py-1.5 rounded-2xl shadow-inner">
+            <div className="flex items-center gap-2.5 bg-[#0f0f12] border border-zinc-800 px-3 py-1.5 rounded-2xl shadow-inner">
               <div className="text-right">
                 <div className="flex items-center justify-end gap-1.5">
                   <span className="text-[11px] text-amber-300 font-bold">{currentUser.username}</span>
@@ -401,22 +401,22 @@ export default function App() {
                     <button onClick={() => setIsAdminPanelOpen(true)} className="bg-amber-500 hover:bg-amber-400 text-black text-[9px] font-black px-1.5 py-0.5 rounded shadow transition-all">ADMIN ⚙️</button>
                   )}
                 </div>
-                <p className="text-amber-400 font-black text-sm drop-shadow-[0_0_8px_rgba(245,158,11,0.3)]">R$ {balance.toLocaleString('pt-BR')}</p>
+                <p className="text-amber-400 font-black text-sm">R$ {balance.toLocaleString('pt-BR')}</p>
               </div>
-              <button onClick={() => setIsUserPanelOpen(true)} className="bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 text-black font-black text-xs px-3 py-2 rounded-xl transition-all shadow-lg shadow-amber-500/20 active:scale-95">⚙️ Perfil</button>
+              <button onClick={() => setIsUserPanelOpen(true)} className="bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 text-black font-black text-xs px-3 py-2 rounded-xl transition-all shadow-lg active:scale-95">⚙️ Perfil</button>
             </div>
           ) : (
-            <button onClick={() => { setAuthMode('login'); setIsAuthOpen(true); }} className="bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black font-black text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-amber-500/20 hover:scale-105 transition-all">👤 Criar Conta / Entrar</button>
+            <button onClick={() => { setAuthMode('login'); setIsAuthOpen(true); }} className="bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black font-black text-xs px-4 py-2.5 rounded-xl shadow-lg hover:scale-105 transition-all">👤 Criar Conta / Entrar</button>
           )}
         </div>
       </header>
 
-      {/* ✅ Logótipo principal do Cassino (CassinaCR.png) maximizado e ajustado na área marcada para preencher o espaço com imponência */}
-      <div className="py-4 px-4 text-center bg-[#070709] border-b border-amber-500/30 flex items-center justify-center shadow-xl">
+      {/* ✅ Logótipo principal do Cassino (CassinaCR.png) maximizado ao limite, sem filtros de brilho e preenchendo a área solicitada */}
+      <div className="py-6 px-4 text-center bg-black border-b border-zinc-900 flex items-center justify-center">
         <img 
           src="/CassinaCR.png" 
           alt="Cassino da Costa Rica" 
-          className="h-16 w-auto max-w-[320px] object-contain filter drop-shadow-[0_0_18px_rgba(245,158,11,0.9)] transition-transform hover:scale-105" 
+          className="h-24 w-auto max-w-[380px] object-contain" 
         />
       </div>
 
@@ -430,7 +430,7 @@ export default function App() {
           </div>
         )}
 
-        <div className="relative bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/40 rounded-3xl p-4 shadow-[0_0_30px_rgba(245,158,11,0.15)] mt-2">
+        <div className="relative bg-[#0a0a0e] border-2 border-amber-500/40 rounded-3xl p-4 shadow-2xl mt-2">
           <div className="grid grid-cols-3 gap-3 my-2">
             {grid.map((sym, idx) => {
               const isWinningCell = winningLines.includes(idx);
@@ -439,7 +439,7 @@ export default function App() {
                   <img 
                     src={sym.icon} 
                     alt={sym.name} 
-                    className="w-14 h-14 object-contain filter drop-shadow-[0_4px_6px_rgba(0,0,0,0.6)]" 
+                    className="w-14 h-14 object-contain" 
                   />
                   <span className="text-[10px] text-zinc-400 mt-1 font-bold tracking-wider">{sym.name}</span>
                 </div>
@@ -448,14 +448,14 @@ export default function App() {
           </div>
         </div>
 
-        <div className="bg-[#121216] border border-amber-500/20 rounded-2xl p-4 shadow-xl">
+        <div className="bg-[#0f0f12] border border-zinc-800 rounded-2xl p-4 shadow-xl">
           <div className="flex justify-between items-center mb-3">
             <span className="text-xs text-zinc-400 font-bold uppercase tracking-wide">Valor da Aposta</span>
-            <span className="text-amber-400 font-black text-sm drop-shadow-[0_0_8px_rgba(245,158,11,0.3)]">R$ {betAmount.toLocaleString('pt-BR')}</span>
+            <span className="text-amber-400 font-black text-sm">R$ {betAmount.toLocaleString('pt-BR')}</span>
           </div>
           <div className="grid grid-cols-4 gap-2">
             {bets.map((val) => (
-              <button key={val} disabled={spinning} onClick={() => setBetAmount(val)} className={`py-2.5 rounded-xl font-bold text-xs transition-all border ${betAmount === val ? 'bg-amber-500 text-black border-amber-300 shadow-lg shadow-amber-500/30 scale-105 font-black' : 'bg-[#18181e] text-zinc-300 border-zinc-800 hover:border-amber-500/30'}`}>
+              <button key={val} disabled={spinning} onClick={() => setBetAmount(val)} className={`py-2.5 rounded-xl font-bold text-xs transition-all border ${betAmount === val ? 'bg-amber-500 text-black border-amber-300 shadow-lg scale-105 font-black' : 'bg-[#18181e] text-zinc-300 border-zinc-800 hover:border-amber-500/30'}`}>
                 {val >= 1000000 ? `${val / 1000000}M` : `${val / 1000}k`}
               </button>
             ))}
@@ -613,4 +613,4 @@ export default function App() {
       )}
     </div>
   );
-      }
+}
