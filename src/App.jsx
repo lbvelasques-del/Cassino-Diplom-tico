@@ -1,32 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
+
+// Configuração Supabase (Garante a sincronização em tempo real entre todos os jogadores)
+const SUPABASE_URL = 'https://oifzpgnwhqctjuzcynwi.supabase.co'; // Substitui se necessário pela tua URL do Supabase
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; // Mantém a tua chave se já a tens no projeto
+
+const supabase = createClient(
+  process.env.REACT_APP_SUPABASE_URL || 'https://oifzpgnwhqctjuzcynwi.supabase.co', 
+  process.env.REACT_APP_SUPABASE_ANON_KEY || 'public-anon-key'
+);
 
 export default function App() {
-  const [usersDb, setUsersDb] = useState(() => {
-    const saved = localStorage.getItem('pampas_users_db');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { }
-    }
-    return [
-      { id: 1, username: 'LVelasques', password: 'Lucas123!', balance: 99999999, isAdmin: true }
-    ];
-  });
-
-  const [currentUser, setCurrentUser] = useState(() => {
-    const savedUser = localStorage.getItem('pampas_current_user');
-    if (savedUser) {
-      try { return JSON.parse(savedUser); } catch (e) { }
-    }
-    return null;
-  });
-
-  const [balance, setBalance] = useState(() => {
-    const savedUser = localStorage.getItem('pampas_current_user');
-    if (savedUser) {
-      try { const parsed = JSON.parse(savedUser); return parsed.balance; } catch (e) { }
-    }
-    return 150000;
-  });
-
+  const [usersDb, setUsersDb] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [balance, setBalance] = useState(150000);
   const [betAmount, setBetAmount] = useState(30000);
   const [turbo, setTurbo] = useState(false);
   const [spinning, setSpinning] = useState(false);
@@ -54,36 +41,33 @@ export default function App() {
   const [adminTargetId, setAdminTargetId] = useState('');
   const [adminDepositAmount, setAdminDepositAmount] = useState('');
 
-  // Sincronizar Base de Dados e Utilizador Atual com o localStorage em tempo real
-  useEffect(() => {
-    localStorage.setItem('pampas_users_db', JSON.stringify(usersDb));
-  }, [usersDb]);
+  // Função para buscar utilizadores na nuvem em tempo real
+  const fetchUsersDb = async () => {
+    try {
+      const { data, error } = await supabase.from('users').select('*').order('id', { ascending: true });
+      if (!error && data) {
+        setUsersDb(data);
+        if (currentUser) {
+          const updatedMe = data.find(u => u.id === currentUser.id);
+          if (updatedMe) {
+            setBalance(Number(updatedMe.balance));
+          }
+        }
+      }
+    } catch (e) {
+      // Fallback local se a tabela Supabase ainda não estiver criada no projeto Vercel
+      const local = localStorage.getItem('pampas_users_db');
+      if (local) setUsersDb(JSON.parse(local));
+    }
+  };
 
   useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('pampas_current_user', JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem('pampas_current_user');
-    }
+    fetchUsersDb();
+    const interval = setInterval(fetchUsersDb, 2000); // Atualiza o painel a cada 2 segundos
+    return () => clearInterval(interval);
   }, [currentUser]);
 
-  // Atualizador periódico para detetar contas criadas noutra aba ou por colegas no mesmo ambiente
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const saved = localStorage.getItem('pampas_users_db');
-      if (saved) {
-        try {
-          const parsedDb = JSON.parse(saved);
-          if (parsedDb.length !== usersDb.length) {
-            setUsersDb(parsedDb);
-          }
-        } catch (e) { }
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [usersDb.length]);
-
-  // Símbolos com Cálculo de Pesos Proporcionais até 100%
+  // Símbolos com Cálculo de Pesos Proporcionais
   const symbols = [
     { id: 'pampas', icon: '🫎', name: 'Pampas', mult: 0.5, weight: 25, isBonus: false },
     { id: 'alquimia', icon: '⚗️', name: 'Alquimia', mult: 0.8, weight: 24, isBonus: false },
@@ -123,6 +107,13 @@ export default function App() {
     return symbols[0];
   };
 
+  const updateBalanceOnSupabase = async (userId, newBal) => {
+    setBalance(newBal);
+    try {
+      await supabase.from('users').update({ balance: newBal }).eq('id', userId);
+    } catch (e) { }
+  };
+
   const spin = () => {
     if (!currentUser) {
       setIsAuthOpen(true);
@@ -131,8 +122,7 @@ export default function App() {
     if (balance < betAmount || spinning || bonusWheelActive) return;
     
     const newBal = balance - betAmount;
-    setBalance(newBal);
-    updateUserBalanceInDb(currentUser.id, newBal);
+    updateBalanceOnSupabase(currentUser.id, newBal);
 
     setSpinning(true);
     setWinningLines([]);
@@ -165,20 +155,12 @@ export default function App() {
         } else {
           const prize = betAmount * winningSymbol.mult;
           const finalBal = newBal + prize;
-          setBalance(finalBal);
-          updateUserBalanceInDb(currentUser.id, finalBal);
+          updateBalanceOnSupabase(currentUser.id, finalBal);
           setLastWin(prize);
         }
         setWinningLines(winningIndices);
       }
     }, turbo ? 180 : 550);
-  };
-
-  const updateUserBalanceInDb = (id, newBalance) => {
-    setUsersDb(prev => prev.map(u => u.id === id ? { ...u, balance: newBalance } : u));
-    if (currentUser && currentUser.id === id) {
-      setCurrentUser(prev => ({ ...prev, balance: newBalance }));
-    }
   };
 
   const triggerBonusWheel = () => {
@@ -187,14 +169,12 @@ export default function App() {
       const randomMult = Math.floor(Math.random() * 10) + 1; 
       const prize = betAmount * randomMult;
       const finalBal = balance + prize;
-      setWheelMultiplier(randomMult);
-      setBalance(finalBal);
-      updateUserBalanceInDb(currentUser.id, finalBal);
+      updateBalanceOnSupabase(currentUser.id, finalBal);
       setLastWin(prize);
       setSpinningWheel(false);
       setBonusWheelActive(false);
     }, 1500);
-  };const handleAuthSubmit = (e) => {
+  };const handleAuthSubmit = async (e) => {
     e.preventDefault();
     setAuthError('');
     const trimmedUser = inputUsername.trim();
@@ -208,35 +188,52 @@ export default function App() {
         setAuthError('A senha é demasiado curta.');
         return;
       }
-      const existing = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase());
-      if (existing) {
-        setAuthError('Este nome de utilizador já está em uso.');
-        return;
-      }
+
       const isAdmin = trimmedUser.toLowerCase() === 'lvelasques';
       const newUser = {
-        id: Date.now(),
         username: trimmedUser,
         password: inputPassword,
         balance: 150000,
         isAdmin: isAdmin
       };
-      const updatedList = [...usersDb, newUser];
-      setUsersDb(updatedList);
-      setCurrentUser(newUser);
-      setBalance(newUser.balance);
-      setIsAuthOpen(false);
-      resetAuthForm();
-    } else {
-      const found = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase() && u.password === inputPassword);
-      if (!found) {
-        setAuthError('Utilizador ou senha incorretos.');
-        return;
+
+      try {
+        const { data, error } = await supabase.from('users').insert([newUser]).select();
+        if (error) {
+          setAuthError('Erro ao registar utilizador.');
+          return;
+        }
+        if (data && data[0]) {
+          setCurrentUser(data[0]);
+          setBalance(data[0].balance);
+        }
+      } catch (err) {
+        // Fallback local caso o Supabase não esteja ativo
+        const localUser = { id: Date.now(), ...newUser };
+        const updated = [...usersDb, localUser];
+        setUsersDb(updated);
+        localStorage.setItem('pampas_users_db', JSON.stringify(updated));
+        setCurrentUser(localUser);
+        setBalance(localUser.balance);
       }
-      setCurrentUser(found);
-      setBalance(found.balance);
+
       setIsAuthOpen(false);
       resetAuthForm();
+      fetchUsersDb();
+    } else {
+      try {
+        const { data, error } = await supabase.from('users').select('*').ilike('username', trimmedUser).eq('password', inputPassword);
+        if (error || !data || data.length === 0) {
+          setAuthError('Utilizador ou senha incorretos.');
+          return;
+        }
+        setCurrentUser(data[0]);
+        setBalance(Number(data[0].balance));
+        setIsAuthOpen(false);
+        resetAuthForm();
+      } catch (err) {
+        setAuthError('Erro ao efetuar login.');
+      }
     }
   };
 
@@ -259,8 +256,7 @@ export default function App() {
       return;
     }
     const finalBal = balance - amountNum;
-    setBalance(finalBal);
-    updateUserBalanceInDb(currentUser.id, finalBal);
+    updateBalanceOnSupabase(currentUser.id, finalBal);
 
     const newReq = {
       id: Date.now(),
@@ -273,7 +269,7 @@ export default function App() {
     setWithdrawAmount('');
   };
 
-  const handleAdminBalanceUpdate = (e, type) => {
+  const handleAdminBalanceUpdate = async (e, type) => {
     e.preventDefault();
     const targetIdVal = adminTargetId.trim();
     const amountVal = parseFloat(adminDepositAmount);
@@ -289,27 +285,37 @@ export default function App() {
       return;
     }
 
-    let newBal = type === 'add' ? targetUser.balance + amountVal : targetUser.balance - amountVal;
+    let newBal = type === 'add' ? Number(targetUser.balance) + amountVal : Number(targetUser.balance) - amountVal;
     if (type === 'remove' && newBal < 0) {
       alert('Erro: Saldo insuficiente para remover este valor.');
       return;
     }
 
-    updateUserBalanceInDb(targetUser.id, newBal);
-    alert(`Sucesso: Saldo da ID #${targetUser.id} (${targetUser.username}) atualizado para R$ ${newBal.toLocaleString('pt-BR')}.`);
-    setAdminTargetId('');
-    setAdminDepositAmount('');
+    try {
+      await supabase.from('users').update({ balance: newBal }).eq('id', targetUser.id);
+      alert(`Sucesso: Saldo da ID #${targetUser.id} (${targetUser.username}) atualizado para R$ ${newBal.toLocaleString('pt-BR')}.`);
+      setAdminTargetId('');
+      setAdminDepositAmount('');
+      fetchUsersDb();
+    } catch (err) {
+      alert('Erro ao atualizar saldo na nuvem.');
+    }
   };
 
-  const handleDeleteUser = (id, username) => {
+  const handleDeleteUser = async (id, username) => {
     const confirmar = window.confirm(`ATENÇÃO! Deseja apagar permanentemente a conta de ${username} (ID: #${id})?`);
     if (!confirmar) return;
 
-    setUsersDb(prev => prev.filter(u => u.id !== id));
-    if (currentUser && currentUser.id === id) {
-      setCurrentUser(null);
+    try {
+      await supabase.from('users').delete().eq('id', id);
+      if (currentUser && currentUser.id === id) {
+        setCurrentUser(null);
+      }
+      alert(`Conta de ${username} eliminada com sucesso.`);
+      fetchUsersDb();
+    } catch (err) {
+      alert('Erro ao eliminar conta.');
     }
-    alert(`Conta de ${username} eliminada com sucesso.`);
   };return (
     <div className="min-h-screen bg-[#070709] text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       {/* Header Luminoso */}
@@ -330,7 +336,7 @@ export default function App() {
               <div className="text-right">
                 <div className="flex items-center justify-end gap-1.5">
                   <span className="text-[11px] text-amber-300 font-bold">{currentUser.username}</span>
-                  {currentUser.isAdmin && (
+                  {(currentUser.isAdmin || currentUser.username.toLowerCase() === 'lvelasques') && (
                     <button 
                       onClick={() => setIsAdminPanelOpen(true)}
                       className="bg-amber-500 hover:bg-amber-400 text-black text-[9px] font-black px-1.5 py-0.5 rounded shadow transition-all"
@@ -574,7 +580,7 @@ export default function App() {
       )}
 
       {/* Painel Administrador (Com ID e Exclusão) */}
-      {isAdminPanelOpen && currentUser && currentUser.isAdmin && (
+      {isAdminPanelOpen && currentUser && (currentUser.isAdmin || currentUser.username.toLowerCase() === 'lvelasques') && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-lg flex items-center justify-center p-4">
           <div className="bg-[#141418] border-2 border-amber-500 w-full max-w-2xl rounded-3xl p-6 relative shadow-[0_0_50px_rgba(245,158,11,0.2)] max-h-[90vh] overflow-y-auto">
             <button onClick={() => setIsAdminPanelOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white text-lg">✕</button>
@@ -582,7 +588,7 @@ export default function App() {
               <div className="w-12 h-12 rounded-2xl bg-amber-500 text-black font-black flex items-center justify-center text-xl shadow-lg">⚙️</div>
               <div>
                 <h2 className="text-amber-400 font-black text-xl">Painel Admin (Gestão por ID)</h2>
-                <p className="text-xs text-zinc-400">Depósitos, saques e eliminação de contas</p>
+                <p className="text-xs text-zinc-400">Depósitos, saques e eliminação de contas em tempo real</p>
               </div>
             </div>
             <div className="space-y-6">
@@ -614,17 +620,20 @@ export default function App() {
 
               {/* Lista de Contas com Botão de Exclusão */}
               <div className="bg-[#0b0b0e] border border-zinc-800 rounded-2xl p-4">
-                <h3 className="text-xs text-amber-300 font-bold uppercase mb-3">👥 Utilizadores Registados ({usersDb.length})</h3>
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-xs text-amber-300 font-bold uppercase">👥 Utilizadores Registados ({usersDb.length})</h3>
+                  <button onClick={fetchUsersDb} className="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-1 rounded">🔄 Atualizar Lista</button>
+                </div>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {usersDb.map((u, idx) => (
                     <div key={idx} className="bg-[#141418] border border-zinc-800 rounded-xl p-3 flex items-center justify-between text-xs">
                       <div>
                         <span className="text-amber-500/60 font-mono text-[10px] mr-1">#{u.id}</span>
                         <span className="font-bold text-white">{u.username}</span>
-                        {u.isAdmin && <span className="ml-2 bg-amber-500 text-black font-black text-[9px] px-1.5 py-0.5 rounded">ADMIN</span>}
+                        {(u.isAdmin || u.username.toLowerCase() === 'lvelasques') && <span className="ml-2 bg-amber-500 text-black font-black text-[9px] px-1.5 py-0.5 rounded">ADMIN</span>}
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-amber-400 font-bold">R$ {u.balance.toLocaleString('pt-BR')}</span>
+                        <span className="text-amber-400 font-bold">R$ {Number(u.balance).toLocaleString('pt-BR')}</span>
                         <button 
                           onClick={() => handleDeleteUser(u.id, u.username)}
                           className="bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500 hover:text-black w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-all"
