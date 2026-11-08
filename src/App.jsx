@@ -381,18 +381,14 @@ export default function App() {
     if (currentUser && currentUser.id === id) handleLogout();
   };return (
     <div className="min-h-screen bg-[#070709] text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
-      {/* ✅ Cabeçalho Superior Atualizado com o Logótipo CassinaCR.png */}
-      <header className="sticky top-0 z-50 bg-[#0c0c0f]/95 backdrop-blur-xl border-b border-amber-500/20 px-4 py-3 flex items-center justify-between shadow-2xl shadow-amber-500/5">
-        <div className="flex items-center gap-3">
+      {/* ✅ Cabeçalho com a imagem CassinaCR.png a ocupar toda a identidade principal */}
+      <header className="sticky top-0 z-50 bg-[#0c0c0f]/95 backdrop-blur-xl border-b border-amber-500/20 px-4 py-2.5 flex items-center justify-between shadow-2xl shadow-amber-500/5">
+        <div className="flex items-center">
           <img 
             src="/CassinaCR.png" 
             alt="Cassino da Costa Rica" 
-            className="w-12 h-12 object-contain filter drop-shadow-[0_0_10px_rgba(245,158,11,0.5)] animate-pulse" 
+            className="h-10 max-w-[150px] object-contain filter drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]" 
           />
-          <div>
-            <h1 className="text-amber-400 font-black text-sm tracking-wider uppercase drop-shadow-[0_0_10px_rgba(245,158,11,0.4)]">Cassino da Costa Rica</h1>
-            <p className="text-[10px] text-zinc-400 font-semibold tracking-wide">DIPLOMACIA OFICIAL</p>
-          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -415,14 +411,13 @@ export default function App() {
         </div>
       </header>
 
-      {/* ✅ Barra de Patrocínio com o Logótipo Oficial Grupopampas.png */}
-      <div className="bg-gradient-to-r from-amber-950/85 via-[#121216] to-amber-950/85 border-y border-amber-500/40 py-2.5 px-4 text-center shadow-xl flex items-center justify-center gap-3">
+      {/* ✅ Faixa do patrocinador removida: apenas o logótipo Grupopampas.png centralizado e limpo */}
+      <div className="py-3 px-4 text-center bg-[#070709] border-b border-amber-500/20 flex items-center justify-center">
         <img 
           src="/Grupopampas.png" 
           alt="Grupo Pampas" 
-          className="w-7 h-7 object-contain filter drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]" 
+          className="h-8 max-w-[180px] object-contain filter drop-shadow-[0_0_12px_rgba(245,158,11,0.6)] hover:scale-105 transition-transform" 
         />
-        <span className="text-xs text-amber-300 font-black tracking-widest uppercase drop-shadow-md">GRUPO PAMPAS — PATROCINADOR MASTER OFICIAL</span>
       </div>
 
       <main className="max-w-md mx-auto p-4 space-y-4 pt-5">
