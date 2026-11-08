@@ -246,22 +246,22 @@ export default function App() {
     setUsersDb(updatedList);
     localStorage.setItem('pampas_users_db', JSON.stringify(updatedList));
     if (currentUser && currentUser.id === id) handleLogout();
-  };// Se escolheu o Cassino da Costa Rica
-  if (activeGame === 'costarica') {
+  };if (activeGame === 'costarica') {
     return (
       <div>
         <div className="bg-black px-4 py-2.5 flex items-center justify-between border-b border-zinc-900 sticky top-0 z-50">
           <button onClick={() => setActiveGame('lobby')} className="bg-zinc-800 hover:bg-zinc-700 text-amber-400 font-bold px-3 py-1.5 rounded-xl text-xs border border-zinc-700 transition-all">
             🏠 Voltar ao Lobby
           </button>
-          <span className="text-xs text-zinc-400 font-semibold">Cassino da Costa Rica - Grupo Pampas</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-amber-400 font-black">R$ {balance.toLocaleString('pt-BR')}</span>
+          </div>
         </div>
         <CassinoCostaRica />
       </div>
     );
   }
 
-  // Se escolheu o Diamond Mines
   if (activeGame === 'diamond') {
     return (
       <div>
@@ -269,14 +269,15 @@ export default function App() {
           <button onClick={() => setActiveGame('lobby')} className="bg-zinc-800 hover:bg-zinc-700 text-cyan-400 font-bold px-3 py-1.5 rounded-xl text-xs border border-zinc-700 transition-all">
             🏠 Voltar ao Lobby
           </button>
-          <span className="text-xs text-zinc-400 font-semibold">Diamond Mines - Grupo Pampas</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-cyan-400 font-black">R$ {balance.toLocaleString('pt-BR')}</span>
+          </div>
         </div>
         <DiamondStriker />
       </div>
     );
   }
 
-  // Página Inicial (Lobby do Portal Grupo Pampas)
   return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       <header className="sticky top-0 z-50 bg-black border-b border-zinc-900 px-4 py-3 flex items-center justify-between shadow-lg">
@@ -315,7 +316,6 @@ export default function App() {
           <p className="text-xs text-zinc-400">Escolha a sua plataforma com saldo unificado</p>
         </div>
 
-        {/* Seleção de Jogos */}
         <div className="space-y-4">
           <div onClick={() => setActiveGame('costarica')} className="bg-[#0f0f12] border-2 border-amber-500/50 hover:border-amber-400 rounded-3xl p-6 cursor-pointer shadow-xl transition-all hover:scale-105 group space-y-2">
             <h3 className="text-xl font-black text-amber-400 group-hover:text-amber-300">👑 CASSINO DA COSTA RICA</h3>
@@ -335,7 +335,6 @@ export default function App() {
         </div>
       </main>
 
-      {/* Modais de Autenticação, Perfil e Admin */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
@@ -352,12 +351,12 @@ export default function App() {
               </div>
               <div>
                 <label className="text-xs text-zinc-400 block mb-1 font-semibold">Senha</label>
-                <input type="password" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 focus:border-amber-500 rounded-xl px-4 py-3 text-white text-sm outline-none" placeholder="••••••••" />
+                <input type="password" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 focus:border-cyan-500 rounded-xl px-4 py-3 text-white text-sm outline-none" placeholder="••••••••" />
               </div>
               {authMode === 'register' && (
                 <div>
                   <label className="text-xs text-zinc-400 block mb-1 font-semibold">Confirmar Senha</label>
-                  <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 focus:border-amber-500 rounded-xl px-4 py-3 text-white text-sm outline-none" placeholder="••••••••" />
+                  <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 focus:border-cyan-500 rounded-xl px-4 py-3 text-white text-sm outline-none" placeholder="••••••••" />
                 </div>
               )}
               <button type="submit" className="w-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black py-3.5 rounded-xl text-sm shadow-lg">{authMode === 'login' ? 'Entrar na Plataforma' : 'Criar Nova Conta'}</button>
