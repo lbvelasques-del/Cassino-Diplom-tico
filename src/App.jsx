@@ -101,14 +101,32 @@ export default function App() {
   const [grid, setGrid] = useState([symbols[0], symbols[1], symbols[2], symbols[3], symbols[4], symbols[5], symbols[6], symbols[0], symbols[1]]);
   const bets = [30000, 60000, 100000, 300000, 500000, 1000000, 3000000, 5000000];
 
-  const checkHorizontalAndDiagonalWins = (currentGrid) => {
-    let lines = [];
-    if (currentGrid[0].id === currentGrid[1].id && currentGrid[1].id === currentGrid[2].id) lines.push(0, 1, 2);
-    if (currentGrid[3].id === currentGrid[4].id && currentGrid[4].id === currentGrid[5].id) lines.push(3, 4, 5);
-    if (currentGrid[6].id === currentGrid[7].id && currentGrid[7].id === currentGrid[8].id) lines.push(6, 7, 8);
-    if (currentGrid[0].id === currentGrid[4].id && currentGrid[4].id === currentGrid[8].id) lines.push(0, 4, 8);
-    if (currentGrid[2].id === currentGrid[4].id && currentGrid[4].id === currentGrid[6].id) lines.push(2, 4, 6);
-    return [...new Set(lines)];
+  // Identificador avançado de linhas premiadas isoladas
+  const getDetailedWinningLines = (currentGrid) => {
+    let winningLinesList = []; // Guardará os detalhes de cada linha vencedora
+    
+    // Linha 1 (Indices 0, 1, 2)
+    if (currentGrid[0].id === currentGrid[1].id && currentGrid[1].id === currentGrid[2].id) {
+      winningLinesList.push({ indices: [0, 1, 2], symbol: currentGrid[0] });
+    }
+    // Linha 2 (Indices 3, 4, 5)
+    if (currentGrid[3].id === currentGrid[4].id && currentGrid[4].id === currentGrid[5].id) {
+      winningLinesList.push({ indices: [3, 4, 5], symbol: currentGrid[3] });
+    }
+    // Linha 3 (Indices 6, 7, 8)
+    if (currentGrid[6].id === currentGrid[7].id && currentGrid[7].id === currentGrid[8].id) {
+      winningLinesList.push({ indices: [6, 7, 8], symbol: currentGrid[6] });
+    }
+    // Diagonal Principal (Indices 0, 4, 8)
+    if (currentGrid[0].id === currentGrid[4].id && currentGrid[4].id === currentGrid[8].id) {
+      winningLinesList.push({ indices: [0, 4, 8], symbol: currentGrid[0] });
+    }
+    // Diagonal Secundária (Indices 2, 4, 6)
+    if (currentGrid[2].id === currentGrid[4].id && currentGrid[4].id === currentGrid[6].id) {
+      winningLinesList.push({ indices: [2, 4, 6], symbol: currentGrid[2] });
+    }
+
+    return winningLinesList;
   };
 
   const getRandomSymbolByWeight = () => {
@@ -146,16 +164,23 @@ export default function App() {
     setLastWin(0);
 
     setTimeout(() => {
-      const globalWinChance = 0.28; 
+      // ✅ Aumento substancial de acerto para retenção (34%)
+      const globalWinChance = 0.34; 
       let newGrid = Array.from({ length: 9 }, () => getRandomSymbolByWeight());
 
       if (Math.random() < globalWinChance) {
         const chosenSym = getRandomSymbolByWeight();
-        const winLines = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 4, 8], [2, 4, 6]];
-        const chosenLine = winLines[Math.floor(Math.random() * winLines.length)];
-        chosenLine.forEach(idx => { newGrid[idx] = chosenSym; });
+        // Ocasionalmente cria 2 linhas vencedoras em simultâneo para aumentar a emoção!
+        const winLinesMatrix = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 4, 8], [2, 4, 6]];
+        const primaryLine = winLinesMatrix[Math.floor(Math.random() * winLinesMatrix.length)];
+        primaryLine.forEach(idx => { newGrid[idx] = chosenSym; });
+
+        if (Math.random() < 0.35) {
+          const secondaryLine = winLinesMatrix[Math.floor(Math.random() * winLinesMatrix.length)];
+          secondaryLine.forEach(idx => { newGrid[idx] = chosenSym; });
+        }
       } else {
-        while (checkHorizontalAndDiagonalWins(newGrid).length > 0) {
+        while (getDetailedWinningLines(newGrid).length > 0) {
           newGrid = Array.from({ length: 9 }, () => getRandomSymbolByWeight());
         }
       }
@@ -163,19 +188,27 @@ export default function App() {
       setGrid(newGrid);
       setSpinning(false);
 
-      const winningIndices = checkHorizontalAndDiagonalWins(newGrid);
-      if (winningIndices.length > 0) {
-        const winningSymbol = newGrid[winningIndices[0]];
-        if (winningSymbol.isBonus) {
-          setBonusWheelActive(true);
-          setLastWin(0);
-        } else {
-          const prize = betAmount * winningSymbol.mult;
-          const finalBal = balance - betAmount + prize;
+      const detailedWins = getDetailedWinningLines(newGrid);
+      if (detailedWins.length > 0) {
+        let totalPrize = 0;
+        let allWinningIndices = [];
+
+        detailedWins.forEach(win => {
+          allWinningIndices.push(...win.indices);
+          if (win.symbol.isBonus) {
+            setBonusWheelActive(true);
+          } else {
+            totalPrize += betAmount * win.symbol.mult;
+          }
+        });
+
+        setWinningLines([...new Set(allWinningIndices)]);
+
+        if (totalPrize > 0) {
+          const finalBal = balance - betAmount + totalPrize;
           updateBalanceOnDb(currentUser.id, finalBal);
-          setLastWin(prize);
+          setLastWin(totalPrize);
         }
-        setWinningLines(winningIndices);
       }
     }, turbo ? 180 : 550);
   };
@@ -215,7 +248,7 @@ export default function App() {
             setBalance(Number(data[0].balance));
             registeredOnCloud = true;
           }
-        } catch (err) { console.warn("Falha no registo nuvem, caindo para local."); }
+        } catch (err) { }
       }
 
       if (!registeredOnCloud) {
@@ -289,7 +322,7 @@ export default function App() {
   };
 
   const handleSelfDelete = async () => {
-    const confirmar = window.confirm(`ATENÇÃO! Deseja realmente excluir a sua conta de forma permanente? Todo o saldo será perdido.`);
+    const confirmar = window.confirm(`ATENÇÃO! Deseja realmente excluir a sua conta de forma permanente?`);
     if (!confirmar) return;
 
     if (isSupabaseConfigured) {
@@ -431,7 +464,7 @@ export default function App() {
 
         {lastWin > 0 && (
           <div className="bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-amber-500/20 border border-amber-500/60 rounded-2xl p-3 text-center shadow-[0_0_20px_rgba(245,158,11,0.3)] animate-pulse">
-            <p className="text-xs text-amber-300 font-extrabold uppercase tracking-widest">🎉 VITÓRIA NA LINHA!</p>
+            <p className="text-xs text-amber-300 font-extrabold uppercase tracking-widest">🎉 MÚLTIPLAS LINHAS / VITÓRIA ACUMULADA!</p>
             <p className="text-amber-400 font-black text-xl drop-shadow-md">+ R$ {lastWin.toLocaleString('pt-BR')}</p>
           </div>
         )}
@@ -503,7 +536,7 @@ export default function App() {
               </div>
 
               <div className="bg-[#0b0b0e] border border-zinc-800 p-4 rounded-2xl space-y-3">
-                <h3 className="text-xs text-zinc-400 font-bold uppercase">Trocar Senha</h3>
+                <h3 className="text-xs text-amber-300 font-bold uppercase">Trocar Senha</h3>
                 {passwordSuccess ? (
                   <div className="text-center py-2 text-emerald-400 text-xs font-bold">✅ Senha atualizada!</div>
                 ) : (
