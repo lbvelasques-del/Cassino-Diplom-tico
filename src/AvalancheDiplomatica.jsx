@@ -7,7 +7,7 @@ const SUPABASE_ANON_KEY = 'sb_publishable_EvhGbTRSSqDK426spZx1sw_uRhXIJX2';
 const isSupabaseConfigured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20 && SUPABASE_ANON_KEY.startsWith('sb_');
 const supabase = isSupabaseConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
-export default function AvalancheDiplomatica() {
+export default function QuedaDiplomatica() {
   const [usersDb, setUsersDb] = useState(() => {
     const saved = localStorage.getItem('pampas_users_db');
     if (saved) {
@@ -76,11 +76,11 @@ export default function AvalancheDiplomatica() {
 
   function getRandomSymbol() {
     const symbols = [
-      { id: 'pampas', icon: '/pampas.png', mult: 1.0 },
-      { id: 'petroleo', icon: '/petroleo.png', mult: 2.0 },
-      { id: 'brasil', icon: '/brasil.png', mult: 4.0 },
-      { id: 'diamante', icon: '/diamante.png', mult: 8.0 },
-      { id: 'bola', icon: '/bola.png', mult: 15.0 }
+      { id: 'pampas', icon: '/pampas.png', mult: 1.2 },
+      { id: 'petroleo', icon: '/petroleo.png', mult: 2.5 },
+      { id: 'brasil', icon: '/brasil.png', mult: 5.0 },
+      { id: 'diamante', icon: '/diamante.png', mult: 10.0 },
+      { id: 'bola', icon: '/bola.png', mult: 20.0 }
     ];
     if (Math.random() < 0.05) {
       return { id: 'orb', icon: '💎', isOrb: true, multValue: 1 };
@@ -98,7 +98,7 @@ export default function AvalancheDiplomatica() {
     setAccumulatedMultiplier(1);
     setAnimatingCells([]);
     updateBalanceOnDb(currentUser.id, balance - betAmount);
-    setMessage('🌪️ A cascata começou...');
+    setMessage('🌪️ A queda começou...');
 
     let currentGrid = Array(30).fill(null).map(() => getRandomSymbol());
     setGrid(currentGrid);
@@ -145,7 +145,7 @@ export default function AvalancheDiplomatica() {
 
     setAnimatingCells(winningIndices);
 
-    // O multiplicador sobe a cada cascata (máximo 5x)
+    // O multiplicador arranca em 1x e sobe progressivamente cascata a cascata até 5x
     let newMult = Math.min(currentMult + (cascadeCount > 0 ? 1 : 0) + orbCount, 5);
     setAccumulatedMultiplier(newMult);
 
@@ -193,7 +193,7 @@ export default function AvalancheDiplomatica() {
       
       <div className="py-5 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-2">
         <h1 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-500 drop-shadow-[0_2px_10px_rgba(245,158,11,0.3)]">
-          AVALANCHE DIPLOMÁTICA
+          QUEDA DIPLOMÁTICA
         </h1>
         <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
           Cascata Progressiva até 5x
@@ -206,7 +206,7 @@ export default function AvalancheDiplomatica() {
           
           <div className="flex justify-between items-center bg-black/60 border border-amber-500/30 p-2.5 rounded-xl">
             <div className="text-left">
-              <span className="text-[9px] text-zinc-400 uppercase font-bold block">Multiplicador</span>
+              <span className="text-[9px] text-zinc-400 uppercase font-bold block">Multiplicador Atual</span>
               <span className="text-amber-400 font-black text-sm">{accumulatedMultiplier}x</span>
             </div>
             <div className="text-right">
@@ -271,7 +271,7 @@ export default function AvalancheDiplomatica() {
             onClick={handleSpin} 
             className="w-full font-black text-sm py-3.5 rounded-xl shadow-[0_5px_20px_rgba(245,158,11,0.4)] transition-all active:scale-95 relative z-10 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 text-black border border-yellow-200"
           >
-            {spinning ? '🌪️ AVALANCHE A ROLAR...' : '🌪️ GIRAR AVALANCHE'}
+            {spinning ? '🌪️ QUEDA A ROLAR...' : '🌪️ GIRAR QUEDA'}
           </button>
           
         </div>
