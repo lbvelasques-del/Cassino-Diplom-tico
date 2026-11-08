@@ -27,25 +27,25 @@ export default function PampasGoal() {
   });
 
   const [betAmount, setBetAmount] = useState(30000);
-  const [selectedAsset, setSelectedAsset] = useState('/diamante.png'); // Símbolo escolhido para o chute
+  const [selectedAsset, setSelectedAsset] = useState('/diamante.png');
   const [gameActive, setGameActive] = useState(false);
   const [streak, setStreak] = useState(0);
-  const [currentMultiplier, setCurrentMultiplier] = useState(1.40);
+  const [currentMultiplier, setCurrentMultiplier] = useState(1.50);
   const [message, setMessage] = useState('');
   const [shooting, setShooting] = useState(false);
+  const [goalEffect, setGoalEffect] = useState('idle'); // 'idle', 'left', 'center', 'right', 'saved'
 
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [inputUsername, setInputUsername] = useState('');
   const [inputPassword, setInputPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
-  // Ícones oficiais disponíveis para os chutes e defesas
   const gameAssets = [
-    { name: 'Diamante', src: '/diamante.png', multBonus: 1.5 },
-    { name: 'Costa Rica', src: '/costarica.png', multBonus: 1.4 },
-    { name: 'Brasil', src: '/brasil.png', multBonus: 1.3 },
-    { name: 'Petróleo', src: '/petroleo.png', multBonus: 1.2 },
-    { name: 'Pampas', src: '/pampas.png', multBonus: 1.1 }
+    { name: 'Diamante', src: '/diamante.png' },
+    { name: 'Costa Rica', src: '/costarica.png' },
+    { name: 'Brasil', src: '/brasil.png' },
+    { name: 'Petróleo', src: '/petroleo.png' },
+    { name: 'Pampas', src: '/pampas.png' }
   ];
 
   const fetchUsersDb = async () => {
@@ -97,16 +97,17 @@ export default function PampasGoal() {
     setGameActive(true);
     setStreak(0);
     setCurrentMultiplier(1.50);
-    setMessage('⚽ Partida iniciada! Escolha o canto diplomático para chutar.');
+    setGoalEffect('idle');
+    setMessage('⚽ Partida iniciada! Escolha o canto para chutar.');
   };
 
   const shootPenalti = (targetCorner) => {
     if (!gameActive || shooting) return;
     setShooting(true);
-    setMessage('⚽ A disparar o ativo diplomático...');
+    setMessage('⚽ A disparar o ativo em direção à baliza...');
+    setGoalEffect(targetCorner === 0 ? 'left' : targetCorner === 2 ? 'right' : 'center');
 
     setTimeout(() => {
-      // Goleiro escolhe um canto aleatório (0: Esquerda, 1: Centro, 2: Direita)
       const goalkeeperChoice = Math.floor(Math.random() * 3);
       const scored = targetCorner !== goalkeeperChoice;
 
@@ -119,10 +120,11 @@ export default function PampasGoal() {
         setCurrentMultiplier(nextMult);
         setMessage(`🎯 GOOOOOOL! Ativo consagrado na rede! Multiplicador: ${nextMult}x`);
       } else {
+        setGoalEffect('saved');
         setGameActive(false);
-        setMessage('🧤 DEFESA DO GOLEIRO! O ativo diplomático foi interceptado.');
+        setMessage('🧤 DEFESA DO GOLEIRO! O chute foi interceptado.');
       }
-    }, 1200);
+    }, 1400);
   };
 
   const cashOutGoal = () => {
@@ -130,7 +132,7 @@ export default function PampasGoal() {
     const prize = Math.floor(betAmount * currentMultiplier);
     updateBalanceOnDb(currentUser.id, balance + prize);
     setGameActive(false);
-    setMessage(`🏆 LUCRO RESGATADO COM SUCESSO! +R$ ${prize.toLocaleString('pt-BR', {maximumFractionDigits: 0})}`);
+    setMessage(`🏆 LUCRO RESGATADO! +R$ ${prize.toLocaleString('pt-BR', {maximumFractionDigits: 0})}`);
   };
 
   const handleAuthSubmit = (e) => {
@@ -165,19 +167,38 @@ export default function PampasGoal() {
       <main className="max-w-md mx-auto p-4 space-y-4 pt-5">
         <div className="bg-black border-2 border-amber-500/60 rounded-3xl p-6 shadow-[0_10px_30px_rgba(0,0,0,0.9)] space-y-5 text-center">
           
-          {/* Ecrã da Baliza com Imagem Ativa */}
-          <div className="relative h-44 bg-black border-2 border-amber-500/40 rounded-2xl flex flex-col items-center justify-center shadow-inner overflow-hidden p-4">
-            <div className="absolute inset-x-4 top-4 h-24 border-t-4 border-x-4 border-zinc-800 rounded-t-xl flex justify-between px-3 pt-2 opacity-50">
-              <span className="text-[10px] text-zinc-500 font-bold">ÂNGULO ESQ</span>
-              <span className="text-[10px] text-zinc-500 font-bold">ÂNGULO DIR</span>
+          {/* Ecrã da Baliza com Goleiro e Animação */}
+          <div className="relative h-48 bg-black border-2 border-amber-500/50 rounded-2xl flex flex-col items-center justify-center shadow-inner overflow-hidden p-4">
+            
+            {/* Trave da Baliza */}
+            <div className="absolute inset-x-4 top-3 h-28 border-t-4 border-x-4 border-zinc-700 rounded-t-xl flex justify-between px-3 pt-2 opacity-70 pointer-events-none">
+              <span className="text-[10px] text-amber-400/70 font-bold">ESQ</span>
+              <span className="text-[10px] text-amber-400/70 font-bold">DIR</span>
             </div>
 
-            <div className="z-10 flex flex-col items-center space-y-1">
-              <img src={selectedAsset} alt="Ativo" className="w-12 h-12 object-contain drop-shadow-[0_0_10px_rgba(255,255,255,0.5)] mb-1" />
-              <span className="text-3xl font-black text-amber-400 drop-shadow-[0_0_10px_rgba(245,158,11,0.7)]">
+            {/* Imagem do Goleiro no Centro da Baliza */}
+            <div className={`absolute z-10 transition-all duration-500 ${goalEffect === 'left' ? '-translate-x-16 -translate-y-2' : goalEffect === 'right' ? 'translate-x-16 -translate-y-2' : 'translate-y-0'}`}>
+              <img 
+                src="/goleiro.png" 
+                alt="Goleiro" 
+                className="w-20 h-20 object-contain drop-shadow-[0_0_10px_rgba(245,158,11,0.6)]" 
+                onError={(e) => { e.target.src = 'https://cdn-icons-png.flaticon.com/512/1077/1077114.png'; }} // Fallback se o link do goleiro carregar
+              />
+            </div>
+
+            {/* Ativo em Movimento de Chute */}
+            {shooting && (
+              <div className="absolute z-20 animate-ping">
+                <img src={selectedAsset} alt="Chute" className="w-10 h-10 object-contain" />
+              </div>
+            )}
+
+            {/* Informações centrais */}
+            <div className="z-30 mt-16 flex flex-col items-center bg-black/80 px-4 py-1 rounded-xl border border-amber-500/30">
+              <span className="text-2xl font-black text-amber-400 drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]">
                 {currentMultiplier.toFixed(2)}x
               </span>
-              <p className="text-xs text-zinc-300 font-bold">Gols Consecutivos: {streak}</p>
+              <p className="text-[11px] text-zinc-300 font-bold">Gols: {streak}</p>
             </div>
           </div>
 
@@ -198,7 +219,7 @@ export default function PampasGoal() {
             </select>
           </div>
 
-          {/* Seleção do Ativo Oficial para o Chute */}
+          {/* Seleção do Ativo Oficial */}
           {!gameActive && (
             <div className="space-y-2 text-left">
               <label className="text-[10px] text-zinc-400 font-bold uppercase block">Escolha o Símbolo para o Chute</label>
@@ -207,9 +228,9 @@ export default function PampasGoal() {
                   <button 
                     key={idx} 
                     onClick={() => setSelectedAsset(asset.src)}
-                    className={`py-2 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedAsset === asset.src ? 'bg-amber-500 border-amber-300 scale-105 shadow-md' : 'bg-black border-zinc-800 opacity-60 hover:opacity-100'}`}
+                    className={`py-2.5 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedAsset === asset.src ? 'bg-amber-500 border-amber-300 scale-105 shadow-md' : 'bg-black border-zinc-800 opacity-60 hover:opacity-100'}`}
                   >
-                    <img src={asset.src} alt={asset.name} className="w-7 h-7 object-contain drop-shadow-[0_0_5px_rgba(255,255,255,0.4)]" />
+                    <img src={asset.src} alt={asset.name} className="w-7 h-7 object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
                   </button>
                 ))}
               </div>
@@ -247,6 +268,7 @@ export default function PampasGoal() {
         </div>
       </main>
 
+      {/* Modal de Autenticação */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-black border border-amber-500/50 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
