@@ -76,17 +76,14 @@ export default function AvalancheDiplomatica() {
 
   function getRandomSymbol() {
     const symbols = [
-      { id: 'pampas', icon: '/pampas.png', mult: 0.8 },
-      { id: 'petroleo', icon: '/petroleo.png', mult: 1.5 },
-      { id: 'brasil', icon: '/brasil.png', mult: 3.0 },
-      { id: 'diamante', icon: '/diamante.png', mult: 6.0 },
-      { id: 'bola', icon: '/bola.png', mult: 12.0 }
+      { id: 'pampas', icon: '/pampas.png', mult: 1.0 },
+      { id: 'petroleo', icon: '/petroleo.png', mult: 2.0 },
+      { id: 'brasil', icon: '/brasil.png', mult: 4.0 },
+      { id: 'diamante', icon: '/diamante.png', mult: 8.0 },
+      { id: 'bola', icon: '/bola.png', mult: 15.0 }
     ];
-    // Orbes multiplicadores mais dinâmicos (+1x a +2x)
-    if (Math.random() < 0.04) {
-      const orbValues = [1, 2];
-      const val = orbValues[Math.floor(Math.random() * orbValues.length)];
-      return { id: 'orb', icon: '💎', isOrb: true, multValue: val };
+    if (Math.random() < 0.05) {
+      return { id: 'orb', icon: '💎', isOrb: true, multValue: 1 };
     }
     return symbols[Math.floor(Math.random() * symbols.length)];
   }
@@ -101,7 +98,7 @@ export default function AvalancheDiplomatica() {
     setAccumulatedMultiplier(1);
     setAnimatingCells([]);
     updateBalanceOnDb(currentUser.id, balance - betAmount);
-    setMessage('🌪️ A cascata diplomática começou...');
+    setMessage('🌪️ A cascata começou...');
 
     let currentGrid = Array(30).fill(null).map(() => getRandomSymbol());
     setGrid(currentGrid);
@@ -112,19 +109,18 @@ export default function AvalancheDiplomatica() {
   };
 
   const processAvalanche = (currentGrid, bet, currentRoundWin, currentMult, cascadeCount) => {
-    // 🛡️ Limite máximo de 5 cascatas por rodada
     if (cascadeCount >= 5) {
       finalizePayout(currentRoundWin, currentMult, bet);
       return;
     }
 
     const counts = {};
-    let orbValuesInThisDrop = 0;
+    let orbCount = 0;
     let winningIndices = [];
 
     currentGrid.forEach((cell, idx) => {
       if (cell.id === 'orb') {
-        orbValuesInThisDrop += cell.multValue;
+        orbCount += 1;
         winningIndices.push(idx);
       } else {
         counts[cell.id] = (counts[cell.id] || 0) + 1;
@@ -135,7 +131,6 @@ export default function AvalancheDiplomatica() {
     let roundPrize = 0;
 
     Object.keys(counts).forEach(symId => {
-      // Facilitado para 8 símbolos iguais para pagar com muito mais frequência
       if (counts[symId] >= 8) {
         winningSymbols.push(symId);
         const baseSymbol = currentGrid.find(c => c.id === symId);
@@ -150,15 +145,15 @@ export default function AvalancheDiplomatica() {
 
     setAnimatingCells(winningIndices);
 
-    // O multiplicador sobe a cada cascata, travado no máximo de 5x
-    let newMult = Math.min(currentMult + (cascadeCount > 0 ? 1 : 0) + orbValuesInThisDrop, 5);
+    // O multiplicador sobe a cada cascata (máximo 5x)
+    let newMult = Math.min(currentMult + (cascadeCount > 0 ? 1 : 0) + orbCount, 5);
     setAccumulatedMultiplier(newMult);
 
-    if (winningSymbols.length > 0 || orbValuesInThisDrop > 0) {
+    if (winningSymbols.length > 0 || orbCount > 0) {
       const multipliedPrize = roundPrize > 0 ? roundPrize * newMult : 0;
       const newTotalWin = currentRoundWin + multipliedPrize;
       setTotalWin(newTotalWin);
-      setMessage(`✨ CASCATA #${cascadeCount + 1}! Prémio: R$ ${newTotalWin.toLocaleString('pt-BR')}`);
+      setMessage(`✨ CASCATA #${cascadeCount + 1}! R$ ${newTotalWin.toLocaleString('pt-BR')}`);
 
       setTimeout(() => {
         let nextGrid = currentGrid.map((cell, idx) => {
@@ -180,16 +175,12 @@ export default function AvalancheDiplomatica() {
 
   const finalizePayout = (currentRoundWin, currentMult, bet) => {
     let finalPayout = currentRoundWin > 0 ? currentRoundWin * currentMult : 0;
-
-    // Teto de segurança saudável (máximo 80x a aposta da rodada)
-    const maxAllowedWin = bet * 80;
-    if (finalPayout > maxAllowedWin) {
-      finalPayout = maxAllowedWin;
-    }
+    const maxAllowedWin = bet * 100;
+    if (finalPayout > maxAllowedWin) finalPayout = maxAllowedWin;
 
     if (finalPayout > 0) {
       updateBalanceOnDb(currentUser.id, balance - bet + finalPayout);
-      setMessage(`🏆 VITÓRIA TOTAL! R$ ${finalPayout.toLocaleString('pt-BR')}`);
+      setMessage(`🏆 VITÓRIA! R$ ${finalPayout.toLocaleString('pt-BR')}`);
     } else {
       setMessage('Não premiado. Tente novamente!');
     }
@@ -205,7 +196,7 @@ export default function AvalancheDiplomatica() {
           AVALANCHE DIPLOMÁTICA
         </h1>
         <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-          Orbes & Cascata Progressiva até 5x
+          Cascata Progressiva até 5x
         </p>
       </div>
 
@@ -215,7 +206,7 @@ export default function AvalancheDiplomatica() {
           
           <div className="flex justify-between items-center bg-black/60 border border-amber-500/30 p-2.5 rounded-xl">
             <div className="text-left">
-              <span className="text-[9px] text-zinc-400 uppercase font-bold block">Multiplicador da Cascata</span>
+              <span className="text-[9px] text-zinc-400 uppercase font-bold block">Multiplicador</span>
               <span className="text-amber-400 font-black text-sm">{accumulatedMultiplier}x</span>
             </div>
             <div className="text-right">
@@ -228,7 +219,6 @@ export default function AvalancheDiplomatica() {
             {message}
           </div>
 
-          {/* Grelha 6x5 com efeitos refinados */}
           <div className="grid grid-cols-6 gap-1.5 p-2 bg-black border-2 border-zinc-800 rounded-xl shadow-inner relative z-10">
             {grid.map((cell, i) => {
               const isWinning = animatingCells.includes(i);
@@ -249,10 +239,10 @@ export default function AvalancheDiplomatica() {
                   {cell.id === 'orb' ? (
                     <div className="flex flex-col items-center justify-center">
                       <span className="text-sm animate-pulse">💎</span>
-                      <span className="text-[9px] font-black text-amber-200">+{cell.multValue}x</span>
+                      <span className="text-[9px] font-black text-amber-200">+1x</span>
                     </div>
                   ) : (
-                    <img src={cell.icon} alt="símbolo" className="w-7 h-7 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] transition-transform duration-200 hover:scale-110" />
+                    <img src={cell.icon} alt="símbolo" className="w-7 h-7 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" />
                   )}
                 </div>
               );
