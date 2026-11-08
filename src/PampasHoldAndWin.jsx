@@ -76,7 +76,7 @@ export default function PampasHoldAndWin() {
   };
 
   const generateCoin = (bet) => {
-    // Multiplicadores máximos até 5x, conforme pedido!
+    // REGRA 1: Multiplicador MÁXIMO de 5x
     const mults = [1, 2, 3, 4, 5]; 
     const m = mults[Math.floor(Math.random() * mults.length)];
     return { type: 'coin', icon: '🪙', val: bet * m, mult: m };
@@ -116,10 +116,10 @@ export default function PampasHoldAndWin() {
         let newGrid = [...grid];
         let newCoinsLanded = false;
         
-        // MATEMÁTICA DA DIFICULDADE PROGRESSIVA
+        // REGRA 2: DIFICULDADE PROGRESSIVA DO BÔNUS
         const currentCoinsCount = grid.filter(s => s.type === 'coin').length;
-        // Quanto mais moedas, menor a probabilidade de cair uma nova (mínimo de 2%)
-        let dropChance = 0.20 - (currentCoinsCount * 0.015); 
+        // Quanto mais moedas já tens, menor a chance. Chega a cair para apenas 2% de chance!
+        let dropChance = 0.15 - (currentCoinsCount * 0.012); 
         if (dropChance < 0.02) dropChance = 0.02;
 
         for(let i=0; i<15; i++) {
@@ -141,7 +141,7 @@ export default function PampasHoldAndWin() {
         if (nextRespins === 0 || newCoinsCount === 15) {
           setTimeout(() => collectBonus(newGrid), 1000); 
         } else {
-          setMessage(newCoinsLanded ? '🪙 Nova Moeda! Respins resetados para 3!' : `Respins restantes: ${nextRespins}`);
+          setMessage(newCoinsLanded ? '🪙 Nova Moeda! Respins resetados!' : `Respins restantes: ${nextRespins}`);
           setSpinning(false);
         }
 
@@ -205,8 +205,7 @@ export default function PampasHoldAndWin() {
       }
     }, 800); 
   };
-
-  return (
+            return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       
       <div className="py-6 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-3">
@@ -243,11 +242,11 @@ export default function PampasHoldAndWin() {
               } else if (sym.type === 'coin') {
                 cellStyle += "bg-gradient-to-br from-yellow-300 to-amber-600 border-2 border-yellow-200 shadow-[0_0_15px_rgba(245,158,11,0.6)] ";
               } else if (sym.type === 'blank') {
-                // Quadrado preto por dentro, dourado semitransparente por fora (bônus)
+                // Quadrado preto por dentro, dourado semitransparente por fora (durante o bônus)
                 cellStyle += "bg-black border-2 border-amber-500/30 opacity-40 ";
               } else {
-                // Quadrado preto por dentro, dourado por fora (jogo base)
-                cellStyle += "bg-black border-2 border-amber-500/80 ";
+                // REGRA NOVA: Quadrado 100% preto por dentro e dourado/âmbar forte por fora (jogo base)
+                cellStyle += "bg-black border-2 border-amber-500/80 shadow-[inset_0_0_5px_rgba(0,0,0,1)] ";
               }
 
               return (
