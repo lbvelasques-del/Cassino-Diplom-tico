@@ -86,14 +86,15 @@ export default function App() {
     }
   }, [currentUser]);
 
+  // ✅ Atualizado para puxar as imagens profissionais que salvou na pasta /public
   const symbols = [
-    { id: 'pampas', icon: '🫎', name: 'Pampas', mult: 0.5, weight: 25, isBonus: false },
-    { id: 'alquimia', icon: '⚗️', name: 'Alquimia', mult: 0.8, weight: 24, isBonus: false },
-    { id: 'petroleo', icon: '🛢️', name: 'Petróleo', mult: 1.0, weight: 22, isBonus: false },
-    { id: 'brasil', icon: '🇧🇷', name: 'Brasil', mult: 2.0, weight: 20, isBonus: false },
-    { id: 'moeda', icon: '🪙', name: 'Moeda', mult: 1.5, weight: 19, isBonus: false },
-    { id: 'costarica', icon: '🇨🇷', name: 'Costa Rica', mult: 3.0, weight: 16, isBonus: false },
-    { id: 'diamante', icon: '💎', name: 'Diamante', mult: 5.0, weight: 10, isBonus: true }
+    { id: 'pampas', icon: '/pampas.png', name: 'Pampas', mult: 0.5, weight: 25, isBonus: false },
+    { id: 'alquimia', icon: '/alquimia.png', name: 'Alquimia', mult: 0.8, weight: 24, isBonus: false },
+    { id: 'petroleo', icon: '/petroleo.png', name: 'Petróleo', mult: 1.0, weight: 22, isBonus: false },
+    { id: 'brasil', icon: '/brasil.png', name: 'Brasil', mult: 2.0, weight: 20, isBonus: false },
+    { id: 'moeda', icon: '/moeda.png', name: 'Moeda', mult: 1.5, weight: 19, isBonus: false },
+    { id: 'costarica', icon: '/costarica.png', name: 'Costa Rica', mult: 3.0, weight: 16, isBonus: false },
+    { id: 'diamante', icon: '/diamante.png', name: 'Diamante', mult: 5.0, weight: 10, isBonus: true }
   ];
 
   const totalWeight = symbols.reduce((acc, s) => acc + s.weight, 0);
@@ -101,31 +102,23 @@ export default function App() {
   const [grid, setGrid] = useState([symbols[0], symbols[1], symbols[2], symbols[3], symbols[4], symbols[5], symbols[6], symbols[0], symbols[1]]);
   const bets = [30000, 60000, 100000, 300000, 500000, 1000000, 3000000, 5000000];
 
-  // Identificador avançado de linhas premiadas isoladas
   const getDetailedWinningLines = (currentGrid) => {
-    let winningLinesList = []; // Guardará os detalhes de cada linha vencedora
-    
-    // Linha 1 (Indices 0, 1, 2)
+    let winningLinesList = [];
     if (currentGrid[0].id === currentGrid[1].id && currentGrid[1].id === currentGrid[2].id) {
       winningLinesList.push({ indices: [0, 1, 2], symbol: currentGrid[0] });
     }
-    // Linha 2 (Indices 3, 4, 5)
     if (currentGrid[3].id === currentGrid[4].id && currentGrid[4].id === currentGrid[5].id) {
       winningLinesList.push({ indices: [3, 4, 5], symbol: currentGrid[3] });
     }
-    // Linha 3 (Indices 6, 7, 8)
     if (currentGrid[6].id === currentGrid[7].id && currentGrid[7].id === currentGrid[8].id) {
       winningLinesList.push({ indices: [6, 7, 8], symbol: currentGrid[6] });
     }
-    // Diagonal Principal (Indices 0, 4, 8)
     if (currentGrid[0].id === currentGrid[4].id && currentGrid[4].id === currentGrid[8].id) {
       winningLinesList.push({ indices: [0, 4, 8], symbol: currentGrid[0] });
     }
-    // Diagonal Secundária (Indices 2, 4, 6)
     if (currentGrid[2].id === currentGrid[4].id && currentGrid[4].id === currentGrid[6].id) {
       winningLinesList.push({ indices: [2, 4, 6], symbol: currentGrid[2] });
     }
-
     return winningLinesList;
   };
 
@@ -164,13 +157,11 @@ export default function App() {
     setLastWin(0);
 
     setTimeout(() => {
-      // ✅ Aumento substancial de acerto para retenção (34%)
       const globalWinChance = 0.34; 
       let newGrid = Array.from({ length: 9 }, () => getRandomSymbolByWeight());
 
       if (Math.random() < globalWinChance) {
         const chosenSym = getRandomSymbolByWeight();
-        // Ocasionalmente cria 2 linhas vencedoras em simultâneo para aumentar a emoção!
         const winLinesMatrix = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 4, 8], [2, 4, 6]];
         const primaryLine = winLinesMatrix[Math.floor(Math.random() * winLinesMatrix.length)];
         primaryLine.forEach(idx => { newGrid[idx] = chosenSym; });
@@ -439,8 +430,13 @@ export default function App() {
             {grid.map((sym, idx) => {
               const isWinningCell = winningLines.includes(idx);
               return (
-                <div key={idx} className={`h-24 rounded-2xl bg-[#0b0b0e] border flex flex-col items-center justify-center text-3xl shadow-inner transition-all duration-300 ${spinning ? 'animate-pulse opacity-50 scale-95 border-zinc-800' : ''} ${isWinningCell ? 'border-amber-400 bg-amber-500/20 scale-105 shadow-[0_0_20px_rgba(245,158,11,0.6)] animate-bounce' : 'border-zinc-800/80 hover:border-amber-500/40'}`}>
-                  <span className="drop-shadow-md">{sym.icon}</span>
+                <div key={idx} className={`h-24 rounded-2xl bg-[#0b0b0e] border flex flex-col items-center justify-center shadow-inner transition-all duration-300 ${spinning ? 'animate-pulse opacity-50 scale-95 border-zinc-800' : ''} ${isWinningCell ? 'border-amber-400 bg-amber-500/20 scale-105 shadow-[0_0_20px_rgba(245,158,11,0.6)] animate-bounce' : 'border-zinc-800/80 hover:border-amber-500/40'}`}>
+                  {/* ✅ Substituição profissional dos emojis pelas tuas novas imagens customizadas e centralizadas */}
+                  <img 
+                    src={sym.icon} 
+                    alt={sym.name} 
+                    className="w-14 h-14 object-contain filter drop-shadow-[0_4px_6px_rgba(0,0,0,0.6)]" 
+                  />
                   <span className="text-[10px] text-zinc-400 mt-1 font-bold tracking-wider">{sym.name}</span>
                 </div>
               );
@@ -613,4 +609,4 @@ export default function App() {
       )}
     </div>
   );
-}
+          }
