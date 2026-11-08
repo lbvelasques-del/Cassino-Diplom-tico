@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import CassinoCostaRica from './CassinoCostaRica';
 import DiamondStriker from './DiamondStriker';
 import PampasCrash from './PampasCrash';
+import RoletaDiplomatica from './RoletaDiplomatica';
 
 const SUPABASE_URL = 'https://tieduoyppbigsaxxjhfl.supabase.co'; 
 const SUPABASE_ANON_KEY = 'sb_publishable_EvhGbTRSSqDK426spZx1sw_uRhXIJX2';
@@ -11,7 +12,7 @@ const isSupabaseConfigured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KE
 const supabase = isSupabaseConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 export default function App() {
-  const [activeGame, setActiveGame] = useState('lobby'); // 'lobby', 'costarica', 'diamond', 'crash'
+  const [activeGame, setActiveGame] = useState('lobby'); // 'lobby', 'costarica', 'diamond', 'crash', 'roleta'
 
   const [usersDb, setUsersDb] = useState(() => {
     const saved = localStorage.getItem('pampas_users_db');
@@ -250,7 +251,7 @@ export default function App() {
     localStorage.setItem('pampas_users_db', JSON.stringify(updatedList));
     if (currentUser && currentUser.id === id) handleLogout();
   };
-  if (activeGame === 'costarica') {
+    if (activeGame === 'costarica') {
     return (
       <div>
         <div className="bg-black px-4 py-2.5 flex items-center justify-between border-b border-zinc-900 sticky top-0 z-50">
@@ -294,6 +295,22 @@ export default function App() {
           </div>
         </div>
         <PampasCrash />
+      </div>
+    );
+  }
+
+  if (activeGame === 'roleta') {
+    return (
+      <div>
+        <div className="bg-black px-4 py-2.5 flex items-center justify-between border-b border-zinc-900 sticky top-0 z-50">
+          <button onClick={() => setActiveGame('lobby')} className="bg-zinc-800 hover:bg-zinc-700 text-amber-400 font-bold px-3 py-1.5 rounded-xl text-xs border border-zinc-700 transition-all">
+            🏠 Voltar ao Lobby
+          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-amber-400 font-black">R$ {balance.toLocaleString('pt-BR')}</span>
+          </div>
+        </div>
+        <RoletaDiplomatica />
       </div>
     );
   }
@@ -368,10 +385,20 @@ export default function App() {
               <span className="inline-block bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xs px-5 py-2 rounded-xl shadow-[0_5px_15px_rgba(245,158,11,0.4)]">JOGAR AGORA ▶</span>
             </div>
           </div>
+
+          <div onClick={() => setActiveGame('roleta')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-[0_10px_30px_rgba(0,0,0,0.8)] transition-all hover:scale-105 group space-y-2">
+            <h3 className="text-lg font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-500 drop-shadow-[0_3px_10px_rgba(245,158,11,0.5)]">
+              🎡 ROLETA DIPLOMÁTICA
+            </h3>
+            <p className="text-xs text-zinc-300 font-medium">A clássica roleta da fortuna adaptada à diplomacia do Grupo Pampas.</p>
+            <div className="pt-2">
+              <span className="inline-block bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xs px-5 py-2 rounded-xl shadow-[0_5px_15px_rgba(245,158,11,0.4)]">JOGAR AGORA ▶</span>
+            </div>
+          </div>
         </div>
       </main>
 
-      {/* Modais de Autenticação */}
+      {/* Modais de Autenticação, Perfil e Admin */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
@@ -399,7 +426,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Modal de Perfil do Utilizador */}
       {isUserPanelOpen && currentUser && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -446,7 +472,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Painel Admin Completo com a Listagem de Utilizadores */}
       {isAdminPanelOpen && currentUser && (currentUser.isAdmin || currentUser.username.toLowerCase() === 'lvelasques') && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-lg flex items-center justify-center p-4">
           <div className="bg-[#141418] border-2 border-amber-500 w-full max-w-2xl rounded-3xl p-6 relative shadow-[0_0_50px_rgba(245,158,11,0.2)] max-h-[90vh] overflow-y-auto">
