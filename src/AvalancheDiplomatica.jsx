@@ -29,7 +29,7 @@ export default function AvalancheDiplomatica() {
   const [grid, setGrid] = useState(() => Array(30).fill(null).map(() => getRandomSymbol()));
   const [betAmount, setBetAmount] = useState(30000);
   const [spinning, setSpinning] = useState(false);
-  const [message, setMessage] = useState('Encontre 9+ símbolos iguais ou orbes para vencer!');
+  const [message, setMessage] = useState('Encontre 8+ símbolos iguais para vencer!');
   const [totalWin, setTotalWin] = useState(0);
   const [accumulatedMultiplier, setAccumulatedMultiplier] = useState(1);
   const [animatingCells, setAnimatingCells] = useState([]);
@@ -76,15 +76,15 @@ export default function AvalancheDiplomatica() {
 
   function getRandomSymbol() {
     const symbols = [
-      { id: 'pampas', icon: '/pampas.png', mult: 0.3 },
-      { id: 'petroleo', icon: '/petroleo.png', mult: 0.6 },
-      { id: 'brasil', icon: '/brasil.png', mult: 1.2 },
-      { id: 'diamante', icon: '/diamante.png', mult: 2.5 },
-      { id: 'bola', icon: '/bola.png', mult: 5.0 }
+      { id: 'pampas', icon: '/pampas.png', mult: 0.8 },
+      { id: 'petroleo', icon: '/petroleo.png', mult: 1.5 },
+      { id: 'brasil', icon: '/brasil.png', mult: 3.0 },
+      { id: 'diamante', icon: '/diamante.png', mult: 6.0 },
+      { id: 'bola', icon: '/bola.png', mult: 12.0 }
     ];
-    // Orbes multiplicadores equilibrados (3% de chance, +1x a +3x)
-    if (Math.random() < 0.03) {
-      const orbValues = [1, 2, 3];
+    // Orbes multiplicadores mais dinâmicos (+1x a +2x)
+    if (Math.random() < 0.04) {
+      const orbValues = [1, 2];
       const val = orbValues[Math.floor(Math.random() * orbValues.length)];
       return { id: 'orb', icon: '💎', isOrb: true, multValue: val };
     }
@@ -135,12 +135,12 @@ export default function AvalancheDiplomatica() {
     let roundPrize = 0;
 
     Object.keys(counts).forEach(symId => {
-      // Requisito saudável de 9 símbolos iguais para Pay Anywhere
-      if (counts[symId] >= 9) {
+      // Facilitado para 8 símbolos iguais para pagar com muito mais frequência
+      if (counts[symId] >= 8) {
         winningSymbols.push(symId);
         const baseSymbol = currentGrid.find(c => c.id === symId);
         const symbolMultiplier = baseSymbol ? baseSymbol.mult : 1;
-        roundPrize += bet * symbolMultiplier * (counts[symId] / 9);
+        roundPrize += bet * symbolMultiplier * (counts[symId] / 8);
 
         currentGrid.forEach((cell, idx) => {
           if (cell.id === symId) winningIndices.push(idx);
@@ -148,20 +148,17 @@ export default function AvalancheDiplomatica() {
       }
     });
 
-    // Animação visual de destaque nas células vencedoras
     setAnimatingCells(winningIndices);
 
-    // Orbes somam ao multiplicador com limite máximo acumulado de 15x por rodada
-    if (orbValuesInThisDrop > 0) {
-      currentMult = Math.min(currentMult + orbValuesInThisDrop, 15);
-      setAccumulatedMultiplier(currentMult);
-    }
+    // O multiplicador sobe a cada cascata, travado no máximo de 5x
+    let newMult = Math.min(currentMult + (cascadeCount > 0 ? 1 : 0) + orbValuesInThisDrop, 5);
+    setAccumulatedMultiplier(newMult);
 
     if (winningSymbols.length > 0 || orbValuesInThisDrop > 0) {
-      const multipliedPrize = roundPrize > 0 ? roundPrize * currentMult : 0;
+      const multipliedPrize = roundPrize > 0 ? roundPrize * newMult : 0;
       const newTotalWin = currentRoundWin + multipliedPrize;
       setTotalWin(newTotalWin);
-      setMessage(`✨ CASCATA #${cascadeCount + 1}! Prémio parcial: R$ ${newTotalWin.toLocaleString('pt-BR')}`);
+      setMessage(`✨ CASCATA #${cascadeCount + 1}! Prémio: R$ ${newTotalWin.toLocaleString('pt-BR')}`);
 
       setTimeout(() => {
         let nextGrid = currentGrid.map((cell, idx) => {
@@ -173,19 +170,19 @@ export default function AvalancheDiplomatica() {
         setGrid(nextGrid);
         setAnimatingCells([]);
         
-        processAvalanche(nextGrid, bet, newTotalWin, currentMult, cascadeCount + 1);
+        processAvalanche(nextGrid, bet, newTotalWin, newMult, cascadeCount + 1);
       }, 700);
 
     } else {
-      finalizePayout(currentRoundWin, currentMult, bet);
+      finalizePayout(currentRoundWin, newMult, bet);
     }
   };
 
   const finalizePayout = (currentRoundWin, currentMult, bet) => {
     let finalPayout = currentRoundWin > 0 ? currentRoundWin * currentMult : 0;
 
-    // Teto máximo prudente para evitar valores astronómicos (máximo 50x a aposta da rodada)
-    const maxAllowedWin = bet * 50;
+    // Teto de segurança saudável (máximo 80x a aposta da rodada)
+    const maxAllowedWin = bet * 80;
     if (finalPayout > maxAllowedWin) {
       finalPayout = maxAllowedWin;
     }
@@ -194,7 +191,7 @@ export default function AvalancheDiplomatica() {
       updateBalanceOnDb(currentUser.id, balance - bet + finalPayout);
       setMessage(`🏆 VITÓRIA TOTAL! R$ ${finalPayout.toLocaleString('pt-BR')}`);
     } else {
-      setMessage('Não premiado. Tente novamente na avalanche!');
+      setMessage('Não premiado. Tente novamente!');
     }
     setSpinning(false);
     setAnimatingCells([]);
@@ -208,7 +205,7 @@ export default function AvalancheDiplomatica() {
           AVALANCHE DIPLOMÁTICA
         </h1>
         <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-          Orbes de Multiplicadores & Cascata Ativa
+          Orbes & Cascata Progressiva até 5x
         </p>
       </div>
 
@@ -218,7 +215,7 @@ export default function AvalancheDiplomatica() {
           
           <div className="flex justify-between items-center bg-black/60 border border-amber-500/30 p-2.5 rounded-xl">
             <div className="text-left">
-              <span className="text-[9px] text-zinc-400 uppercase font-bold block">Multiplicador</span>
+              <span className="text-[9px] text-zinc-400 uppercase font-bold block">Multiplicador da Cascata</span>
               <span className="text-amber-400 font-black text-sm">{accumulatedMultiplier}x</span>
             </div>
             <div className="text-right">
@@ -231,7 +228,7 @@ export default function AvalancheDiplomatica() {
             {message}
           </div>
 
-          {/* Grelha 6x5 com efeitos refinados de animação */}
+          {/* Grelha 6x5 com efeitos refinados */}
           <div className="grid grid-cols-6 gap-1.5 p-2 bg-black border-2 border-zinc-800 rounded-xl shadow-inner relative z-10">
             {grid.map((cell, i) => {
               const isWinning = animatingCells.includes(i);
