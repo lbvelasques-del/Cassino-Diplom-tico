@@ -27,7 +27,7 @@ export default function RoletaDiplomatica() {
   });
 
   const [betAmount, setBetAmount] = useState(30000);
-  const [selectedBetType, setSelectedBetType] = useState('gold'); // 'gold', 'oil', 'pampas', 'red', 'black'
+  const [selectedBetType, setSelectedBetType] = useState('diamante'); // 'diamante', 'petroleo', 'pampas', 'brasil', 'costarica'
   const [spinning, setSpinning] = useState(false);
   const [lastResult, setLastResult] = useState(null);
   const [winMessage, setWinMessage] = useState('');
@@ -37,20 +37,20 @@ export default function RoletaDiplomatica() {
   const [inputPassword, setInputPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
-  // Setores da Roleta
+  // Setores oficiais com as imagens do Grupo Pampas
   const wheelSectors = [
-    { id: 0, name: 'Zero Diplomático', type: 'green', mult: 14, icon: '👑' },
-    { id: 1, name: 'Barra de Ouro', type: 'gold', mult: 5, icon: '🪙' },
-    { id: 2, name: 'Petróleo', type: 'oil', mult: 3, icon: '🛢️' },
-    { id: 3, name: 'Pampas', type: 'pampas', mult: 2, icon: '⭐' },
-    { id: 4, name: 'Barra de Ouro', type: 'gold', mult: 5, icon: '🪙' },
-    { id: 5, name: 'Setor Vermelho', type: 'red', mult: 2, icon: '🔴' },
-    { id: 6, name: 'Petróleo', type: 'oil', mult: 3, icon: '🛢️' },
-    { id: 7, name: 'Setor Preto', type: 'black', mult: 2, icon: '⚫' },
-    { id: 8, name: 'Barra de Ouro', type: 'gold', mult: 5, icon: '🪙' },
-    { id: 9, name: 'Pampas', type: 'pampas', mult: 2, icon: '⭐' },
-    { id: 10, name: 'Setor Vermelho', type: 'red', mult: 2, icon: '🔴' },
-    { id: 11, name: 'Setor Preto', type: 'black', mult: 2, icon: '⚫' }
+    { id: 0, name: 'Diamante', type: 'diamante', mult: 10, icon: '/diamante.png' },
+    { id: 1, name: 'Petróleo', type: 'petroleo', mult: 3, icon: '/petroleo.png' },
+    { id: 2, name: 'Pampas', type: 'pampas', mult: 2, icon: '/pampas.png' },
+    { id: 3, name: 'Brasil', type: 'brasil', mult: 4, icon: '/brasil.png' },
+    { id: 4, name: 'Costa Rica', type: 'costarica', mult: 6, icon: '/costarica.png' },
+    { id: 5, name: 'Petróleo', type: 'petroleo', mult: 3, icon: '/petroleo.png' },
+    { id: 6, name: 'Pampas', type: 'pampas', mult: 2, icon: '/pampas.png' },
+    { id: 7, name: 'Brasil', type: 'brasil', mult: 4, icon: '/brasil.png' },
+    { id: 8, name: 'Costa Rica', type: 'costarica', mult: 6, icon: '/costarica.png' },
+    { id: 9, name: 'Petróleo', type: 'petroleo', mult: 3, icon: '/petroleo.png' },
+    { id: 10, name: 'Diamante', type: 'diamante', mult: 10, icon: '/diamante.png' },
+    { id: 11, name: 'Pampas', type: 'pampas', mult: 2, icon: '/pampas.png' }
   ];
 
   const fetchUsersDb = async () => {
@@ -109,13 +109,7 @@ export default function RoletaDiplomatica() {
       setLastResult(result);
       setSpinning(false);
 
-      // Verificar se venceu
-      let isWinner = false;
-      if (selectedBetType === 'red' && result.type === 'red') isWinner = true;
-      else if (selectedBetType === 'black' && result.type === 'black') isWinner = true;
-      else if (selectedBetType === 'gold' && result.type === 'gold') isWinner = true;
-      else if (selectedBetType === 'oil' && result.type === 'oil') isWinner = true;
-      else if (selectedBetType === 'pampas' && result.type === 'pampas') isWinner = true;
+      const isWinner = selectedBetType === result.type;
 
       if (isWinner) {
         const prize = betAmount * result.mult;
@@ -141,7 +135,7 @@ export default function RoletaDiplomatica() {
       setAuthError('Dados incorretos.');
     }
   };
-                             return (
+          return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       {/* Patrocinador Global no Topo */}
       <div className="py-6 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-3">
@@ -160,15 +154,19 @@ export default function RoletaDiplomatica() {
         <div className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/50 rounded-3xl p-6 shadow-[0_10px_30px_rgba(0,0,0,0.8)] space-y-5 text-center">
           
           {/* Ecrã de Resultado da Roleta */}
-          <div className="relative h-40 bg-[#07070a] border border-zinc-800/80 rounded-2xl flex flex-col items-center justify-center shadow-inner overflow-hidden">
-            <div className={`text-5xl transition-all duration-300 ${spinning ? 'animate-spin opacity-50' : 'scale-110 drop-shadow-[0_0_20px_rgba(245,158,11,0.6)]'}`}>
-              {lastResult ? lastResult.icon : '🎡'}
+          <div className="relative h-44 bg-[#07070a] border border-zinc-800/80 rounded-2xl flex flex-col items-center justify-center shadow-inner overflow-hidden">
+            <div className={`transition-all duration-300 ${spinning ? 'animate-spin opacity-50' : 'scale-110 drop-shadow-[0_0_20px_rgba(245,158,11,0.6)]'}`}>
+              <img 
+                src={lastResult ? lastResult.icon : '/diamante.png'} 
+                alt="Resultado" 
+                className="w-20 h-20 object-contain mx-auto" 
+              />
             </div>
-            <p className="text-sm font-black text-amber-400 mt-3">
+            <p className="text-sm font-black text-amber-400 mt-2">
               {spinning ? 'A RODAR A ROLETA...' : lastResult ? lastResult.name : 'FAÇA A SUA APOSTA'}
             </p>
             {lastResult && !spinning && (
-              <span className="text-[10px] text-zinc-400 font-bold uppercase mt-1">Multiplicador: {lastResult.mult}x</span>
+              <span className="text-[10px] text-zinc-400 font-bold uppercase mt-0.5">Multiplicador: {lastResult.mult}x</span>
             )}
           </div>
 
@@ -189,15 +187,30 @@ export default function RoletaDiplomatica() {
             </select>
           </div>
 
-          {/* Escolha do Tipo de Aposta */}
+          {/* Escolha do Símbolo / Setor de Aposta */}
           <div className="space-y-2 text-left">
-            <label className="text-[10px] text-zinc-500 font-bold uppercase block">Escolha o Setor de Aposta</label>
+            <label className="text-[10px] text-zinc-500 font-bold uppercase block">Escolha o Símbolo da Aposta</label>
             <div className="grid grid-cols-3 gap-2">
-              <button disabled={spinning} onClick={() => setSelectedBetType('gold')} className={`py-2 px-3 rounded-xl font-bold text-xs border transition-all ${selectedBetType === 'gold' ? 'bg-amber-500 text-black border-amber-300 font-black shadow-lg scale-105' : 'bg-[#18181e] text-zinc-300 border-zinc-800'}`}>🪙 Ouro (5x)</button>
-              <button disabled={spinning} onClick={() => setSelectedBetType('oil')} className={`py-2 px-3 rounded-xl font-bold text-xs border transition-all ${selectedBetType === 'oil' ? 'bg-amber-500 text-black border-amber-300 font-black shadow-lg scale-105' : 'bg-[#18181e] text-zinc-300 border-zinc-800'}`}>🛢️ Petróleo (3x)</button>
-              <button disabled={spinning} onClick={() => setSelectedBetType('pampas')} className={`py-2 px-3 rounded-xl font-bold text-xs border transition-all ${selectedBetType === 'pampas' ? 'bg-amber-500 text-black border-amber-300 font-black shadow-lg scale-105' : 'bg-[#18181e] text-zinc-300 border-zinc-800'}`}>⭐ Pampas (2x)</button>
-              <button disabled={spinning} onClick={() => setSelectedBetType('red')} className={`py-2 px-3 rounded-xl font-bold text-xs border transition-all ${selectedBetType === 'red' ? 'bg-red-500 text-black border-red-300 font-black shadow-lg scale-105' : 'bg-[#18181e] text-zinc-300 border-zinc-800'}`}>🔴 Vermelho (2x)</button>
-              <button disabled={spinning} onClick={() => setSelectedBetType('black')} className={`py-2 px-3 rounded-xl font-bold text-xs border transition-all ${selectedBetType === 'black' ? 'bg-zinc-700 text-white border-zinc-500 font-black shadow-lg scale-105' : 'bg-[#18181e] text-zinc-300 border-zinc-800'}`}>⚫ Preto (2x)</button>
+              <button disabled={spinning} onClick={() => setSelectedBetType('diamante')} className={`py-2 px-2 rounded-xl font-bold text-xs border flex flex-col items-center gap-1 transition-all ${selectedBetType === 'diamante' ? 'bg-amber-500 text-black border-amber-300 font-black shadow-lg scale-105' : 'bg-[#18181e] text-zinc-300 border-zinc-800'}`}>
+                <img src="/diamante.png" alt="Diamante" className="w-6 h-6 object-contain" />
+                <span>Diamante (10x)</span>
+              </button>
+              <button disabled={spinning} onClick={() => setSelectedBetType('costarica')} className={`py-2 px-2 rounded-xl font-bold text-xs border flex flex-col items-center gap-1 transition-all ${selectedBetType === 'costarica' ? 'bg-amber-500 text-black border-amber-300 font-black shadow-lg scale-105' : 'bg-[#18181e] text-zinc-300 border-zinc-800'}`}>
+                <img src="/costarica.png" alt="Costa Rica" className="w-6 h-6 object-contain" />
+                <span>Costa Rica (6x)</span>
+              </button>
+              <button disabled={spinning} onClick={() => setSelectedBetType('brasil')} className={`py-2 px-2 rounded-xl font-bold text-xs border flex flex-col items-center gap-1 transition-all ${selectedBetType === 'brasil' ? 'bg-amber-500 text-black border-amber-300 font-black shadow-lg scale-105' : 'bg-[#18181e] text-zinc-300 border-zinc-800'}`}>
+                <img src="/brasil.png" alt="Brasil" className="w-6 h-6 object-contain" />
+                <span>Brasil (4x)</span>
+              </button>
+              <button disabled={spinning} onClick={() => setSelectedBetType('petroleo')} className={`py-2 px-2 rounded-xl font-bold text-xs border flex flex-col items-center gap-1 transition-all ${selectedBetType === 'petroleo' ? 'bg-amber-500 text-black border-amber-300 font-black shadow-lg scale-105' : 'bg-[#18181e] text-zinc-300 border-zinc-800'}`}>
+                <img src="/petroleo.png" alt="Petróleo" className="w-6 h-6 object-contain" />
+                <span>Petróleo (3x)</span>
+              </button>
+              <button disabled={spinning} onClick={() => setSelectedBetType('pampas')} className={`py-2 px-2 rounded-xl font-bold text-xs border flex flex-col items-center gap-1 transition-all col-span-2 ${selectedBetType === 'pampas' ? 'bg-amber-500 text-black border-amber-300 font-black shadow-lg scale-105' : 'bg-[#18181e] text-zinc-300 border-zinc-800'}`}>
+                <img src="/pampas.png" alt="Pampas" className="w-6 h-6 object-contain" />
+                <span>Pampas (2x)</span>
+              </button>
             </div>
           </div>
 
