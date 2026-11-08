@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// ⚠️ PARA O SEU AMIGO APARECER NO PAINEL, VOCÊ PRECISA COLOCAR SUAS CHAVES REAIS AQUI:
-const SUPABASE_URL = 'COLOQUE_SUA_URL_AQUI'; 
-const SUPABASE_ANON_KEY = 'COLOQUE_SUA_CHAVE_AQUI';
+// ✅ O seu URL oficial já está configurado aqui
+const SUPABASE_URL = 'https://tieduoyppbigsaxxjhfl.supabase.co'; 
+// 👇 Apague os pontinhos e cole o final da sua chave copiada
+const SUPABASE_ANON_KEY = 'sb_publishable_EvhGbT...';
 
-// Trava anti-travamento: Só tenta conectar à nuvem se as chaves forem alteradas
-const isSupabaseConfigured = SUPABASE_URL !== 'COLOQUE_SUA_URL_AQUI' && SUPABASE_URL.startsWith('http');
+const isSupabaseConfigured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
 const supabase = isSupabaseConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 export default function App() {
@@ -49,13 +49,12 @@ export default function App() {
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawSuccess, setWithdrawSuccess] = useState(false);
-  const [newPassword, setNewPassword] = useState(''); // Novo estado: Troca de Senha
+  const [newPassword, setNewPassword] = useState(''); 
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   const [adminTargetId, setAdminTargetId] = useState('');
   const [adminDepositAmount, setAdminDepositAmount] = useState('');
 
-  // Sincronização Segura e Sem Travamentos
   const fetchUsersDb = async () => {
     if (isSupabaseConfigured) {
       try {
@@ -149,7 +148,6 @@ export default function App() {
     setLastWin(0);
 
     setTimeout(() => {
-      // ✅ Aumento de Probabilidade Aplicado (de 0.25 para 0.28)
       const globalWinChance = 0.28; 
       let newGrid = Array.from({ length: 9 }, () => getRandomSymbolByWeight());
 
@@ -234,7 +232,6 @@ export default function App() {
       resetAuthForm();
       fetchUsersDb();
     } else {
-      // Login - Sem travamentos
       let foundUser = null;
       if (isSupabaseConfigured) {
         try {
@@ -273,7 +270,6 @@ export default function App() {
     setPasswordSuccess(false);
   };
 
-  // ✅ Nova Função: Trocar Senha
   const handleChangePassword = async (e) => {
     e.preventDefault();
     if (newPassword.length < 3) return alert('Senha muito curta.');
@@ -294,7 +290,6 @@ export default function App() {
     setTimeout(() => setPasswordSuccess(false), 3000);
   };
 
-  // ✅ Nova Função: Apagar a Própria Conta
   const handleSelfDelete = async () => {
     const confirmar = window.confirm(`ATENÇÃO! Deseja realmente excluir a sua conta de forma permanente? Todo o saldo será perdido.`);
     if (!confirmar) return;
@@ -449,7 +444,7 @@ export default function App() {
         </div>
       </main>
 
-      {/* Modal de Autenticação Atualizado */}
+      {/* Modal de Autenticação Atualizado (Usuário Diplomático) */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
@@ -462,7 +457,6 @@ export default function App() {
             <form onSubmit={handleAuthSubmit} className="space-y-4">
               <div>
                 <label className="text-xs text-zinc-400 block mb-1 font-semibold">Nome de Utilizador</label>
-                {/* ✅ Atualizado o Placeholder conforme solicitado */}
                 <input type="text" value={inputUsername} onChange={(e) => setInputUsername(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 focus:border-amber-500 rounded-xl px-4 py-3 text-white text-sm outline-none" placeholder="Ex: Usuário Diplomático" />
               </div>
               <div>
@@ -484,7 +478,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ✅ Novo Painel do Usuário Completo */}
+      {/* Painel do Usuário Completo */}
       {isUserPanelOpen && currentUser && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -498,7 +492,6 @@ export default function App() {
             </div>
             
             <div className="space-y-4">
-              {/* Secção de Saque */}
               <div className="bg-[#0b0b0e] border border-zinc-800 p-4 rounded-2xl space-y-3">
                 <h3 className="text-xs text-amber-300 font-bold uppercase">Fazer Saque para Diplomacia</h3>
                 {withdrawSuccess ? (
@@ -511,7 +504,6 @@ export default function App() {
                 )}
               </div>
 
-              {/* Secção de Trocar Senha */}
               <div className="bg-[#0b0b0e] border border-zinc-800 p-4 rounded-2xl space-y-3">
                 <h3 className="text-xs text-zinc-400 font-bold uppercase">Trocar Senha</h3>
                 {passwordSuccess ? (
@@ -590,4 +582,4 @@ export default function App() {
       )}
     </div>
   );
-            }
+}
