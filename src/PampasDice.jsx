@@ -27,18 +27,16 @@ export default function PampasDice() {
   });
 
   const [betAmount, setBetAmount] = useState(30000);
-  const [targetNumber, setTargetNumber] = useState(50); // Número alvo (5 a 95)
+  const [targetNumber, setTargetNumber] = useState(50);
   const [condition, setCondition] = useState('above'); // 'above' ou 'below'
   const [rolling, setRolling] = useState(false);
   const [rolledResult, setRolledResult] = useState(null);
   const [message, setMessage] = useState('');
 
-  // Cálculo da probabilidade de vitória
   const getWinChance = () => {
     return condition === 'above' ? (100 - targetNumber) : targetNumber;
   };
 
-  // Cálculo dinâmico do multiplicador (com margem da casa)
   const getMultiplier = () => {
     const chance = getWinChance();
     if (chance <= 0 || chance >= 100) return 1.00;
@@ -139,7 +137,6 @@ export default function PampasDice() {
             </div>
           )}
 
-          {/* Ecrã de Resultado do Dado */}
           <div className="relative h-36 bg-black border-2 border-amber-500/50 rounded-2xl flex flex-col items-center justify-center p-4 shadow-inner">
             <span className="text-[10px] text-zinc-400 uppercase font-bold mb-1">Resultado do Sorteio</span>
             <div className="text-4xl font-black text-amber-400 font-mono tracking-wider">
@@ -151,7 +148,6 @@ export default function PampasDice() {
             </div>
           </div>
 
-          {/* Controles de Condição e Slider */}
           <div className="space-y-3 bg-black border border-amber-500/30 rounded-2xl p-4 text-left">
             <div className="flex gap-2">
               <button 
@@ -184,7 +180,6 @@ export default function PampasDice() {
             </div>
           </div>
 
-          {/* Seleção de Aposta */}
           <div className="space-y-1 text-left">
             <label className="text-[10px] text-zinc-400 font-bold uppercase block">Valor da Aposta (R$)</label>
             <select disabled={rolling} value={betAmount} onChange={(e) => setBetAmount(Number(e.target.value))} className="w-full bg-black text-amber-400 border border-zinc-800 rounded-xl px-3 py-2.5 font-black outline-none text-xs">
@@ -195,7 +190,6 @@ export default function PampasDice() {
             </select>
           </div>
 
-          {/* Botão de Ação */}
           <button 
             disabled={rolling} 
             onClick={rollDice} 
