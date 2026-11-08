@@ -26,15 +26,14 @@ export default function PampasHoldAndWin() {
     return saved ? JSON.parse(saved).balance : 150000;
   });
 
-  const [grid, setGrid] = useState(Array(15).fill({ type: 'normal', icon: '⚽' }));
+  // Grelha inicial usa a "bola.png" como exemplo
+  const [grid, setGrid] = useState(Array(15).fill({ type: 'normal', icon: '/bola.png' }));
   const [betAmount, setBetAmount] = useState(30000);
   const [spinning, setSpinning] = useState(false);
   const [message, setMessage] = useState('Gire para encontrar 6 moedas!');
   
   const [bonusMode, setBonusMode] = useState(false);
   const [respins, setRespins] = useState(3);
-  
-  // Novo estado para guardar as posições que ganharam e destacá-las
   const [winningIndices, setWinningIndices] = useState([]);
 
   const fetchUsersDb = async () => {
@@ -80,6 +79,7 @@ export default function PampasHoldAndWin() {
   const generateCoin = (bet) => {
     const mults = [1, 1, 2, 2, 3, 5, 10, 20, 50]; 
     const m = mults[Math.floor(Math.random() * mults.length)];
+    // A moeda mantém-se como ícone ou podes também criar um '/moeda.png' no futuro
     return { type: 'coin', icon: '🪙', val: bet * m, mult: m };
   };
 
@@ -103,7 +103,7 @@ export default function PampasHoldAndWin() {
     if (spinning) return;
 
     setSpinning(true);
-    setWinningIndices([]); // Limpa o brilho da vitória anterior
+    setWinningIndices([]); 
     
     if (!bonusMode) {
       updateBalanceOnDb(currentUser.id, balance - betAmount);
@@ -131,11 +131,81 @@ export default function PampasHoldAndWin() {
 
         const currentCoinsCount = newGrid.filter(s => s.type === 'coin').length;
         const nextRespins = newCoinsLanded ? 3 : respins - 1;
-        setRes
-          return (
+        setRespins(nextRespins);
+
+        if (nextRespins === 0 || currentCoinsCount === 15) {
+          setTimeout(() => collectBonus(newGrid), 1000); 
+        } else {
+          setMessage(newCoinsLanded ? '🪙 Nova Moeda! Respins resetados para 3!' : `Respins restantes: ${nextRespins}`);
+          setSpinning(false);
+        }
+
+      } else {
+        let newGrid = [];
+        for(let i=0; i<15; i++) {
+          if (Math.random() < 0.12) { 
+            newGrid.push(generateCoin(betAmount));
+          } else {
+            // AQUI ESTÃO AS TUAS IMAGENS PERSONALIZADAS
+            const syms = ['/pampas.png', '/petroleo.png', '/brasil.png', '/diamante.png', '/bola.png'];
+            newGrid.push({ type: 'normal', icon: syms[Math.floor(Math.random() * syms.length)] });
+          }
+        }
+        setGrid(newGrid);
+
+        let lineWin = 0;
+        let winIdxTemp = [];
+        
+        const checkRow = (r) => {
+          const start = r * 5;
+          if (newGrid[start].type === 'normal' &&
+              newGrid[start].icon === newGrid[start+1].icon &&
+              newGrid[start+1].icon === newGrid[start+2].icon) {
+            
+            // MULTIPLICADORES LIGADOS ÀS TUAS IMAGENS
+            const mults = { '/pampas.png': 1, '/petroleo.png': 2, '/brasil.png': 4, '/diamante.png': 10, '/bola.png': 20 };
+            lineWin += betAmount * mults[newGrid[start].icon];
+            
+            winIdxTemp.push(start, start+1, start+2);
+            
+            if (newGrid[start+3].icon === newGrid[start].icon) {
+                winIdxTemp.push(start+3);
+                if (newGrid[start+4].icon === newGrid[start].icon) winIdxTemp.push(start+4);
+            }
+          }
+        };
+        
+        checkRow(0); checkRow(1); checkRow(2); 
+
+        const coins = newGrid.filter(s => s.type === 'coin');
+        
+        if (coins.length >= 6) {
+          if (lineWin > 0) updateBalanceOnDb(currentUser.id, balance - betAmount + lineWin);
+          setMessage(`🔥 HOLD & WIN ATIVADO! (${coins.length} Moedas) 🔥`);
+          
+          setTimeout(() => {
+            setBonusMode(true);
+            setRespins(3);
+            setGrid(newGrid.map(s => s.type === 'coin' ? s : { type: 'blank', icon: '' }));
+            setSpinning(false);
+          }, 2000);
+        } else {
+          if (lineWin > 0) {
+            updateBalanceOnDb(currentUser.id, balance - betAmount + lineWin);
+            setMessage(`✅ Ganhaste R$ ${lineWin.toLocaleString('pt-BR')} nas linhas!`);
+            setWinningIndices(winIdxTemp); 
+          } else {
+            setMessage('Tente novamente!');
+          }
+          setSpinning(false);
+        }
+      }
+    }, 800); 
+  };
+
+  return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       
-      {/* Cabeçalho Todo Preto com Destaque Dourado */}
       <div className="py-6 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-3">
         <h1 className="text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-500 drop-shadow-[0_2px_10px_rgba(245,158,11,0.2)]">
           O COFRE DO BARÃO
@@ -151,42 +221,39 @@ export default function PampasHoldAndWin() {
 
       <main className="max-w-md mx-auto p-4 space-y-4 pt-4">
         
-        {/* Painel do Jogo - Black & Gold */}
         <div className="bg-black border-2 border-amber-500/60 rounded-3xl p-5 shadow-[0_0_30px_rgba(0,0,0,0.8)] space-y-4 text-center relative overflow-hidden">
           
-          {/* Caixa de Mensagem (Brilha quando ganha) */}
           <div className={`p-3 border text-center rounded-xl font-black text-xs uppercase tracking-wide h-10 flex items-center justify-center transition-all duration-300 ${winningIndices.length > 0 ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.5)] scale-105' : 'bg-[#0a0a0e] border-amber-500/40 text-amber-400'}`}>
             {message}
           </div>
 
-          {/* Grelha 5x3 do Caça-Níquel */}
           <div className="grid grid-cols-5 gap-1.5 p-2 bg-[#0a0a0e] border-2 border-zinc-800 rounded-xl shadow-inner relative z-10">
             {grid.map((sym, i) => {
               const isWinning = winningIndices.includes(i);
               
-              // Lógica de CSS Dinâmico (Turbinar a Animação)
               let cellStyle = "h-16 rounded-lg flex flex-col items-center justify-center text-3xl transition-all duration-300 ";
               
               if (spinning) {
-                // Efeito do rolo a girar (tremor e blur)
                 cellStyle += "opacity-50 scale-95 blur-[1px] ";
               } else if (isWinning) {
-                // Efeito de VITÓRIA (Pulsa, fica maior e com borda brilhante)
                 cellStyle += "bg-amber-500/30 border-2 border-amber-300 shadow-[0_0_25px_rgba(253,230,138,0.9)] scale-110 z-20 ";
               } else if (sym.type === 'coin') {
-                // Estilo da Moeda (Dourada)
                 cellStyle += "bg-gradient-to-br from-yellow-300 to-amber-600 border-2 border-yellow-200 shadow-[0_0_15px_rgba(245,158,11,0.6)] ";
               } else if (sym.type === 'blank') {
-                // Fundo apagado durante os respins
                 cellStyle += "bg-black/50 border border-zinc-900 opacity-20 ";
               } else {
-                // Símbolo Normal parado
                 cellStyle += "bg-[#14141a] border border-zinc-800 ";
               }
 
               return (
                 <div key={i} className={cellStyle}>
-                  {sym.icon}
+                  {/* Lógica para renderizar imagem PNG ou o ícone da moeda */}
+                  {sym.type === 'normal' ? (
+                    <img src={sym.icon} alt="símbolo" className="w-10 h-10 object-contain drop-shadow-md" />
+                  ) : (
+                    sym.icon
+                  )}
+                  
                   {sym.type === 'coin' && (
                     <span className="text-[8px] font-black text-black leading-none mt-1">
                       {sym.mult}x
@@ -197,7 +264,6 @@ export default function PampasHoldAndWin() {
             })}
           </div>
 
-          {/* Controlos e Jackpot */}
           <div className="flex justify-between items-center bg-[#0a0a0e] border border-amber-500/30 rounded-2xl p-3 relative z-10">
             <div className="text-left">
               <span className="text-[9px] text-zinc-400 uppercase font-bold block">Aposta</span>
@@ -215,7 +281,6 @@ export default function PampasHoldAndWin() {
             </div>
           </div>
 
-          {/* Botão Principal */}
           <button 
             disabled={spinning} 
             onClick={handleSpin} 
@@ -228,5 +293,4 @@ export default function PampasHoldAndWin() {
       </main>
     </div>
   );
-      }
-      
+}
