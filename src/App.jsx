@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// 👉 COLA AQUI AS TUA CREDENCIAIS REAIS DO SUPABASE
 const SUPABASE_URL = 'https://oifzpgnwhqctjuzcynwi.supabase.co'; 
 const SUPABASE_ANON_KEY = 'SUA_CHAVE_ANON_KEY_DO_SUPABASE';
 
@@ -9,8 +8,14 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export default function App() {
   const [usersDb, setUsersDb] = useState([]);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [balance, setBalance] = useState(150000);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem('pampas_current_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [balance, setBalance] = useState(() => {
+    const saved = localStorage.getItem('pampas_current_user');
+    return saved ? JSON.parse(saved).balance : 150000;
+  });
   const [betAmount, setBetAmount] = useState(30000);
   const [turbo, setTurbo] = useState(false);
   const [spinning, setSpinning] = useState(false);
@@ -38,11 +43,11 @@ export default function App() {
   const [adminTargetId, setAdminTargetId] = useState('');
   const [adminDepositAmount, setAdminDepositAmount] = useState('');
 
-  // Sincronização em tempo real com a nuvem do Supabase
+  // Sincronização robusta com Supabase e Fallback Local
   const fetchUsersDb = async () => {
     try {
       const { data, error } = await supabase.from('users').select('*').order('id', { ascending: true });
-      if (!error && data) {
+      if (!error && data && data.length > 0) {
         setUsersDb(data);
         if (currentUser) {
           const updatedMe = data.find(u => u.id === currentUser.id);
@@ -50,16 +55,33 @@ export default function App() {
             setBalance(Number(updatedMe.balance));
           }
         }
+        return;
       }
-    } catch (e) {
-      console.error('Erro ao sincronizar com o Supabase', e);
+    } catch (e) { }
+
+    // Fallback Local se o Supabase não responder
+    const local = localStorage.getItem('pampas_users_db');
+    if (local) {
+      setUsersDb(JSON.parse(local));
+    } else {
+      const defaultAdmin = [{ id: 1, username: 'LVelasques', password: 'Lucas123!', balance: 99999999, isAdmin: true }];
+      setUsersDb(defaultAdmin);
+      localStorage.setItem('pampas_users_db', JSON.stringify(defaultAdmin));
     }
   };
 
   useEffect(() => {
     fetchUsersDb();
-    const interval = setInterval(fetchUsersDb, 2500); // Atualiza os dados a cada 2.5 segundos
+    const interval = setInterval(fetchUsersDb, 2500);
     return () => clearInterval(interval);
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('pampas_current_user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('pampas_current_user');
+    }
   }, [currentUser]);
 
   // Símbolos com Cálculo de Pesos Proporcionais
@@ -102,11 +124,19 @@ export default function App() {
     return symbols[0];
   };
 
-  const updateBalanceOnSupabase = async (userId, newBal) => {
+  const updateBalanceOnDb = async (userId, newBal) => {
     setBalance(newBal);
+    setCurrentUser(prev => prev ? { ...prev, balance: newBal } : null);
     try {
       await supabase.from('users').update({ balance: newBal }).eq('id', userId);
     } catch (e) { }
+
+    // Atualizar fallback local
+    setUsersDb(prev => {
+      const updated = prev.map(u => u.id === userId ? { ...u, balance: newBal } : u);
+      localStorage.setItem('pampas_users_db', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const spin = () => {
@@ -117,7 +147,7 @@ export default function App() {
     if (balance < betAmount || spinning || bonusWheelActive) return;
     
     const newBal = balance - betAmount;
-    updateBalanceOnSupabase(currentUser.id, newBal);
+    updateBalanceOnDb(currentUser.id, newBal);
 
     setSpinning(true);
     setWinningLines([]);
@@ -149,8 +179,8 @@ export default function App() {
           setLastWin(0);
         } else {
           const prize = betAmount * winningSymbol.mult;
-          const finalBal = newBal + prize;
-          updateBalanceOnSupabase(currentUser.id, finalBal);
+          const finalBal = balance - betAmount + prize;
+          updateBalanceOnDb(currentUser.id, finalBal);
           setLastWin(prize);
         }
         setWinningLines(winningIndices);
@@ -164,7 +194,7 @@ export default function App() {
       const randomMult = Math.floor(Math.random() * 10) + 1; 
       const prize = betAmount * randomMult;
       const finalBal = balance + prize;
-      updateBalanceOnSupabase(currentUser.id, finalBal);
+      updateBalanceOnDb(currentUser.id, finalBal);
       setLastWin(prize);
       setSpinningWheel(false);
       setBonusWheelActive(false);
@@ -186,6 +216,7 @@ export default function App() {
 
       const isAdmin = trimmedUser.toLowerCase() === 'lvelasques';
       const newUser = {
+        id: Date.now(),
         username: trimmedUser,
         password: inputPassword,
         balance: 150000,
@@ -193,36 +224,58 @@ export default function App() {
       };
 
       try {
-        const { data, error } = await supabase.from('users').insert([newUser]).select();
-        if (error) {
-          setAuthError('Erro ao registar utilizador na nuvem.');
-          return;
-        }
-        if (data && data[0]) {
+        const { data, error } = await supabase.from('users').insert([{
+          username: trimmedUser,
+          password: inputPassword,
+          balance: 150000,
+          isAdmin: isAdmin
+        }]).select();
+
+        if (!error && data && data[0]) {
           setCurrentUser(data[0]);
           setBalance(Number(data[0].balance));
+        } else {
+          throw new Error('Supabase insert failed');
         }
       } catch (err) {
-        setAuthError('Erro de conexão com o Supabase.');
-        return;
+        // Registo via LocalStorage se Supabase falhar
+        const existing = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase());
+        if (existing) {
+          setAuthError('Este nome de utilizador já está em uso.');
+          return;
+        }
+        const updated = [...usersDb, newUser];
+        setUsersDb(updated);
+        localStorage.setItem('pampas_users_db', JSON.stringify(updated));
+        setCurrentUser(newUser);
+        setBalance(newUser.balance);
       }
 
       setIsAuthOpen(false);
       resetAuthForm();
       fetchUsersDb();
     } else {
+      // Tentar login via Supabase
       try {
         const { data, error } = await supabase.from('users').select('*').ilike('username', trimmedUser).eq('password', inputPassword);
-        if (error || !data || data.length === 0) {
-          setAuthError('Utilizador ou senha incorretos.');
+        if (!error && data && data.length > 0) {
+          setCurrentUser(data[0]);
+          setBalance(Number(data[0].balance));
+          setIsAuthOpen(false);
+          resetAuthForm();
           return;
         }
-        setCurrentUser(data[0]);
-        setBalance(Number(data[0].balance));
+      } catch (e) { }
+
+      // Login via LocalStorage (Fallback / Admin padrão LVelasques)
+      const foundLocal = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase() && u.password === inputPassword);
+      if (foundLocal) {
+        setCurrentUser(foundLocal);
+        setBalance(Number(foundLocal.balance));
         setIsAuthOpen(false);
         resetAuthForm();
-      } catch (err) {
-        setAuthError('Erro ao efetuar login.');
+      } else {
+        setAuthError('Utilizador ou senha incorretos.');
       }
     }
   };
@@ -246,7 +299,7 @@ export default function App() {
       return;
     }
     const finalBal = balance - amountNum;
-    updateBalanceOnSupabase(currentUser.id, finalBal);
+    updateBalanceOnDb(currentUser.id, finalBal);
 
     const newReq = {
       id: Date.now(),
@@ -271,7 +324,7 @@ export default function App() {
 
     const targetUser = usersDb.find(u => String(u.id) === targetIdVal);
     if (!targetUser) {
-      alert('Conta não encontrada com esta ID na nuvem.');
+      alert('Conta não encontrada com esta ID.');
       return;
     }
 
@@ -283,13 +336,22 @@ export default function App() {
 
     try {
       await supabase.from('users').update({ balance: newBal }).eq('id', targetUser.id);
-      alert(`Sucesso: Saldo da ID #${targetUser.id} (${targetUser.username}) atualizado para R$ ${newBal.toLocaleString('pt-BR')}.`);
-      setAdminTargetId('');
-      setAdminDepositAmount('');
-      fetchUsersDb();
-    } catch (err) {
-      alert('Erro ao atualizar saldo na nuvem.');
+    } catch (e) { }
+
+    setUsersDb(prev => {
+      const updated = prev.map(u => String(u.id) === targetIdVal ? { ...u, balance: newBal } : u);
+      localStorage.setItem('pampas_users_db', JSON.stringify(updated));
+      return updated;
+    });
+
+    if (currentUser && String(currentUser.id) === targetIdVal) {
+      setBalance(newBal);
+      setCurrentUser(prev => ({ ...prev, balance: newBal }));
     }
+
+    alert(`Sucesso: Saldo da ID #${targetUser.id} (${targetUser.username}) atualizado para R$ ${newBal.toLocaleString('pt-BR')}.`);
+    setAdminTargetId('');
+    setAdminDepositAmount('');
   };
 
   const handleDeleteUser = async (id, username) => {
@@ -298,14 +360,18 @@ export default function App() {
 
     try {
       await supabase.from('users').delete().eq('id', id);
-      if (currentUser && currentUser.id === id) {
-        setCurrentUser(null);
-      }
-      alert(`Conta de ${username} eliminada com sucesso.`);
-      fetchUsersDb();
-    } catch (err) {
-      alert('Erro ao eliminar conta.');
+    } catch (e) { }
+
+    const updatedList = usersDb.filter(u => u.id !== id);
+    setUsersDb(updatedList);
+    localStorage.setItem('pampas_users_db', JSON.stringify(updatedList));
+
+    if (currentUser && currentUser.id === id) {
+      setCurrentUser(null);
+      localStorage.removeItem('pampas_current_user');
     }
+    alert(`Conta de ${username} eliminada com sucesso.`);
+    fetchUsersDb();
   };return (
     <div className="min-h-screen bg-[#070709] text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       {/* Header Luminoso */}
@@ -569,7 +635,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Painel Administrador (Com ID e Exclusão em Tempo Real) */}
+      {/* Painel Administrador (Com ID e Exclusão) */}
       {isAdminPanelOpen && currentUser && (currentUser.isAdmin || currentUser.username.toLowerCase() === 'lvelasques') && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-lg flex items-center justify-center p-4">
           <div className="bg-[#141418] border-2 border-amber-500 w-full max-w-2xl rounded-3xl p-6 relative shadow-[0_0_50px_rgba(245,158,11,0.2)] max-h-[90vh] overflow-y-auto">
@@ -577,8 +643,8 @@ export default function App() {
             <div className="flex items-center gap-3 mb-6 border-b border-zinc-800 pb-4">
               <div className="w-12 h-12 rounded-2xl bg-amber-500 text-black font-black flex items-center justify-center text-xl shadow-lg">⚙️</div>
               <div>
-                <h2 className="text-amber-400 font-black text-xl">Painel Admin (Nuvem em Tempo Real)</h2>
-                <p className="text-xs text-zinc-400">Depósitos, saques e contas dos colegas atualizadas via Supabase</p>
+                <h2 className="text-amber-400 font-black text-xl">Painel Admin (Gestão por ID)</h2>
+                <p className="text-xs text-zinc-400">Depósitos, saques e eliminação de contas</p>
               </div>
             </div>
             <div className="space-y-6">
@@ -645,4 +711,4 @@ export default function App() {
       )}
     </div>
   );
-                  }
+          }
