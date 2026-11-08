@@ -26,9 +26,8 @@ export default function DiamondStriker() {
     return saved ? JSON.parse(saved).balance : 150000;
   });
 
-  // Estados da Estratégia de Guerra
   const [betAmount, setBetAmount] = useState(30000);
-  const [threatLevel, setThreatLevel] = useState(3); // Número de ameaças (bombas)
+  const [threatLevel, setThreatLevel] = useState(3);
   const [grid, setGrid] = useState(Array(25).fill({ isThreat: false, revealed: false }));
   const [gameActive, setGameActive] = useState(false);
   const [gameOver, setGameOver] = useState(false);
@@ -82,13 +81,13 @@ export default function DiamondStriker() {
       localStorage.setItem('pampas_users_db', JSON.stringify(updated));
       return updated;
     });
-  };const startBattle = () => {
+  };
+    const startBattle = () => {
     if (!currentUser) return setIsAuthOpen(true);
     if (balance < betAmount) return alert("Saldo insuficiente para iniciar a campanha!");
 
     updateBalanceOnDb(currentUser.id, balance - betAmount);
     
-    // Posicionar ameaças militarmente pelo mapa de 25 setores
     let newGrid = Array(25).fill({ isThreat: false, revealed: false });
     let threatsPlaced = 0;
     while(threatsPlaced < threatLevel) {
@@ -115,13 +114,11 @@ export default function DiamondStriker() {
     setGrid(newGrid);
 
     if (newGrid[index].isThreat) {
-      // EMBOSCADA!
       setGameActive(false);
       setGameOver(true);
       setBattleMessage('💥 EMBOSCADA GEOPOLÍTICA! Missão comprometida.');
       setGrid(newGrid.map(t => ({ ...t, revealed: true })));
     } else {
-      // TERRITÓRIO CONQUISTADO COM SUCESSO
       const nextTerritories = territoriesWon + 1;
       setTerritoriesWon(nextTerritories);
       
@@ -180,24 +177,29 @@ export default function DiamondStriker() {
     }
   };
 
-  const resetAuthForm = () => { setInputUsername(''); setInputPassword(''); setConfirmPassword(''); setAuthError(''); };return (
+  const resetAuthForm = () => { setInputUsername(''); setInputPassword(''); setConfirmPassword(''); setAuthError(''); };
+    return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
-      {/* Cabeçalho de Destaque da Campanha */}
-      <div className="py-6 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-2">
-        <h1 className="text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-200 to-amber-500 drop-shadow-[0_0_15px_rgba(245,158,11,0.6)]">
+      {/* Imagem do Patrocinador Global no Topo */}
+      <div className="py-6 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-3">
+        <img 
+          src="/Grupopampas.png" 
+          alt="Patrocinador Grupo Pampas" 
+          className="h-14 w-auto max-w-[200px] object-contain drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" 
+        />
+        <h1 className="text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-500 drop-shadow-[0_5px_15px_rgba(245,158,11,0.6)]">
           ⚔️ GUERRA DAS AMÉRICAS ⚔️
         </h1>
-        <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Estratégia & Domínio Territorial - Grupo Pampas</p>
+        <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Estratégia & Domínio Territorial</p>
       </div>
 
       <main className="max-w-md mx-auto p-4 space-y-4 pt-5">
-        <div className="bg-[#0f0f12] border border-amber-500/30 rounded-3xl p-4 shadow-2xl space-y-4">
+        <div className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/50 rounded-3xl p-5 shadow-[0_10px_30px_rgba(0,0,0,0.8)] space-y-4">
           <div className="flex justify-between items-center px-1">
             <span className="text-xs text-zinc-400 font-bold uppercase">Poder de Multiplicação</span>
-            <span className="text-amber-400 font-black text-xl">{currentMultiplier.toFixed(2)}x</span>
+            <span className="text-amber-400 font-black text-xl drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]">{currentMultiplier.toFixed(2)}x</span>
           </div>
 
-          {/* Painel de Controlo de Tropas */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[10px] text-zinc-500 font-bold uppercase mb-1 block">Orçamento (R$)</label>
@@ -219,7 +221,6 @@ export default function DiamondStriker() {
             </div>
           </div>
 
-          {/* Tabuleiro de Operações 5x5 */}
           <div className="grid grid-cols-5 gap-2 my-3 p-3 bg-[#07070a] rounded-2xl border border-zinc-800/80 shadow-inner">
             {grid.map((tile, idx) => {
               let symbol = '';
@@ -255,20 +256,18 @@ export default function DiamondStriker() {
             </div>
           )}
 
-          {/* Botões de Comando */}
           {!gameActive ? (
-            <button onClick={startBattle} className="w-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 text-black font-black text-sm py-3.5 rounded-xl shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all">
+            <button onClick={startBattle} className="w-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 text-black font-black text-sm py-3.5 rounded-xl shadow-[0_5px_20px_rgba(245,158,11,0.4)] transition-all">
               🚀 LANÇAR CAMPANHA DE GUERRA
             </button>
           ) : (
-            <button onClick={() => secureVictory()} className="w-full bg-gradient-to-r from-emerald-500 to-green-400 hover:from-emerald-400 text-black font-black text-sm py-3.5 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.4)] animate-bounce transition-all">
+            <button onClick={() => secureVictory()} className="w-full bg-gradient-to-r from-emerald-500 to-green-400 hover:from-emerald-400 text-black font-black text-sm py-3.5 rounded-xl shadow-[0_5px_20px_rgba(16,185,129,0.4)] animate-bounce transition-all">
               💰 RESGATAR LUCRO (R$ {(betAmount * currentMultiplier).toLocaleString('pt-BR', {maximumFractionDigits: 0})})
             </button>
           )}
         </div>
       </main>
 
-      {/* Modal de Autenticação Rápida */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
