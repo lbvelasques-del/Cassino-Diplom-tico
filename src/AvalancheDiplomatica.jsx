@@ -75,17 +75,15 @@ export default function AvalancheDiplomatica() {
 
   function getRandomSymbol() {
     const symbols = [
-      { id: 'pampas', icon: '/pampas.png', mult: 0.3 },
-      { id: 'petroleo', icon: '/petroleo.png', mult: 0.6 },
-      { id: 'brasil', icon: '/brasil.png', mult: 1.0 },
-      { id: 'diamante', icon: '/diamante.png', mult: 2.0 },
-      { id: 'bola', icon: '/bola.png', mult: 4.0 }
+      { id: 'pampas', icon: '/pampas.png', mult: 0.2 },
+      { id: 'petroleo', icon: '/petroleo.png', mult: 0.4 },
+      { id: 'brasil', icon: '/brasil.png', mult: 0.8 },
+      { id: 'diamante', icon: '/diamante.png', mult: 1.5 },
+      { id: 'bola', icon: '/bola.png', mult: 3.0 }
     ];
-    // Orbe de Multiplicador controlado (3% de chance, valores baixos)
-    if (Math.random() < 0.03) {
-      const orbMults = [1, 2, 3];
-      const m = orbMults[Math.floor(Math.random() * orbMults.length)];
-      return { id: 'orb', icon: '💎', isOrb: true, multValue: m };
+    // Orbes extremamente raros e controlados (1.5% de chance, valor fixo de +1x)
+    if (Math.random() < 0.015) {
+      return { id: 'orb', icon: '💎', isOrb: true, multValue: 1 };
     }
     return symbols[Math.floor(Math.random() * symbols.length)];
   }
@@ -110,8 +108,8 @@ export default function AvalancheDiplomatica() {
   };
 
   const processAvalanche = (currentGrid, bet, currentRoundWin, currentMult, cascadeCount) => {
-    // Trava de segurança: máximo de 4 cascatas por rodada
-    if (cascadeCount >= 4) {
+    // 🛡️ TRAVA RÍGIDA: Máximo de 3 cascatas por rodada para esmagar loops de lavagem
+    if (cascadeCount >= 3) {
       finalizePayout(currentRoundWin, currentMult, bet);
       return;
     }
@@ -131,16 +129,18 @@ export default function AvalancheDiplomatica() {
     let roundPrize = 0;
 
     Object.keys(counts).forEach(symId => {
-      if (counts[symId] >= 9) {
+      // Exige rigorosamente 10 símbolos iguais para dificultar os prémios
+      if (counts[symId] >= 10) {
         winningSymbols.push(symId);
         const baseSymbol = currentGrid.find(c => c.id === symId);
         const symbolMultiplier = baseSymbol ? baseSymbol.mult : 1;
-        roundPrize += bet * symbolMultiplier * (counts[symId] / 9);
+        roundPrize += bet * symbolMultiplier * (counts[symId] / 10);
       }
     });
 
+    // 🛡️ TETO ABSOLUTO DO MULTIPLICADOR NA QUEDAS: Nunca passa de 5x acumulados no total da rodada
     if (orbValuesInThisDrop > 0) {
-      currentMult += orbValuesInThisDrop;
+      currentMult = Math.min(currentMult + orbValuesInThisDrop, 5);
       setAccumulatedMultiplier(currentMult);
     }
 
@@ -167,21 +167,19 @@ export default function AvalancheDiplomatica() {
     }
   };
 
-  // 🛡️ TRAVA DE LUCRO DA CASA POR ESCALÃO DE APOSTA
+  // 🛡️ BLINDAGEM FINANCEIRA DA CASA POR ESCALÃO DE APOSTA
   const finalizePayout = (currentRoundWin, currentMult, bet) => {
-    // Define o teto de multiplicador com base no valor da aposta exigido
-    let maxAllowedMult = 20; // Padrão para apostas até 500k
+    let maxAllowedMult = 10; // Até 500k paga no máximo 10x
     if (bet >= 1000000 && bet < 5000000) {
-      maxAllowedMult = 10; // Para 1M
+      maxAllowedMult = 5;  // 1M paga no máximo 5x
     } else if (bet >= 5000000) {
-      maxAllowedMult = 7;  // Para 5M
+      maxAllowedMult = 3;  // 5M paga no máximo 3x
     }
 
-    // Aplica o teto rigoroso no multiplicador final
     const cappedMult = Math.min(currentMult, maxAllowedMult);
     let finalPayout = currentRoundWin > 0 ? currentRoundWin * cappedMult : 0;
 
-    // Teto financeiro absoluto baseado na aposta x multiplicador máximo
+    // Teto absoluto intransigível
     const absoluteMaxWin = bet * maxAllowedMult;
     if (finalPayout > absoluteMaxWin) {
       finalPayout = absoluteMaxWin;
@@ -283,4 +281,4 @@ export default function AvalancheDiplomatica() {
       </main>
     </div>
   );
-              }
+}
