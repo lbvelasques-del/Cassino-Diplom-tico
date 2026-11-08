@@ -254,7 +254,7 @@ export default function App() {
     localStorage.setItem('pampas_users_db', JSON.stringify(updatedList));
     if (currentUser && currentUser.id === id) handleLogout();
   };
-        if (activeGame === 'costarica') {
+    if (activeGame === 'costarica') {
     return (
       <div>
         <div className="bg-black px-4 py-2.5 flex items-center justify-between border-b border-zinc-900 sticky top-0 z-50">
@@ -635,5 +635,4 @@ export default function App() {
       )}
     </div>
   );
-          }
-                
+}
