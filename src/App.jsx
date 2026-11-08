@@ -1,12 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function App() {
-  const [usersDb, setUsersDb] = useState([
-    { id: 1, username: 'LVelasques', password: 'Lucas123!', balance: 99999999, isAdmin: true }
-  ]);
+  const [usersDb, setUsersDb] = useState(() => {
+    const saved = localStorage.getItem('pampas_users_db');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { }
+    }
+    return [
+      { id: 1, username: 'LVelasques', password: 'Lucas123!', balance: 99999999, isAdmin: true }
+    ];
+  });
 
-  const [currentUser, setCurrentUser] = useState(null);
-  const [balance, setBalance] = useState(150000);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const savedUser = localStorage.getItem('pampas_current_user');
+    if (savedUser) {
+      try { return JSON.parse(savedUser); } catch (e) { }
+    }
+    return null;
+  });
+
+  const [balance, setBalance] = useState(() => {
+    const savedUser = localStorage.getItem('pampas_current_user');
+    if (savedUser) {
+      try { const parsed = JSON.parse(savedUser); return parsed.balance; } catch (e) { }
+    }
+    return 150000;
+  });
+
   const [betAmount, setBetAmount] = useState(30000);
   const [turbo, setTurbo] = useState(false);
   const [spinning, setSpinning] = useState(false);
@@ -33,6 +53,35 @@ export default function App() {
 
   const [adminTargetId, setAdminTargetId] = useState('');
   const [adminDepositAmount, setAdminDepositAmount] = useState('');
+
+  // Sincronizar Base de Dados e Utilizador Atual com o localStorage em tempo real
+  useEffect(() => {
+    localStorage.setItem('pampas_users_db', JSON.stringify(usersDb));
+  }, [usersDb]);
+
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('pampas_current_user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('pampas_current_user');
+    }
+  }, [currentUser]);
+
+  // Atualizador periódico para detetar contas criadas noutra aba ou por colegas no mesmo ambiente
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const saved = localStorage.getItem('pampas_users_db');
+      if (saved) {
+        try {
+          const parsedDb = JSON.parse(saved);
+          if (parsedDb.length !== usersDb.length) {
+            setUsersDb(parsedDb);
+          }
+        } catch (e) { }
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [usersDb.length]);
 
   // Símbolos com Cálculo de Pesos Proporcionais até 100%
   const symbols = [
@@ -81,13 +130,16 @@ export default function App() {
     }
     if (balance < betAmount || spinning || bonusWheelActive) return;
     
-    setBalance(prev => prev - betAmount);
+    const newBal = balance - betAmount;
+    setBalance(newBal);
+    updateUserBalanceInDb(currentUser.id, newBal);
+
     setSpinning(true);
     setWinningLines([]);
     setLastWin(0);
 
     setTimeout(() => {
-      const globalWinChance = 0.25; // Taxa de acerto global de 25%
+      const globalWinChance = 0.25; 
       let newGrid = Array.from({ length: 9 }, () => getRandomSymbolByWeight());
 
       if (Math.random() < globalWinChance) {
@@ -112,7 +164,9 @@ export default function App() {
           setLastWin(0);
         } else {
           const prize = betAmount * winningSymbol.mult;
-          setBalance(prev => prev + prize);
+          const finalBal = newBal + prize;
+          setBalance(finalBal);
+          updateUserBalanceInDb(currentUser.id, finalBal);
           setLastWin(prize);
         }
         setWinningLines(winningIndices);
@@ -120,13 +174,22 @@ export default function App() {
     }, turbo ? 180 : 550);
   };
 
+  const updateUserBalanceInDb = (id, newBalance) => {
+    setUsersDb(prev => prev.map(u => u.id === id ? { ...u, balance: newBalance } : u));
+    if (currentUser && currentUser.id === id) {
+      setCurrentUser(prev => ({ ...prev, balance: newBalance }));
+    }
+  };
+
   const triggerBonusWheel = () => {
     setSpinningWheel(true);
     setTimeout(() => {
-      const randomMult = Math.floor(Math.random() * 10) + 1; // 1x a 10x
+      const randomMult = Math.floor(Math.random() * 10) + 1; 
       const prize = betAmount * randomMult;
+      const finalBal = balance + prize;
       setWheelMultiplier(randomMult);
-      setBalance(prev => prev + prize);
+      setBalance(finalBal);
+      updateUserBalanceInDb(currentUser.id, finalBal);
       setLastWin(prize);
       setSpinningWheel(false);
       setBonusWheelActive(false);
@@ -158,7 +221,8 @@ export default function App() {
         balance: 150000,
         isAdmin: isAdmin
       };
-      setUsersDb(prev => [...prev, newUser]);
+      const updatedList = [...usersDb, newUser];
+      setUsersDb(updatedList);
       setCurrentUser(newUser);
       setBalance(newUser.balance);
       setIsAuthOpen(false);
@@ -194,7 +258,10 @@ export default function App() {
       alert('Não tem saldo suficiente na conta para este valor.');
       return;
     }
-    setBalance(prev => prev - amountNum);
+    const finalBal = balance - amountNum;
+    setBalance(finalBal);
+    updateUserBalanceInDb(currentUser.id, finalBal);
+
     const newReq = {
       id: Date.now(),
       user: currentUser.username,
@@ -216,29 +283,20 @@ export default function App() {
       return;
     }
 
-    const userIndex = usersDb.findIndex(u => String(u.id) === targetIdVal);
-    if (userIndex === -1) {
+    const targetUser = usersDb.find(u => String(u.id) === targetIdVal);
+    if (!targetUser) {
       alert('Conta não encontrada com esta ID.');
       return;
     }
 
-    const updatedUsers = [...usersDb];
-    if (type === 'add') {
-      updatedUsers[userIndex].balance += amountVal;
-      alert(`Sucesso: Adicionado R$ ${amountVal.toLocaleString('pt-BR')} à conta ID #${updatedUsers[userIndex].id}.`);
-    } else if (type === 'remove') {
-      if (updatedUsers[userIndex].balance < amountVal) {
-        alert('Erro: Saldo insuficiente para remover este valor.');
-        return;
-      }
-      updatedUsers[userIndex].balance -= amountVal;
-      alert(`Sucesso: Removido R$ ${amountVal.toLocaleString('pt-BR')} da conta ID #${updatedUsers[userIndex].id}.`);
+    let newBal = type === 'add' ? targetUser.balance + amountVal : targetUser.balance - amountVal;
+    if (type === 'remove' && newBal < 0) {
+      alert('Erro: Saldo insuficiente para remover este valor.');
+      return;
     }
 
-    setUsersDb(updatedUsers);
-    if (currentUser && currentUser.id === updatedUsers[userIndex].id) {
-      setBalance(updatedUsers[userIndex].balance);
-    }
+    updateUserBalanceInDb(targetUser.id, newBal);
+    alert(`Sucesso: Saldo da ID #${targetUser.id} (${targetUser.username}) atualizado para R$ ${newBal.toLocaleString('pt-BR')}.`);
     setAdminTargetId('');
     setAdminDepositAmount('');
   };
@@ -588,4 +646,4 @@ export default function App() {
       )}
     </div>
   );
-                }
+}
