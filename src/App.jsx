@@ -23,7 +23,7 @@ function App() {
   const [withdrawSuccess, setWithdrawSuccess] = useState(false);
   const [withdrawalRequests, setWithdrawalRequests] = useState([]);
 
-  // Símbolos temáticos oficiais com os pagamentos combinados
+  // Símbolos oficiais e multiplicadores exatos
   const themeSymbols = [
     { name: 'Petróleo', icon: '🛢️', mult: 1.0 },
     { name: 'Banco', icon: '🏛️', mult: 1.2 },
@@ -87,7 +87,6 @@ function App() {
       if (!data || data.length === 0) return setAuthError('Utilizador ou senha incorretos.');
       
       const found = data[0];
-      // Força a tua conta como Admin automaticamente se o nome for lvelasques
       if (found.username.toLowerCase() === 'lvelasques' && !found.is_admin) {
         await supabase.from('users').update({ is_admin: true }).eq('id', found.id);
         found.is_admin = true;
@@ -183,26 +182,20 @@ function App() {
     setIsSpinning(false);
 
     let totalPayout = 0;
-    let winningLines = [];
 
-    // 1. Linhas Horizontais (3 linhas)
+    // 1. Linhas Horizontais
     for (let r = 0; r < 3; r++) {
       if (fg[r][0].name === fg[r][1].name && fg[r][1].name === fg[r][2].name) {
         totalPayout += selectedBet * fg[r][0].mult * 2;
-        winningLines.push(`Linha ${r+1} (${fg[r][0].name})`);
       }
     }
 
-    // 2. Linhas Diagonais (2 diagonais)
-    // Diagonal Principal (Top-Left to Bottom-Right)
+    // 2. Linhas Diagonais
     if (fg[0][0].name === fg[1][1].name && fg[1][1].name === fg[2][2].name) {
       totalPayout += selectedBet * fg[1][1].mult * 2.5;
-      winningLines.push(`Diagonal Principal (${fg[1][1].name})`);
     }
-    // Diagonal Secundária (Top-Right to Bottom-Left)
     if (fg[0][2].name === fg[1][1].name && fg[1][1].name === fg[2][0].name) {
       totalPayout += selectedBet * fg[1][1].mult * 2.5;
-      winningLines.push(`Diagonal Secundária (${fg[1][1].name})`);
     }
 
     if (totalPayout > 0) {
@@ -218,7 +211,7 @@ function App() {
   };return (
     <div className="min-h-screen bg-[#07070a] text-white font-sans selection:bg-amber-500/30 flex flex-col items-center pb-12">
       
-      {/* CABEÇALHO VIP COM ILUMINAÇÃO DOURADA */}
+      {/* CABEÇALHO VIP */}
       <div className="w-full max-w-md bg-[#111116] border-b border-amber-500/30 px-5 py-4 flex justify-between items-center rounded-b-3xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] mb-6 relative overflow-hidden">
         <div className="absolute top-0 left-1/4 w-1/2 h-[2px] bg-gradient-to-r from-transparent via-amber-400 to-transparent"></div>
         <div>
@@ -243,7 +236,7 @@ function App() {
 
       <div className="w-full max-w-md px-4 space-y-4">
         
-        {/* GRELHA 3x3 COM ILUMINAÇÃO VIP FOCADA */}
+        {/* GRELHA 3x3 */}
         <div className="bg-[#111116] border-2 border-amber-500/40 rounded-3xl p-4 shadow-[0_0_40px_rgba(245,158,11,0.15)] relative">
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-black text-[9px] font-black uppercase px-3 py-0.5 rounded-full tracking-widest shadow-[0_0_10px_rgba(245,158,11,0.8)]">
             Linhas & Diagonais Ativas
@@ -261,13 +254,12 @@ function App() {
             )}
           </div>
           
-          {/* PAINEL DE MENSAGEM COM GLOW DOURADO */}
           <div className="bg-[#07070a] border border-amber-500/40 rounded-2xl py-3 px-4 text-center shadow-[inset_0_0_15px_rgba(245,158,11,0.05)]">
             <p className="text-amber-400 font-black text-xs tracking-wider drop-shadow-[0_0_8px_rgba(245,158,11,0.4)]">{winMessage}</p>
           </div>
         </div>
 
-        {/* SELETOR DE APOSTA ESTILIZADO */}
+        {/* SELETOR DE APOSTA */}
         <div className="bg-[#111116] border border-amber-500/30 rounded-3xl p-4 shadow-xl">
           <div className="flex justify-between items-center mb-3 px-1">
             <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">ESCOLHA A APOSTA</span>
@@ -290,7 +282,7 @@ function App() {
           </div>
         </div>
 
-        {/* TURBO E BOTÃO DE GIRO VIP */}
+        {/* TURBO E GIRAR */}
         <div className="flex items-center gap-3">
           <button 
             onClick={() => setTurboOn(!turboOn)}
@@ -328,7 +320,7 @@ function App() {
         </div>
       )}
 
-      {/* PAINEL DO UTILIZADOR / SAQUE */}
+      {/* PAINEL DO UTILIZADOR */}
       {isUserPanelOpen && currentUser && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#111116] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
@@ -349,7 +341,7 @@ function App() {
         </div>
       )}
 
-      {/* PAINEL ADMIN (COM ID E EXCLUSÃO) */}
+      {/* PAINEL ADMIN */}
       {isAdminPanelOpen && currentUser?.is_admin && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#111116] border-2 border-amber-500 w-full max-w-2xl rounded-3xl p-6 relative max-h-[90vh] overflow-y-auto shadow-[0_0_50px_rgba(245,158,11,0.2)]">
