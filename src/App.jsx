@@ -531,7 +531,7 @@ export default function App() {
               </div>
 
               <div className="bg-[#0b0b0e] border border-zinc-800 p-4 rounded-2xl space-y-3">
-                <h3 className="text-xs text-amber-300 font-bold uppercase">Trocar Senha</h3>
+                <h3 className="text-xs text-zinc-400 font-bold uppercase">Trocar Senha</h3>
                 {passwordSuccess ? (
                   <div className="text-center py-2 text-emerald-400 text-xs font-bold">✅ Senha atualizada!</div>
                 ) : (
@@ -608,4 +608,4 @@ export default function App() {
       )}
     </div>
   );
-                  }
+      }
