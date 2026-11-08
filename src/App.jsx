@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// ✅ O seu URL oficial já está configurado aqui
 const SUPABASE_URL = 'https://tieduoyppbigsaxxjhfl.supabase.co'; 
-// 👇 Apague os pontinhos e cole o final da sua chave copiada
-const SUPABASE_ANON_KEY = 'sb_publishable_EvhGbT...';
+const SUPABASE_ANON_KEY = 'sb_publishable_EvhGbTRSSqDK426spZx1sw_uRhXIJX2';
 
-const isSupabaseConfigured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
+const isSupabaseConfigured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20 && SUPABASE_ANON_KEY.startsWith('sb_');
 const supabase = isSupabaseConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 export default function App() {
@@ -444,7 +442,7 @@ export default function App() {
         </div>
       </main>
 
-      {/* Modal de Autenticação Atualizado (Usuário Diplomático) */}
+      {/* Modal de Autenticação */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
@@ -478,7 +476,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Painel do Usuário Completo */}
+      {/* Painel do Utilizador */}
       {isUserPanelOpen && currentUser && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl max-h-[90vh] overflow-y-auto">
