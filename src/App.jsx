@@ -7,15 +7,26 @@ const SUPABASE_ANON_KEY = 'SUA_CHAVE_ANON_KEY_DO_SUPABASE';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export default function App() {
-  const [usersDb, setUsersDb] = useState([]);
+  const [usersDb, setUsersDb] = useState(() => {
+    const saved = localStorage.getItem('pampas_users_db');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { }
+    }
+    return [
+      { id: 1, username: 'LVelasques', password: 'Lucas123!', balance: 99999999, isAdmin: true }
+    ];
+  });
+
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('pampas_current_user');
     return saved ? JSON.parse(saved) : null;
   });
+
   const [balance, setBalance] = useState(() => {
     const saved = localStorage.getItem('pampas_current_user');
     return saved ? JSON.parse(saved).balance : 150000;
   });
+
   const [betAmount, setBetAmount] = useState(30000);
   const [turbo, setTurbo] = useState(false);
   const [spinning, setSpinning] = useState(false);
@@ -43,12 +54,13 @@ export default function App() {
   const [adminTargetId, setAdminTargetId] = useState('');
   const [adminDepositAmount, setAdminDepositAmount] = useState('');
 
-  // Sincronização robusta com Supabase e Fallback Local
+  // Sincronização com Supabase e localStorage
   const fetchUsersDb = async () => {
     try {
       const { data, error } = await supabase.from('users').select('*').order('id', { ascending: true });
       if (!error && data && data.length > 0) {
         setUsersDb(data);
+        localStorage.setItem('pampas_users_db', JSON.stringify(data));
         if (currentUser) {
           const updatedMe = data.find(u => u.id === currentUser.id);
           if (updatedMe) {
@@ -59,20 +71,16 @@ export default function App() {
       }
     } catch (e) { }
 
-    // Fallback Local se o Supabase não responder
+    // Fallback local caso nuvem falhe
     const local = localStorage.getItem('pampas_users_db');
     if (local) {
       setUsersDb(JSON.parse(local));
-    } else {
-      const defaultAdmin = [{ id: 1, username: 'LVelasques', password: 'Lucas123!', balance: 99999999, isAdmin: true }];
-      setUsersDb(defaultAdmin);
-      localStorage.setItem('pampas_users_db', JSON.stringify(defaultAdmin));
     }
   };
 
   useEffect(() => {
     fetchUsersDb();
-    const interval = setInterval(fetchUsersDb, 2500);
+    const interval = setInterval(fetchUsersDb, 3000);
     return () => clearInterval(interval);
   }, [currentUser]);
 
@@ -127,11 +135,11 @@ export default function App() {
   const updateBalanceOnDb = async (userId, newBal) => {
     setBalance(newBal);
     setCurrentUser(prev => prev ? { ...prev, balance: newBal } : null);
+    
     try {
       await supabase.from('users').update({ balance: newBal }).eq('id', userId);
     } catch (e) { }
 
-    // Atualizar fallback local
     setUsersDb(prev => {
       const updated = prev.map(u => u.id === userId ? { ...u, balance: newBal } : u);
       localStorage.setItem('pampas_users_db', JSON.stringify(updated));
@@ -214,6 +222,12 @@ export default function App() {
         return;
       }
 
+      const existing = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase());
+      if (existing) {
+        setAuthError('Este nome de utilizador já está em uso.');
+        return;
+      }
+
       const isAdmin = trimmedUser.toLowerCase() === 'lvelasques';
       const newUser = {
         id: Date.now(),
@@ -235,15 +249,9 @@ export default function App() {
           setCurrentUser(data[0]);
           setBalance(Number(data[0].balance));
         } else {
-          throw new Error('Supabase insert failed');
+          throw new Error();
         }
       } catch (err) {
-        // Registo via LocalStorage se Supabase falhar
-        const existing = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase());
-        if (existing) {
-          setAuthError('Este nome de utilizador já está em uso.');
-          return;
-        }
         const updated = [...usersDb, newUser];
         setUsersDb(updated);
         localStorage.setItem('pampas_users_db', JSON.stringify(updated));
@@ -255,23 +263,22 @@ export default function App() {
       resetAuthForm();
       fetchUsersDb();
     } else {
-      // Tentar login via Supabase
+      // Login Híbrido: Tenta nuvem primeiro, depois local
+      let foundUser = null;
       try {
         const { data, error } = await supabase.from('users').select('*').ilike('username', trimmedUser).eq('password', inputPassword);
         if (!error && data && data.length > 0) {
-          setCurrentUser(data[0]);
-          setBalance(Number(data[0].balance));
-          setIsAuthOpen(false);
-          resetAuthForm();
-          return;
+          foundUser = data[0];
         }
       } catch (e) { }
 
-      // Login via LocalStorage (Fallback / Admin padrão LVelasques)
-      const foundLocal = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase() && u.password === inputPassword);
-      if (foundLocal) {
-        setCurrentUser(foundLocal);
-        setBalance(Number(foundLocal.balance));
+      if (!foundUser) {
+        foundUser = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase() && u.password === inputPassword);
+      }
+
+      if (foundUser) {
+        setCurrentUser(foundUser);
+        setBalance(Number(foundUser.balance));
         setIsAuthOpen(false);
         resetAuthForm();
       } else {
@@ -285,6 +292,13 @@ export default function App() {
     setInputPassword('');
     setConfirmPassword('');
     setAuthError('');
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('pampas_current_user');
+    setIsUserPanelOpen(false);
+    setWithdrawSuccess(false);
   };
 
   const handleWithdrawSubmit = (e) => {
@@ -629,7 +643,7 @@ export default function App() {
                   </form>
                 )}
               </div>
-              <button onClick={() => { setCurrentUser(null); setIsUserPanelOpen(false); setWithdrawSuccess(false); }} className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2.5 rounded-xl text-xs">🚪 Sair da Conta</button>
+              <button onClick={handleLogout} className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2.5 rounded-xl text-xs">🚪 Sair da Conta</button>
             </div>
           </div>
         </div>
@@ -711,4 +725,4 @@ export default function App() {
       )}
     </div>
   );
-          }
+}
