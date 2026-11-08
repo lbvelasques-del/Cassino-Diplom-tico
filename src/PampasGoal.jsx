@@ -30,8 +30,8 @@ export default function PampasGoal() {
   const [gameActive, setGameActive] = useState(false);
   const [message, setMessage] = useState('');
   const [shooting, setShooting] = useState(false);
-  const [keeperPos, setKeeperPos] = useState('center'); // 'left', 'center', 'right'
-  const [ballPos, setBallPos] = useState('center'); // 'left', 'center', 'right'
+  const [keeperPos, setKeeperPos] = useState('center'); 
+  const [ballPos, setBallPos] = useState('center'); 
 
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [inputUsername, setInputUsername] = useState('');
@@ -97,11 +97,45 @@ export default function PampasGoal() {
     const corners = ['left', 'center', 'right'];
     const userChosenSide = corners[userChoiceIndex];
     
-    // O utilizador comanda o goleiro para o lado que apertou
-    setKeeper
-      return (
+    setKeeperPos(userChosenSide);
+    setMessage('⚽ Bola chutada... A voar para o gol!');
+
+    setTimeout(() => {
+      const ballRandomIndex = Math.floor(Math.random() * 3);
+      const ballSide = corners[ballRandomIndex];
+      setBallPos(ballSide);
+
+      const defended = userChosenSide === ballSide;
+
+      setShooting(false);
+      setGameActive(false);
+
+      if (defended) {
+        const prize = betAmount * 2;
+        updateBalanceOnDb(currentUser.id, balance - betAmount + prize);
+        setMessage(`🏆 DEFESA ESPETACULAR! Você agarrou a bola! Ganhou R$ ${prize.toLocaleString('pt-BR', {maximumFractionDigits: 0})}`);
+      } else {
+        setMessage(`❌ GOOOOL DO ADVERSÁRIO! A bola foi no canto ${ballSide === 'left' ? 'Esquerdo' : ballSide === 'right' ? 'Direito' : 'Central'}.`);
+      }
+    }, 1200);
+  };
+
+  const handleAuthSubmit = (e) => {
+    e.preventDefault();
+    setAuthError('');
+    const foundUser = usersDb.find(u => u.username.toLowerCase() === inputUsername.trim().toLowerCase() && u.password === inputPassword);
+    if (foundUser) {
+      setCurrentUser(foundUser);
+      setBalance(Number(foundUser.balance));
+      setIsAuthOpen(false);
+      setInputUsername('');
+      setInputPassword('');
+    } else {
+      setAuthError('Dados incorretos.');
+    }
+  };
+    return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
-      {/* Patrocinador Global no Topo */}
       <div className="py-6 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-3">
         <img 
           src="/Grupopampas.png" 
@@ -117,16 +151,12 @@ export default function PampasGoal() {
       <main className="max-w-md mx-auto p-4 space-y-4 pt-5">
         <div className="bg-black border-2 border-amber-500/60 rounded-3xl p-6 shadow-2xl space-y-5 text-center">
           
-          {/* Ecrã da Baliza */}
           <div className="relative h-52 bg-black border-2 border-amber-500/50 rounded-2xl flex flex-col items-center justify-center overflow-hidden p-4 shadow-inner">
-            
-            {/* Trave e Redes da Baliza */}
             <div className="absolute inset-x-4 top-3 h-36 border-t-4 border-x-4 border-zinc-700 rounded-t-xl flex justify-between px-3 pt-2 opacity-80 pointer-events-none">
               <span className="text-[10px] text-amber-400/80 font-bold uppercase">Canto Esq</span>
               <span className="text-[10px] text-amber-400/80 font-bold uppercase">Canto Dir</span>
             </div>
 
-            {/* Imagem do Goleiro (Vai exatamente para onde o utilizador clicou) */}
             <div className={`absolute z-20 transition-all duration-300 ease-out ${
               keeperPos === 'left' ? '-translate-x-20 -translate-y-1 scale-105' : 
               keeperPos === 'right' ? 'translate-x-20 -translate-y-1 scale-105' : 
@@ -140,7 +170,6 @@ export default function PampasGoal() {
               />
             </div>
 
-            {/* Bola (Chutada pela máquina de forma aleatória) */}
             {shooting && (
               <div className={`absolute z-30 transition-all duration-500 ${
                 ballPos === 'left' ? '-translate-x-20 translate-y-6' : 
@@ -158,7 +187,6 @@ export default function PampasGoal() {
             </div>
           )}
 
-          {/* Seleção de Aposta */}
           <div className="space-y-1 text-left">
             <label className="text-[10px] text-zinc-400 font-bold uppercase block">Valor da Aposta (R$)</label>
             <select disabled={gameActive} value={betAmount} onChange={(e) => setBetAmount(Number(e.target.value))} className="w-full bg-black text-amber-400 border border-zinc-800 rounded-xl px-3 py-2.5 font-black outline-none text-xs">
@@ -169,7 +197,6 @@ export default function PampasGoal() {
             </select>
           </div>
 
-          {/* Controles para o Utilizador defender */}
           {!gameActive ? (
             <button onClick={startGame} className="w-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 text-black font-black text-sm py-3.5 rounded-xl shadow-[0_5px_20px_rgba(245,158,11,0.4)] transition-all active:scale-95">
               🛡️ PREPARAR DEFESA (INICIAR)
@@ -194,7 +221,6 @@ export default function PampasGoal() {
         </div>
       </main>
 
-      {/* Modal de Autenticação */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-black border border-amber-500/50 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
@@ -211,5 +237,4 @@ export default function PampasGoal() {
       )}
     </div>
   );
-  }
-  
+}
