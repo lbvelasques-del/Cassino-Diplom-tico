@@ -29,9 +29,10 @@ export default function AvalancheDiplomatica() {
   const [grid, setGrid] = useState(() => Array(30).fill(null).map(() => getRandomSymbol()));
   const [betAmount, setBetAmount] = useState(30000);
   const [spinning, setSpinning] = useState(false);
-  const [message, setMessage] = useState('Encontre 12+ símbolos iguais!');
+  const [message, setMessage] = useState('Encontre 9+ símbolos iguais ou orbes para vencer!');
   const [totalWin, setTotalWin] = useState(0);
   const [accumulatedMultiplier, setAccumulatedMultiplier] = useState(1);
+  const [animatingCells, setAnimatingCells] = useState([]);
 
   const fetchUsersDb = async () => {
     if (isSupabaseConfigured) {
@@ -75,13 +76,18 @@ export default function AvalancheDiplomatica() {
 
   function getRandomSymbol() {
     const symbols = [
-      { id: 'pampas', icon: '/pampas.png', mult: 0.1 },
-      { id: 'petroleo', icon: '/petroleo.png', mult: 0.2 },
-      { id: 'brasil', icon: '/brasil.png', mult: 0.4 },
-      { id: 'diamante', icon: '/diamante.png', mult: 0.8 },
-      { id: 'bola', icon: '/bola.png', mult: 1.2 }
+      { id: 'pampas', icon: '/pampas.png', mult: 0.3 },
+      { id: 'petroleo', icon: '/petroleo.png', mult: 0.6 },
+      { id: 'brasil', icon: '/brasil.png', mult: 1.2 },
+      { id: 'diamante', icon: '/diamante.png', mult: 2.5 },
+      { id: 'bola', icon: '/bola.png', mult: 5.0 }
     ];
-    // Sem orbes de soma loucos: apenas símbolos normais limpos
+    // Orbes multiplicadores equilibrados (3% de chance, +1x a +3x)
+    if (Math.random() < 0.03) {
+      const orbValues = [1, 2, 3];
+      const val = orbValues[Math.floor(Math.random() * orbValues.length)];
+      return { id: 'orb', icon: '💎', isOrb: true, multValue: val };
+    }
     return symbols[Math.floor(Math.random() * symbols.length)];
   }
 
@@ -93,130 +99,170 @@ export default function AvalancheDiplomatica() {
     setSpinning(true);
     setTotalWin(0);
     setAccumulatedMultiplier(1);
+    setAnimatingCells([]);
     updateBalanceOnDb(currentUser.id, balance - betAmount);
-    setMessage('🌪️ A girar...');
+    setMessage('🌪️ A cascata diplomática começou...');
 
     let currentGrid = Array(30).fill(null).map(() => getRandomSymbol());
     setGrid(currentGrid);
 
     setTimeout(() => {
-      processAvalanche(currentGrid, betAmount, 0, 0);
-    }, 600);
+      processAvalanche(currentGrid, betAmount, 0, 1, 0);
+    }, 500);
   };
 
-  const processAvalanche = (currentGrid, bet, currentRoundWin, cascadeCount) => {
-    // Máximo rigoroso de 2 cascatas curtas
-    if (cascadeCount >= 2) {
-      finalizePayout(currentRoundWin, bet);
+  const processAvalanche = (currentGrid, bet, currentRoundWin, currentMult, cascadeCount) => {
+    // 🛡️ Limite máximo de 5 cascatas por rodada
+    if (cascadeCount >= 5) {
+      finalizePayout(currentRoundWin, currentMult, bet);
       return;
     }
 
     const counts = {};
-    currentGrid.forEach(cell => {
-      counts[cell.id] = (counts[cell.id] || 0) + 1;
+    let orbValuesInThisDrop = 0;
+    let winningIndices = [];
+
+    currentGrid.forEach((cell, idx) => {
+      if (cell.id === 'orb') {
+        orbValuesInThisDrop += cell.multValue;
+        winningIndices.push(idx);
+      } else {
+        counts[cell.id] = (counts[cell.id] || 0) + 1;
+      }
     });
 
     let winningSymbols = [];
     let roundPrize = 0;
 
     Object.keys(counts).forEach(symId => {
-      // Exigência ultra rigorosa de 12 símbolos idênticos na grelha 6x5
-      if (counts[symId] >= 12) {
+      // Requisito saudável de 9 símbolos iguais para Pay Anywhere
+      if (counts[symId] >= 9) {
         winningSymbols.push(symId);
         const baseSymbol = currentGrid.find(c => c.id === symId);
-        const symbolMultiplier = baseSymbol ? baseSymbol.mult : 0.1;
-        roundPrize += bet * symbolMultiplier * (counts[symId] / 12);
+        const symbolMultiplier = baseSymbol ? baseSymbol.mult : 1;
+        roundPrize += bet * symbolMultiplier * (counts[symId] / 9);
+
+        currentGrid.forEach((cell, idx) => {
+          if (cell.id === symId) winningIndices.push(idx);
+        });
       }
     });
 
-    if (winningSymbols.length > 0) {
-      const newTotalWin = currentRoundWin + roundPrize;
+    // Animação visual de destaque nas células vencedoras
+    setAnimatingCells(winningIndices);
+
+    // Orbes somam ao multiplicador com limite máximo acumulado de 15x por rodada
+    if (orbValuesInThisDrop > 0) {
+      currentMult = Math.min(currentMult + orbValuesInThisDrop, 15);
+      setAccumulatedMultiplier(currentMult);
+    }
+
+    if (winningSymbols.length > 0 || orbValuesInThisDrop > 0) {
+      const multipliedPrize = roundPrize > 0 ? roundPrize * currentMult : 0;
+      const newTotalWin = currentRoundWin + multipliedPrize;
       setTotalWin(newTotalWin);
-      setMessage(`💥 CASCATA! R$ ${newTotalWin.toLocaleString('pt-BR')}`);
+      setMessage(`✨ CASCATA #${cascadeCount + 1}! Prémio parcial: R$ ${newTotalWin.toLocaleString('pt-BR')}`);
 
       setTimeout(() => {
-        let nextGrid = currentGrid.map(cell => {
-          if (winningSymbols.includes(cell.id)) {
+        let nextGrid = currentGrid.map((cell, idx) => {
+          if (winningSymbols.includes(cell.id) || cell.id === 'orb') {
             return getRandomSymbol();
           }
           return cell;
         });
         setGrid(nextGrid);
+        setAnimatingCells([]);
         
-        processAvalanche(nextGrid, bet, newTotalWin, cascadeCount + 1);
-      }, 800);
+        processAvalanche(nextGrid, bet, newTotalWin, currentMult, cascadeCount + 1);
+      }, 700);
 
     } else {
-      finalizePayout(currentRoundWin, bet);
+      finalizePayout(currentRoundWin, currentMult, bet);
     }
   };
 
-  // 🛡️ TETO ABSOLUTO DE SEGURANÇA DA CASA POR APOSTA (Impossível lavar dinheiro)
-  const finalizePayout = (currentRoundWin, bet) => {
-    let maxMultiplier = 2; // Apostas baixas pagam no máximo 2x
-    if (bet >= 100000 && bet < 1000000) {
-      maxMultiplier = 1.5;
-    } else if (bet >= 1000000) {
-      maxMultiplier = 1.2; // Apostas de 1M e 5M pagam quase nada de lucro extra para travar lavagem
-    }
+  const finalizePayout = (currentRoundWin, currentMult, bet) => {
+    let finalPayout = currentRoundWin > 0 ? currentRoundWin * currentMult : 0;
 
-    // O prémio final é estritamente limitado ao teto da aposta
-    let finalPayout = currentRoundWin > 0 ? Math.min(currentRoundWin, bet * maxMultiplier) : 0;
+    // Teto máximo prudente para evitar valores astronómicos (máximo 50x a aposta da rodada)
+    const maxAllowedWin = bet * 50;
+    if (finalPayout > maxAllowedWin) {
+      finalPayout = maxAllowedWin;
+    }
 
     if (finalPayout > 0) {
       updateBalanceOnDb(currentUser.id, balance - bet + finalPayout);
-      setMessage(`🏆 PRÉMIO: R$ ${finalPayout.toLocaleString('pt-BR')}`);
+      setMessage(`🏆 VITÓRIA TOTAL! R$ ${finalPayout.toLocaleString('pt-BR')}`);
     } else {
-      setMessage('Não premiado. Tente novamente!');
+      setMessage('Não premiado. Tente novamente na avalanche!');
     }
     setSpinning(false);
+    setAnimatingCells([]);
   };
 
   return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       
-      <div className="py-6 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-3">
-        <h1 className="text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-500 drop-shadow-[0_2px_10px_rgba(245,158,11,0.2)]">
+      <div className="py-5 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-2">
+        <h1 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-500 drop-shadow-[0_2px_10px_rgba(245,158,11,0.3)]">
           AVALANCHE DIPLOMÁTICA
         </h1>
-        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-          Modo Seguro & Blindado contra Falência
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+          Orbes de Multiplicadores & Cascata Ativa
         </p>
       </div>
 
-      <main className="max-w-lg mx-auto p-4 space-y-4 pt-4">
+      <main className="max-w-lg mx-auto p-4 space-y-4 pt-3">
         
-        <div className="bg-black border-2 border-amber-500/60 rounded-3xl p-5 shadow-[0_0_30px_rgba(0,0,0,0.8)] space-y-4 text-center relative overflow-hidden">
+        <div className="bg-gradient-to-b from-[#121216] to-[#0a0a0e] border-2 border-amber-500/50 rounded-3xl p-4 shadow-[0_0_25px_rgba(245,158,11,0.15)] space-y-3 text-center relative overflow-hidden">
           
-          <div className="flex justify-between items-center bg-[#0a0a0e] border border-amber-500/40 p-3 rounded-xl">
+          <div className="flex justify-between items-center bg-black/60 border border-amber-500/30 p-2.5 rounded-xl">
             <div className="text-left">
-              <span className="text-[9px] text-zinc-400 uppercase font-bold block">Estado</span>
-              <span className="text-amber-400 font-black text-base">Blindado</span>
+              <span className="text-[9px] text-zinc-400 uppercase font-bold block">Multiplicador</span>
+              <span className="text-amber-400 font-black text-sm">{accumulatedMultiplier}x</span>
             </div>
             <div className="text-right">
               <span className="text-[9px] text-zinc-400 uppercase font-bold block">Ganho Total</span>
-              <span className="text-amber-400 font-black text-base">R$ {totalWin.toLocaleString('pt-BR')}</span>
+              <span className="text-amber-400 font-black text-sm">R$ {totalWin.toLocaleString('pt-BR')}</span>
             </div>
           </div>
 
-          <div className={`p-3 border text-center rounded-xl font-black text-xs uppercase tracking-wide h-10 flex items-center justify-center transition-all duration-300 ${totalWin > 0 ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.5)]' : 'bg-[#0a0a0e] border-amber-500/40 text-amber-400'}`}>
+          <div className={`p-2.5 border text-center rounded-xl font-black text-xs uppercase tracking-wide h-10 flex items-center justify-center transition-all duration-300 ${totalWin > 0 ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'bg-black/40 border-amber-500/30 text-amber-400'}`}>
             {message}
           </div>
 
+          {/* Grelha 6x5 com efeitos refinados de animação */}
           <div className="grid grid-cols-6 gap-1.5 p-2 bg-black border-2 border-zinc-800 rounded-xl shadow-inner relative z-10">
             {grid.map((cell, i) => {
-              let cellStyle = "h-14 rounded-lg flex flex-col items-center justify-center text-xl transition-all duration-300 bg-black border-2 border-amber-500/70 shadow-[inset_0_0_5px_rgba(0,0,0,1)] ";
-              if (spinning) cellStyle += "opacity-40 scale-90 blur-[1px] ";
+              const isWinning = animatingCells.includes(i);
+              let cellStyle = "h-13 rounded-lg flex flex-col items-center justify-center transition-all duration-300 relative ";
+              
+              if (spinning) {
+                cellStyle += "opacity-40 scale-95 blur-[1px] ";
+              } else if (cell.id === 'orb') {
+                cellStyle += "bg-gradient-to-br from-purple-600 via-indigo-800 to-black border-2 border-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.7)] animate-bounce ";
+              } else if (isWinning) {
+                cellStyle += "bg-amber-500/30 border-2 border-amber-300 scale-105 shadow-[0_0_15px_rgba(245,158,11,0.8)] z-20 ";
+              } else {
+                cellStyle += "bg-[#0c0c10] border-2 border-amber-500/40 shadow-[inset_0_0_5px_rgba(0,0,0,0.8)] ";
+              }
 
               return (
                 <div key={i} className={cellStyle}>
-                  <img src={cell.icon} alt="símbolo" className="w-8 h-8 object-contain drop-shadow-md" />
+                  {cell.id === 'orb' ? (
+                    <div className="flex flex-col items-center justify-center">
+                      <span className="text-sm animate-pulse">💎</span>
+                      <span className="text-[9px] font-black text-amber-200">+{cell.multValue}x</span>
+                    </div>
+                  ) : (
+                    <img src={cell.icon} alt="símbolo" className="w-7 h-7 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] transition-transform duration-200 hover:scale-110" />
+                  )}
                 </div>
               );
             })}
           </div>
 
-          <div className="flex justify-between items-center bg-[#0a0a0e] border border-amber-500/30 rounded-2xl p-3 relative z-10">
+          <div className="flex justify-between items-center bg-black/60 border border-amber-500/30 rounded-2xl p-2.5 relative z-10">
             <div className="text-left">
               <span className="text-[9px] text-zinc-400 uppercase font-bold block">Aposta</span>
               <select disabled={spinning} value={betAmount} onChange={(e) => setBetAmount(Number(e.target.value))} className="bg-transparent text-amber-400 font-black outline-none text-xs appearance-none cursor-pointer">
@@ -236,9 +282,9 @@ export default function AvalancheDiplomatica() {
           <button 
             disabled={spinning} 
             onClick={handleSpin} 
-            className="w-full font-black text-sm py-4 rounded-xl shadow-[0_5px_20px_rgba(245,158,11,0.4)] transition-all active:scale-95 relative z-10 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 text-black border border-yellow-300"
+            className="w-full font-black text-sm py-3.5 rounded-xl shadow-[0_5px_20px_rgba(245,158,11,0.4)] transition-all active:scale-95 relative z-10 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 text-black border border-yellow-200"
           >
-            {spinning ? 'A AVALANCHE CAI...' : '🌪️ GIRAR AVALANCHE'}
+            {spinning ? '🌪️ AVALANCHE A ROLAR...' : '🌪️ GIRAR AVALANCHE'}
           </button>
           
         </div>
