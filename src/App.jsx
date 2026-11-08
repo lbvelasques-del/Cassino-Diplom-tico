@@ -49,8 +49,7 @@ export default function QuedaDiplomatica() {
       } catch (e) { }
     }
   };
-
-  useEffect(() => {
+       useEffect(() => {
     fetchUsersDb();
     const interval = setInterval(fetchUsersDb, 3000);
     return () => clearInterval(interval);
@@ -107,8 +106,7 @@ export default function QuedaDiplomatica() {
       processAvalanche(currentGrid, betAmount, 0, 1, 0);
     }, 500);
   };
-
-  const processAvalanche = (currentGrid, bet, currentRoundWin, currentMult, cascadeCount) => {
+    const processAvalanche = (currentGrid, bet, currentRoundWin, currentMult, cascadeCount) => {
     if (cascadeCount >= 5) {
       finalizePayout(currentRoundWin, currentMult, bet);
       return;
@@ -145,7 +143,7 @@ export default function QuedaDiplomatica() {
 
     setAnimatingCells(winningIndices);
 
-    // O multiplicador arranca em 1x e sobe progressivamente cascata a cascata até 5x
+    // O multiplicador sobe progressivamente cascata a cascata até o teto estrito de 5x
     let newMult = Math.min(currentMult + (cascadeCount > 0 ? 1 : 0) + orbCount, 5);
     setAccumulatedMultiplier(newMult);
 
@@ -175,7 +173,7 @@ export default function QuedaDiplomatica() {
 
   const finalizePayout = (currentRoundWin, currentMult, bet) => {
     let finalPayout = currentRoundWin > 0 ? currentRoundWin * currentMult : 0;
-    const maxAllowedWin = bet * 100;
+    const maxAllowedWin = bet * 50;
     if (finalPayout > maxAllowedWin) finalPayout = maxAllowedWin;
 
     if (finalPayout > 0) {
@@ -187,8 +185,7 @@ export default function QuedaDiplomatica() {
     setSpinning(false);
     setAnimatingCells([]);
   };
-
-  return (
+    return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       
       <div className="py-5 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-2">
@@ -278,4 +275,4 @@ export default function QuedaDiplomatica() {
       </main>
     </div>
   );
-            }
+}
