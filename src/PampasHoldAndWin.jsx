@@ -26,7 +26,6 @@ export default function PampasHoldAndWin() {
     return saved ? JSON.parse(saved).balance : 150000;
   });
 
-  // Grelha inicial usa a "bola.png" como exemplo
   const [grid, setGrid] = useState(Array(15).fill({ type: 'normal', icon: '/bola.png' }));
   const [betAmount, setBetAmount] = useState(30000);
   const [spinning, setSpinning] = useState(false);
@@ -77,9 +76,9 @@ export default function PampasHoldAndWin() {
   };
 
   const generateCoin = (bet) => {
-    const mults = [1, 1, 2, 2, 3, 5, 10, 20, 50]; 
+    // Multiplicadores máximos até 5x, conforme pedido!
+    const mults = [1, 2, 3, 4, 5]; 
     const m = mults[Math.floor(Math.random() * mults.length)];
-    // A moeda mantém-se como ícone ou podes também criar um '/moeda.png' no futuro
     return { type: 'coin', icon: '🪙', val: bet * m, mult: m };
   };
 
@@ -117,9 +116,15 @@ export default function PampasHoldAndWin() {
         let newGrid = [...grid];
         let newCoinsLanded = false;
         
+        // MATEMÁTICA DA DIFICULDADE PROGRESSIVA
+        const currentCoinsCount = grid.filter(s => s.type === 'coin').length;
+        // Quanto mais moedas, menor a probabilidade de cair uma nova (mínimo de 2%)
+        let dropChance = 0.20 - (currentCoinsCount * 0.015); 
+        if (dropChance < 0.02) dropChance = 0.02;
+
         for(let i=0; i<15; i++) {
           if (newGrid[i].type !== 'coin') { 
-            if (Math.random() < 0.15) { 
+            if (Math.random() < dropChance) { 
               newGrid[i] = generateCoin(betAmount);
               newCoinsLanded = true;
             } else {
@@ -129,11 +134,11 @@ export default function PampasHoldAndWin() {
         }
         setGrid(newGrid);
 
-        const currentCoinsCount = newGrid.filter(s => s.type === 'coin').length;
+        const newCoinsCount = newGrid.filter(s => s.type === 'coin').length;
         const nextRespins = newCoinsLanded ? 3 : respins - 1;
         setRespins(nextRespins);
 
-        if (nextRespins === 0 || currentCoinsCount === 15) {
+        if (nextRespins === 0 || newCoinsCount === 15) {
           setTimeout(() => collectBonus(newGrid), 1000); 
         } else {
           setMessage(newCoinsLanded ? '🪙 Nova Moeda! Respins resetados para 3!' : `Respins restantes: ${nextRespins}`);
@@ -146,7 +151,6 @@ export default function PampasHoldAndWin() {
           if (Math.random() < 0.12) { 
             newGrid.push(generateCoin(betAmount));
           } else {
-            // AQUI ESTÃO AS TUAS IMAGENS PERSONALIZADAS
             const syms = ['/pampas.png', '/petroleo.png', '/brasil.png', '/diamante.png', '/bola.png'];
             newGrid.push({ type: 'normal', icon: syms[Math.floor(Math.random() * syms.length)] });
           }
@@ -162,7 +166,6 @@ export default function PampasHoldAndWin() {
               newGrid[start].icon === newGrid[start+1].icon &&
               newGrid[start+1].icon === newGrid[start+2].icon) {
             
-            // MULTIPLICADORES LIGADOS ÀS TUAS IMAGENS
             const mults = { '/pampas.png': 1, '/petroleo.png': 2, '/brasil.png': 4, '/diamante.png': 10, '/bola.png': 20 };
             lineWin += betAmount * mults[newGrid[start].icon];
             
@@ -227,7 +230,7 @@ export default function PampasHoldAndWin() {
             {message}
           </div>
 
-          <div className="grid grid-cols-5 gap-1.5 p-2 bg-[#0a0a0e] border-2 border-zinc-800 rounded-xl shadow-inner relative z-10">
+          <div className="grid grid-cols-5 gap-1.5 p-2 bg-black border-2 border-zinc-800 rounded-xl shadow-inner relative z-10">
             {grid.map((sym, i) => {
               const isWinning = winningIndices.includes(i);
               
@@ -240,14 +243,15 @@ export default function PampasHoldAndWin() {
               } else if (sym.type === 'coin') {
                 cellStyle += "bg-gradient-to-br from-yellow-300 to-amber-600 border-2 border-yellow-200 shadow-[0_0_15px_rgba(245,158,11,0.6)] ";
               } else if (sym.type === 'blank') {
-                cellStyle += "bg-black/50 border border-zinc-900 opacity-20 ";
+                // Quadrado preto por dentro, dourado semitransparente por fora (bônus)
+                cellStyle += "bg-black border-2 border-amber-500/30 opacity-40 ";
               } else {
-                cellStyle += "bg-[#14141a] border border-zinc-800 ";
+                // Quadrado preto por dentro, dourado por fora (jogo base)
+                cellStyle += "bg-black border-2 border-amber-500/80 ";
               }
 
               return (
                 <div key={i} className={cellStyle}>
-                  {/* Lógica para renderizar imagem PNG ou o ícone da moeda */}
                   {sym.type === 'normal' ? (
                     <img src={sym.icon} alt="símbolo" className="w-10 h-10 object-contain drop-shadow-md" />
                   ) : (
@@ -268,10 +272,16 @@ export default function PampasHoldAndWin() {
             <div className="text-left">
               <span className="text-[9px] text-zinc-400 uppercase font-bold block">Aposta</span>
               <select disabled={spinning || bonusMode} value={betAmount} onChange={(e) => setBetAmount(Number(e.target.value))} className="bg-transparent text-amber-400 font-black outline-none text-xs appearance-none cursor-pointer">
+                {/* LISTA COMPLETA DE APOSTAS */}
+                <option value={1000}>R$ 1k</option>
+                <option value={5000}>R$ 5k</option>
                 <option value={10000}>R$ 10k</option>
                 <option value={30000}>R$ 30k</option>
+                <option value={50000}>R$ 50k</option>
                 <option value={100000}>R$ 100k</option>
                 <option value={500000}>R$ 500k</option>
+                <option value={1000000}>R$ 1M</option>
+                <option value={5000000}>R$ 5M</option>
               </select>
             </div>
             
