@@ -38,18 +38,18 @@ export default function RoletaDiplomatica() {
   const [inputPassword, setInputPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
-  // Setores oficiais dispostos na roleta (10 setores no total)
+  // Setores oficiais com os novos multiplicadores solicitados
   const wheelSectors = [
-    { index: 0, name: 'Diamante', type: 'diamante', mult: 10, icon: '/diamante.png', color: 'from-amber-600 to-yellow-500' },
-    { index: 1, name: 'Petróleo', type: 'petroleo', mult: 3, icon: '/petroleo.png', color: 'from-blue-700 to-cyan-600' },
-    { index: 2, name: 'Pampas', type: 'pampas', mult: 2, icon: '/pampas.png', color: 'from-amber-500/80 to-yellow-600' },
-    { index: 3, name: 'Brasil', type: 'brasil', mult: 4, icon: '/brasil.png', color: 'from-emerald-700 to-green-600' },
-    { index: 4, name: 'Costa Rica', type: 'costarica', mult: 6, icon: '/costarica.png', color: 'from-blue-600 to-indigo-700' },
-    { index: 5, name: 'Petróleo', type: 'petroleo', mult: 3, icon: '/petroleo.png', color: 'from-blue-700 to-cyan-600' },
-    { index: 6, name: 'Pampas', type: 'pampas', mult: 2, icon: '/pampas.png', color: 'from-amber-500/80 to-yellow-600' },
-    { index: 7, name: 'Brasil', type: 'brasil', mult: 4, icon: '/brasil.png', color: 'from-emerald-700 to-green-600' },
-    { index: 8, name: 'Costa Rica', type: 'costarica', mult: 6, icon: '/costarica.png', color: 'from-blue-600 to-indigo-700' },
-    { index: 9, name: 'Diamante', type: 'diamante', mult: 10, icon: '/diamante.png', color: 'from-amber-600 to-yellow-500' }
+    { index: 0, name: 'Diamante', type: 'diamante', mult: 5, icon: '/diamante.png' },
+    { index: 1, name: 'Petróleo', type: 'petroleo', mult: 3, icon: '/petroleo.png' },
+    { index: 2, name: 'Pampas', type: 'pampas', mult: 2, icon: '/pampas.png' },
+    { index: 3, name: 'Brasil', type: 'brasil', mult: 2, icon: '/brasil.png' },
+    { index: 4, name: 'Costa Rica', type: 'costarica', mult: 2, icon: '/costarica.png' },
+    { index: 5, name: 'Petróleo', type: 'petroleo', mult: 3, icon: '/petroleo.png' },
+    { index: 6, name: 'Pampas', type: 'pampas', mult: 2, icon: '/pampas.png' },
+    { index: 7, name: 'Brasil', type: 'brasil', mult: 2, icon: '/brasil.png' },
+    { index: 8, name: 'Costa Rica', type: 'costarica', mult: 2, icon: '/costarica.png' },
+    { index: 9, name: 'Diamante', type: 'diamante', mult: 5, icon: '/diamante.png' }
   ];
 
   const fetchUsersDb = async () => {
@@ -102,13 +102,11 @@ export default function RoletaDiplomatica() {
     setWinMessage('');
     setLastResult(null);
 
-    // Sortear o índice vencedor
     const winningIndex = Math.floor(Math.random() * wheelSectors.length);
     const result = wheelSectors[winningIndex];
 
-    // Cada setor ocupa 36 graus (360 / 10)
     const degreesPerSector = 36;
-    const extraSpins = 360 * 6; // 6 voltas completas para dar emoção
+    const extraSpins = 360 * 6;
     const targetAngle = extraSpins + (winningIndex * degreesPerSector) + (degreesPerSector / 2);
     
     setRotationDegrees(prev => prev + targetAngle);
@@ -126,7 +124,7 @@ export default function RoletaDiplomatica() {
       } else {
         setWinMessage(`❌ Não foi desta vez. Caiu em ${result.name}.`);
       }
-    }, 3500); // Duração da animação em sincronia com o CSS
+    }, 3500);
   };
 
   const handleAuthSubmit = (e) => {
@@ -159,19 +157,19 @@ export default function RoletaDiplomatica() {
       </div>
 
       <main className="max-w-md mx-auto p-4 space-y-4 pt-5">
-        <div className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/50 rounded-3xl p-6 shadow-[0_10px_30px_rgba(0,0,0,0.8)] space-y-5 text-center">
+        <div className="bg-black border-2 border-amber-500/60 rounded-3xl p-6 shadow-[0_10px_30px_rgba(0,0,0,0.9)] space-y-5 text-center">
           
-          {/* Nova Roda Visual Giratória Estilo Casino */}
+          {/* Roda Visual com Fundo Preto Total */}
           <div className="relative w-64 h-64 mx-auto my-2 flex items-center justify-center">
-            {/* Indicador / Seta Superior */}
+            {/* Seta Superior */}
             <div className="absolute -top-3 z-30 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[18px] border-t-amber-400 drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]"></div>
 
-            {/* Círculo Externo com Efeito Dourado */}
-            <div className="w-full h-full rounded-full border-4 border-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.4)] bg-[#0a0a0e] relative overflow-hidden flex items-center justify-center">
+            {/* Círculo Externo Dourado */}
+            <div className="w-full h-full rounded-full border-4 border-amber-400 shadow-[0_0_35px_rgba(245,158,11,0.5)] bg-black relative overflow-hidden flex items-center justify-center">
               
               {/* Roda Rotativa */}
               <div 
-                className="absolute inset-2 rounded-full border border-amber-500/30 transition-all ease-out"
+                className="absolute inset-2 rounded-full border border-amber-500/20 transition-all ease-out"
                 style={{ 
                   transform: `rotate(${rotationDegrees}deg)`,
                   transitionDuration: spinning ? '3.5s' : '0s'
@@ -182,11 +180,11 @@ export default function RoletaDiplomatica() {
                   return (
                     <div 
                       key={idx} 
-                      className="absolute top-0 left-1/2 w-12 h-1/2 -ml-6 origin-bottom flex flex-col items-center pt-3"
+                      className="absolute top-0 left-1/2 w-14 h-1/2 -ml-7 origin-bottom flex flex-col items-center pt-2"
                       style={{ transform: `rotate(${angle}deg)` }}
                     >
-                      <div className="w-8 h-8 rounded-full bg-black/60 border border-amber-400/50 flex items-center justify-center shadow-md">
-                        <img src={sector.icon} alt={sector.name} className="w-5 h-5 object-contain" />
+                      <div className="w-10 h-10 rounded-full bg-black border-2 border-amber-400 flex items-center justify-center shadow-lg">
+                        <img src={sector.icon} alt={sector.name} className="w-7 h-7 object-contain drop-shadow-[0_0_5px_rgba(255,255,255,0.4)]" />
                       </div>
                     </div>
                   );
@@ -194,7 +192,7 @@ export default function RoletaDiplomatica() {
               </div>
 
               {/* Centro da Roleta */}
-              <div className="absolute z-20 w-16 h-16 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 border-2 border-black flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.8)]">
+              <div className="absolute z-20 w-16 h-16 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 border-2 border-black flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.9)]">
                 <span className="text-black font-black text-xs">PAMPAS</span>
               </div>
             </div>
@@ -214,8 +212,8 @@ export default function RoletaDiplomatica() {
 
           {/* Seleção de Valor da Aposta */}
           <div className="space-y-1 text-left">
-            <label className="text-[10px] text-zinc-500 font-bold uppercase block">Valor da Aposta (R$)</label>
-            <select disabled={spinning} value={betAmount} onChange={(e) => setBetAmount(Number(e.target.value))} className="w-full bg-[#18181e] text-amber-400 border border-zinc-700 rounded-xl px-3 py-2.5 font-black outline-none text-xs">
+            <label className="text-[10px] text-zinc-400 font-bold uppercase block">Valor da Aposta (R$)</label>
+            <select disabled={spinning} value={betAmount} onChange={(e) => setBetAmount(Number(e.target.value))} className="w-full bg-black text-amber-400 border border-zinc-800 rounded-xl px-3 py-2.5 font-black outline-none text-xs">
               <option value={30000}>R$ 30k</option>
               <option value={100000}>R$ 100k</option>
               <option value={500000}>R$ 500k</option>
@@ -223,28 +221,28 @@ export default function RoletaDiplomatica() {
             </select>
           </div>
 
-          {/* Escolha do Símbolo / Setor de Aposta */}
+          {/* Escolha do Símbolo / Setor de Aposta com Imagens Maiores e Fundo Preto */}
           <div className="space-y-2 text-left">
-            <label className="text-[10px] text-zinc-500 font-bold uppercase block">Escolha o Símbolo da Aposta</label>
+            <label className="text-[10px] text-zinc-400 font-bold uppercase block">Escolha o Símbolo da Aposta</label>
             <div className="grid grid-cols-3 gap-2">
-              <button disabled={spinning} onClick={() => setSelectedBetType('diamante')} className={`py-2 px-2 rounded-xl font-bold text-xs border flex flex-col items-center gap-1 transition-all ${selectedBetType === 'diamante' ? 'bg-amber-500 text-black border-amber-300 font-black shadow-lg scale-105' : 'bg-[#18181e] text-zinc-300 border-zinc-800'}`}>
-                <img src="/diamante.png" alt="Diamante" className="w-6 h-6 object-contain" />
-                <span>Diamante (10x)</span>
+              <button disabled={spinning} onClick={() => setSelectedBetType('diamante')} className={`py-3 px-2 rounded-xl font-bold text-xs border flex flex-col items-center gap-1.5 transition-all ${selectedBetType === 'diamante' ? 'bg-amber-500 text-black border-amber-300 font-black shadow-lg scale-105' : 'bg-black text-zinc-300 border-zinc-800'}`}>
+                <img src="/diamante.png" alt="Diamante" className="w-8 h-8 object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
+                <span>Diamante (5x)</span>
               </button>
-              <button disabled={spinning} onClick={() => setSelectedBetType('costarica')} className={`py-2 px-2 rounded-xl font-bold text-xs border flex flex-col items-center gap-1 transition-all ${selectedBetType === 'costarica' ? 'bg-amber-500 text-black border-amber-300 font-black shadow-lg scale-105' : 'bg-[#18181e] text-zinc-300 border-zinc-800'}`}>
-                <img src="/costarica.png" alt="Costa Rica" className="w-6 h-6 object-contain" />
-                <span>Costa Rica (6x)</span>
-              </button>
-              <button disabled={spinning} onClick={() => setSelectedBetType('brasil')} className={`py-2 px-2 rounded-xl font-bold text-xs border flex flex-col items-center gap-1 transition-all ${selectedBetType === 'brasil' ? 'bg-amber-500 text-black border-amber-300 font-black shadow-lg scale-105' : 'bg-[#18181e] text-zinc-300 border-zinc-800'}`}>
-                <img src="/brasil.png" alt="Brasil" className="w-6 h-6 object-contain" />
-                <span>Brasil (4x)</span>
-              </button>
-              <button disabled={spinning} onClick={() => setSelectedBetType('petroleo')} className={`py-2 px-2 rounded-xl font-bold text-xs border flex flex-col items-center gap-1 transition-all ${selectedBetType === 'petroleo' ? 'bg-amber-500 text-black border-amber-300 font-black shadow-lg scale-105' : 'bg-[#18181e] text-zinc-300 border-zinc-800'}`}>
-                <img src="/petroleo.png" alt="Petróleo" className="w-6 h-6 object-contain" />
+              <button disabled={spinning} onClick={() => setSelectedBetType('petroleo')} className={`py-3 px-2 rounded-xl font-bold text-xs border flex flex-col items-center gap-1.5 transition-all ${selectedBetType === 'petroleo' ? 'bg-amber-500 text-black border-amber-300 font-black shadow-lg scale-105' : 'bg-black text-zinc-300 border-zinc-800'}`}>
+                <img src="/petroleo.png" alt="Petróleo" className="w-8 h-8 object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
                 <span>Petróleo (3x)</span>
               </button>
-              <button disabled={spinning} onClick={() => setSelectedBetType('pampas')} className={`py-2 px-2 rounded-xl font-bold text-xs border flex flex-col items-center gap-1 transition-all col-span-2 ${selectedBetType === 'pampas' ? 'bg-amber-500 text-black border-amber-300 font-black shadow-lg scale-105' : 'bg-[#18181e] text-zinc-300 border-zinc-800'}`}>
-                <img src="/pampas.png" alt="Pampas" className="w-6 h-6 object-contain" />
+              <button disabled={spinning} onClick={() => setSelectedBetType('brasil')} className={`py-3 px-2 rounded-xl font-bold text-xs border flex flex-col items-center gap-1.5 transition-all ${selectedBetType === 'brasil' ? 'bg-amber-500 text-black border-amber-300 font-black shadow-lg scale-105' : 'bg-black text-zinc-300 border-zinc-800'}`}>
+                <img src="/brasil.png" alt="Brasil" className="w-8 h-8 object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
+                <span>Brasil (2x)</span>
+              </button>
+              <button disabled={spinning} onClick={() => setSelectedBetType('costarica')} className={`py-3 px-2 rounded-xl font-bold text-xs border flex flex-col items-center gap-1.5 transition-all ${selectedBetType === 'costarica' ? 'bg-amber-500 text-black border-amber-300 font-black shadow-lg scale-105' : 'bg-black text-zinc-300 border-zinc-800'}`}>
+                <img src="/costarica.png" alt="Costa Rica" className="w-8 h-8 object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
+                <span>Costa Rica (2x)</span>
+              </button>
+              <button disabled={spinning} onClick={() => setSelectedBetType('pampas')} className={`py-3 px-2 rounded-xl font-bold text-xs border flex flex-col items-center gap-1.5 transition-all col-span-2 ${selectedBetType === 'pampas' ? 'bg-amber-500 text-black border-amber-300 font-black shadow-lg scale-105' : 'bg-black text-zinc-300 border-zinc-800'}`}>
+                <img src="/pampas.png" alt="Pampas" className="w-8 h-8 object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
                 <span>Pampas (2x)</span>
               </button>
             </div>
@@ -259,14 +257,14 @@ export default function RoletaDiplomatica() {
       </main>
 
       {isAuthOpen && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/9파 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-black border border-amber-500/50 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
             <button onClick={() => setIsAuthOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white text-lg">✕</button>
             <h2 className="text-amber-400 font-black text-xl mb-1">Entrar na Roleta Diplomática</h2>
             {authError && <div className="text-red-400 text-xs mb-3 font-semibold">{authError}</div>}
             <form onSubmit={handleAuthSubmit} className="space-y-4 mt-4">
-              <input type="text" value={inputUsername} onChange={(e) => setInputUsername(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm outline-none" placeholder="Utilizador" />
-              <input type="password" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm outline-none" placeholder="Senha" />
+              <input type="text" value={inputUsername} onChange={(e) => setInputUsername(e.target.value)} required className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm outline-none" placeholder="Utilizador" />
+              <input type="password" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} required className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm outline-none" placeholder="Senha" />
               <button type="submit" className="w-full bg-amber-500 text-black font-black py-3.5 rounded-xl text-sm shadow-lg">Confirmar</button>
             </form>
           </div>
