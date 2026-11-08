@@ -27,26 +27,17 @@ export default function PampasGoal() {
   });
 
   const [betAmount, setBetAmount] = useState(30000);
-  const [selectedAsset, setSelectedAsset] = useState('/diamante.png');
   const [gameActive, setGameActive] = useState(false);
-  const [streak, setStreak] = useState(0);
+  const [hasScored, setHasScored] = useState(false); // Para gerir se já acertou pelo menos uma vez
   const [currentMultiplier, setCurrentMultiplier] = useState(1.50);
   const [message, setMessage] = useState('');
   const [shooting, setShooting] = useState(false);
-  const [goalEffect, setGoalEffect] = useState('idle'); // 'idle', 'left', 'center', 'right', 'saved'
+  const [goalEffect, setGoalEffect] = useState('idle'); // 'idle', 'left', 'center', 'right'
 
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [inputUsername, setInputUsername] = useState('');
   const [inputPassword, setInputPassword] = useState('');
   const [authError, setAuthError] = useState('');
-
-  const gameAssets = [
-    { name: 'Diamante', src: '/diamante.png' },
-    { name: 'Costa Rica', src: '/costarica.png' },
-    { name: 'Brasil', src: '/brasil.png' },
-    { name: 'Petróleo', src: '/petroleo.png' },
-    { name: 'Pampas', src: '/pampas.png' }
-  ];
 
   const fetchUsersDb = async () => {
     if (isSupabaseConfigured) {
@@ -95,7 +86,7 @@ export default function PampasGoal() {
 
     updateBalanceOnDb(currentUser.id, balance - betAmount);
     setGameActive(true);
-    setStreak(0);
+    setHasScored(false);
     setCurrentMultiplier(1.50);
     setGoalEffect('idle');
     setMessage('⚽ Partida iniciada! Escolha o canto para chutar.');
@@ -104,7 +95,7 @@ export default function PampasGoal() {
   const shootPenalti = (targetCorner) => {
     if (!gameActive || shooting) return;
     setShooting(true);
-    setMessage('⚽ A disparar o ativo em direção à baliza...');
+    setMessage('⚽ A disparar a bola em direção à baliza...');
     setGoalEffect(targetCorner === 0 ? 'left' : targetCorner === 2 ? 'right' : 'center');
 
     setTimeout(() => {
@@ -114,11 +105,10 @@ export default function PampasGoal() {
       setShooting(false);
 
       if (scored) {
-        const nextStreak = streak + 1;
-        const nextMult = parseFloat((1.50 * Math.pow(1.40, nextStreak)).toFixed(2));
-        setStreak(nextStreak);
+        setHasScored(true);
+        const nextMult = parseFloat((currentMultiplier * 1.40).toFixed(2));
         setCurrentMultiplier(nextMult);
-        setMessage(`🎯 GOOOOOOL! Ativo consagrado na rede! Multiplicador: ${nextMult}x`);
+        setMessage(`🎯 GOOOOOOL! Bola no fundo da rede! Multiplicador: ${nextMult}x`);
       } else {
         setGoalEffect('saved');
         setGameActive(false);
@@ -128,7 +118,7 @@ export default function PampasGoal() {
   };
 
   const cashOutGoal = () => {
-    if (!gameActive || streak === 0) return;
+    if (!gameActive || !hasScored) return;
     const prize = Math.floor(betAmount * currentMultiplier);
     updateBalanceOnDb(currentUser.id, balance + prize);
     setGameActive(false);
@@ -156,19 +146,19 @@ export default function PampasGoal() {
         <img 
           src="/Grupopampas.png" 
           alt="Patrocinador Grupo Pampas" 
-          className="h-14 w-auto max-w-[200px] object-contain drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" 
+          className="h-14 w-auto max-w-[200px] object-contain" 
         />
-        <h1 className="text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-500 drop-shadow-[0_5px_15px_rgba(245,158,11,0.6)]">
+        <h1 className="text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-500">
           ⚽ PAMPAS GOAL ⚽
         </h1>
-        <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">A Batalha Diplomática de Pênaltis</p>
+        <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">A Batalha de Pênaltis</p>
       </div>
 
       <main className="max-w-md mx-auto p-4 space-y-4 pt-5">
-        <div className="bg-black border-2 border-amber-500/60 rounded-3xl p-6 shadow-[0_10px_30px_rgba(0,0,0,0.9)] space-y-5 text-center">
+        <div className="bg-black border-2 border-amber-500/60 rounded-3xl p-6 shadow-2xl space-y-5 text-center">
           
-          {/* Ecrã da Baliza com Goleiro e Animação */}
-          <div className="relative h-48 bg-black border-2 border-amber-500/50 rounded-2xl flex flex-col items-center justify-center shadow-inner overflow-hidden p-4">
+          {/* Ecrã da Baliza com Goleiro e Bola */}
+          <div className="relative h-48 bg-black border-2 border-amber-500/50 rounded-2xl flex flex-col items-center justify-center overflow-hidden p-4">
             
             {/* Trave da Baliza */}
             <div className="absolute inset-x-4 top-3 h-28 border-t-4 border-x-4 border-zinc-700 rounded-t-xl flex justify-between px-3 pt-2 opacity-70 pointer-events-none">
@@ -181,24 +171,23 @@ export default function PampasGoal() {
               <img 
                 src="/goleiro.png" 
                 alt="Goleiro" 
-                className="w-20 h-20 object-contain drop-shadow-[0_0_10px_rgba(245,158,11,0.6)]" 
-                onError={(e) => { e.target.src = 'https://cdn-icons-png.flaticon.com/512/1077/1077114.png'; }} // Fallback se o link do goleiro carregar
+                className="w-20 h-20 object-contain bg-transparent" 
+                onError={(e) => { e.target.src = 'https://cdn-icons-png.flaticon.com/512/1077/1077114.png'; }}
               />
             </div>
 
-            {/* Ativo em Movimento de Chute */}
+            {/* Bola em Movimento */}
             {shooting && (
               <div className="absolute z-20 animate-ping">
-                <img src={selectedAsset} alt="Chute" className="w-10 h-10 object-contain" />
+                <img src="/bola.png" alt="Bola" className="w-10 h-10 object-contain bg-transparent" />
               </div>
             )}
 
-            {/* Informações centrais */}
-            <div className="z-30 mt-16 flex flex-col items-center bg-black/80 px-4 py-1 rounded-xl border border-amber-500/30">
-              <span className="text-2xl font-black text-amber-400 drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]">
+            {/* Apenas o Multiplicador Atual (Sem contador de gols) */}
+            <div className="z-30 mt-16 flex flex-col items-center bg-black px-4 py-1 rounded-xl border border-amber-500/30">
+              <span className="text-3xl font-black text-amber-400">
                 {currentMultiplier.toFixed(2)}x
               </span>
-              <p className="text-[11px] text-zinc-300 font-bold">Gols: {streak}</p>
             </div>
           </div>
 
@@ -219,24 +208,6 @@ export default function PampasGoal() {
             </select>
           </div>
 
-          {/* Seleção do Ativo Oficial */}
-          {!gameActive && (
-            <div className="space-y-2 text-left">
-              <label className="text-[10px] text-zinc-400 font-bold uppercase block">Escolha o Símbolo para o Chute</label>
-              <div className="grid grid-cols-5 gap-2">
-                {gameAssets.map((asset, idx) => (
-                  <button 
-                    key={idx} 
-                    onClick={() => setSelectedAsset(asset.src)}
-                    className={`py-2.5 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedAsset === asset.src ? 'bg-amber-500 border-amber-300 scale-105 shadow-md' : 'bg-black border-zinc-800 opacity-60 hover:opacity-100'}`}
-                  >
-                    <img src={asset.src} alt={asset.name} className="w-7 h-7 object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Controles de Jogo */}
           {!gameActive ? (
             <button onClick={startGame} className="w-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 text-black font-black text-sm py-3.5 rounded-xl shadow-[0_5px_20px_rgba(245,158,11,0.4)] transition-all active:scale-95">
@@ -244,7 +215,7 @@ export default function PampasGoal() {
             </button>
           ) : (
             <div className="space-y-3">
-              <label className="text-[10px] text-zinc-400 font-bold uppercase block">Escolha o Canto para Disparar</label>
+              <label className="text-[10px] text-zinc-400 font-bold uppercase block">Escolha o Canto para Disparar a Bola</label>
               <div className="grid grid-cols-3 gap-2">
                 <button disabled={shooting} onClick={() => shootPenalti(0)} className="py-3 bg-black border border-amber-500/50 hover:bg-amber-500 hover:text-black rounded-xl font-black text-xs text-amber-400 transition-all shadow-md">
                   ⬅️ ESQUERDA
@@ -257,7 +228,7 @@ export default function PampasGoal() {
                 </button>
               </div>
 
-              {streak > 0 && (
+              {hasScored && (
                 <button onClick={cashOutGoal} className="w-full bg-gradient-to-r from-emerald-500 to-green-400 hover:from-emerald-400 text-black font-black text-sm py-3 rounded-xl shadow-[0_5px_20px_rgba(16,185,129,0.4)] animate-bounce transition-all">
                   💰 RESGATAR LUCRO (R$ {(betAmount * currentMultiplier).toLocaleString('pt-BR', {maximumFractionDigits: 0})})
                 </button>
