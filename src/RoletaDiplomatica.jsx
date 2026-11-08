@@ -29,6 +29,7 @@ export default function RoletaDiplomatica() {
   const [betAmount, setBetAmount] = useState(30000);
   const [selectedBetType, setSelectedBetType] = useState('diamante'); // 'diamante', 'petroleo', 'pampas', 'brasil', 'costarica'
   const [spinning, setSpinning] = useState(false);
+  const [rotationDegrees, setRotationDegrees] = useState(0);
   const [lastResult, setLastResult] = useState(null);
   const [winMessage, setWinMessage] = useState('');
 
@@ -37,20 +38,18 @@ export default function RoletaDiplomatica() {
   const [inputPassword, setInputPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
-  // Setores oficiais com as imagens do Grupo Pampas
+  // Setores oficiais dispostos na roleta (10 setores no total)
   const wheelSectors = [
-    { id: 0, name: 'Diamante', type: 'diamante', mult: 10, icon: '/diamante.png' },
-    { id: 1, name: 'Petróleo', type: 'petroleo', mult: 3, icon: '/petroleo.png' },
-    { id: 2, name: 'Pampas', type: 'pampas', mult: 2, icon: '/pampas.png' },
-    { id: 3, name: 'Brasil', type: 'brasil', mult: 4, icon: '/brasil.png' },
-    { id: 4, name: 'Costa Rica', type: 'costarica', mult: 6, icon: '/costarica.png' },
-    { id: 5, name: 'Petróleo', type: 'petroleo', mult: 3, icon: '/petroleo.png' },
-    { id: 6, name: 'Pampas', type: 'pampas', mult: 2, icon: '/pampas.png' },
-    { id: 7, name: 'Brasil', type: 'brasil', mult: 4, icon: '/brasil.png' },
-    { id: 8, name: 'Costa Rica', type: 'costarica', mult: 6, icon: '/costarica.png' },
-    { id: 9, name: 'Petróleo', type: 'petroleo', mult: 3, icon: '/petroleo.png' },
-    { id: 10, name: 'Diamante', type: 'diamante', mult: 10, icon: '/diamante.png' },
-    { id: 11, name: 'Pampas', type: 'pampas', mult: 2, icon: '/pampas.png' }
+    { index: 0, name: 'Diamante', type: 'diamante', mult: 10, icon: '/diamante.png', color: 'from-amber-600 to-yellow-500' },
+    { index: 1, name: 'Petróleo', type: 'petroleo', mult: 3, icon: '/petroleo.png', color: 'from-blue-700 to-cyan-600' },
+    { index: 2, name: 'Pampas', type: 'pampas', mult: 2, icon: '/pampas.png', color: 'from-amber-500/80 to-yellow-600' },
+    { index: 3, name: 'Brasil', type: 'brasil', mult: 4, icon: '/brasil.png', color: 'from-emerald-700 to-green-600' },
+    { index: 4, name: 'Costa Rica', type: 'costarica', mult: 6, icon: '/costarica.png', color: 'from-blue-600 to-indigo-700' },
+    { index: 5, name: 'Petróleo', type: 'petroleo', mult: 3, icon: '/petroleo.png', color: 'from-blue-700 to-cyan-600' },
+    { index: 6, name: 'Pampas', type: 'pampas', mult: 2, icon: '/pampas.png', color: 'from-amber-500/80 to-yellow-600' },
+    { index: 7, name: 'Brasil', type: 'brasil', mult: 4, icon: '/brasil.png', color: 'from-emerald-700 to-green-600' },
+    { index: 8, name: 'Costa Rica', type: 'costarica', mult: 6, icon: '/costarica.png', color: 'from-blue-600 to-indigo-700' },
+    { index: 9, name: 'Diamante', type: 'diamante', mult: 10, icon: '/diamante.png', color: 'from-amber-600 to-yellow-500' }
   ];
 
   const fetchUsersDb = async () => {
@@ -103,9 +102,18 @@ export default function RoletaDiplomatica() {
     setWinMessage('');
     setLastResult(null);
 
+    // Sortear o índice vencedor
+    const winningIndex = Math.floor(Math.random() * wheelSectors.length);
+    const result = wheelSectors[winningIndex];
+
+    // Cada setor ocupa 36 graus (360 / 10)
+    const degreesPerSector = 36;
+    const extraSpins = 360 * 6; // 6 voltas completas para dar emoção
+    const targetAngle = extraSpins + (winningIndex * degreesPerSector) + (degreesPerSector / 2);
+    
+    setRotationDegrees(prev => prev + targetAngle);
+
     setTimeout(() => {
-      const winningIndex = Math.floor(Math.random() * wheelSectors.length);
-      const result = wheelSectors[winningIndex];
       setLastResult(result);
       setSpinning(false);
 
@@ -118,7 +126,7 @@ export default function RoletaDiplomatica() {
       } else {
         setWinMessage(`❌ Não foi desta vez. Caiu em ${result.name}.`);
       }
-    }, 2000);
+    }, 3500); // Duração da animação em sincronia com o CSS
   };
 
   const handleAuthSubmit = (e) => {
@@ -135,7 +143,7 @@ export default function RoletaDiplomatica() {
       setAuthError('Dados incorretos.');
     }
   };
-          return (
+    return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       {/* Patrocinador Global no Topo */}
       <div className="py-6 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-3">
@@ -153,21 +161,49 @@ export default function RoletaDiplomatica() {
       <main className="max-w-md mx-auto p-4 space-y-4 pt-5">
         <div className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/50 rounded-3xl p-6 shadow-[0_10px_30px_rgba(0,0,0,0.8)] space-y-5 text-center">
           
-          {/* Ecrã de Resultado da Roleta */}
-          <div className="relative h-44 bg-[#07070a] border border-zinc-800/80 rounded-2xl flex flex-col items-center justify-center shadow-inner overflow-hidden">
-            <div className={`transition-all duration-300 ${spinning ? 'animate-spin opacity-50' : 'scale-110 drop-shadow-[0_0_20px_rgba(245,158,11,0.6)]'}`}>
-              <img 
-                src={lastResult ? lastResult.icon : '/diamante.png'} 
-                alt="Resultado" 
-                className="w-20 h-20 object-contain mx-auto" 
-              />
+          {/* Nova Roda Visual Giratória Estilo Casino */}
+          <div className="relative w-64 h-64 mx-auto my-2 flex items-center justify-center">
+            {/* Indicador / Seta Superior */}
+            <div className="absolute -top-3 z-30 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[18px] border-t-amber-400 drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]"></div>
+
+            {/* Círculo Externo com Efeito Dourado */}
+            <div className="w-full h-full rounded-full border-4 border-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.4)] bg-[#0a0a0e] relative overflow-hidden flex items-center justify-center">
+              
+              {/* Roda Rotativa */}
+              <div 
+                className="absolute inset-2 rounded-full border border-amber-500/30 transition-all ease-out"
+                style={{ 
+                  transform: `rotate(${rotationDegrees}deg)`,
+                  transitionDuration: spinning ? '3.5s' : '0s'
+                }}
+              >
+                {wheelSectors.map((sector, idx) => {
+                  const angle = idx * 36;
+                  return (
+                    <div 
+                      key={idx} 
+                      className="absolute top-0 left-1/2 w-12 h-1/2 -ml-6 origin-bottom flex flex-col items-center pt-3"
+                      style={{ transform: `rotate(${angle}deg)` }}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-black/60 border border-amber-400/50 flex items-center justify-center shadow-md">
+                        <img src={sector.icon} alt={sector.name} className="w-5 h-5 object-contain" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Centro da Roleta */}
+              <div className="absolute z-20 w-16 h-16 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 border-2 border-black flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.8)]">
+                <span className="text-black font-black text-xs">PAMPAS</span>
+              </div>
             </div>
-            <p className="text-sm font-black text-amber-400 mt-2">
-              {spinning ? 'A RODAR A ROLETA...' : lastResult ? lastResult.name : 'FAÇA A SUA APOSTA'}
+          </div>
+
+          <div className="text-center">
+            <p className="text-sm font-black text-amber-400">
+              {spinning ? '🔄 A RODA ESTÁ A GIRAR...' : lastResult ? `Resultado: ${lastResult.name} (${lastResult.mult}x)` : 'FAÇA A SUA APOSTA E GIRE'}
             </p>
-            {lastResult && !spinning && (
-              <span className="text-[10px] text-zinc-400 font-bold uppercase mt-0.5">Multiplicador: {lastResult.mult}x</span>
-            )}
           </div>
 
           {winMessage && (
