@@ -86,7 +86,6 @@ export default function App() {
     }
   }, [currentUser]);
 
-  // ✅ Caminhos ajustados para as imagens que subiste na raiz do repositório
   const symbols = [
     { id: 'pampas', icon: '/pampas.png', name: 'Pampas', mult: 0.5, weight: 25, isBonus: false },
     { id: 'alquimia', icon: '/alquimia.png', name: 'Alquimia', mult: 0.8, weight: 24, isBonus: false },
@@ -382,12 +381,17 @@ export default function App() {
     if (currentUser && currentUser.id === id) handleLogout();
   };return (
     <div className="min-h-screen bg-[#070709] text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
+      {/* ✅ Cabeçalho Superior Atualizado com o Logótipo CassinaCR.png */}
       <header className="sticky top-0 z-50 bg-[#0c0c0f]/95 backdrop-blur-xl border-b border-amber-500/20 px-4 py-3 flex items-center justify-between shadow-2xl shadow-amber-500/5">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-600 via-yellow-500 to-amber-300 flex items-center justify-center shadow-lg shadow-amber-500/30 text-black font-black text-lg border border-amber-200/40 animate-pulse">👑</div>
+          <img 
+            src="/CassinaCR.png" 
+            alt="Cassino da Costa Rica" 
+            className="w-12 h-12 object-contain filter drop-shadow-[0_0_10px_rgba(245,158,11,0.5)] animate-pulse" 
+          />
           <div>
             <h1 className="text-amber-400 font-black text-sm tracking-wider uppercase drop-shadow-[0_0_10px_rgba(245,158,11,0.4)]">Cassino da Costa Rica</h1>
-            <p className="text-[10px] text-zinc-400 font-semibold tracking-wide">REDE PAMPAS • DIPLOMACIA OFICIAL</p>
+            <p className="text-[10px] text-zinc-400 font-semibold tracking-wide">DIPLOMACIA OFICIAL</p>
           </div>
         </div>
 
@@ -411,8 +415,14 @@ export default function App() {
         </div>
       </header>
 
-      <div className="bg-gradient-to-r from-amber-950/70 via-[#121216] to-amber-950/70 border-y border-amber-500/40 py-3 px-4 text-center shadow-xl">
-        <div className="flex items-center justify-center gap-2 text-xs text-amber-300 font-black tracking-widest uppercase drop-shadow-md">✨ <span>REDE PAMPAS — PATROCINADOR MASTER OFICIAL</span> ✨</div>
+      {/* ✅ Barra de Patrocínio com o Logótipo Oficial Grupopampas.png */}
+      <div className="bg-gradient-to-r from-amber-950/85 via-[#121216] to-amber-950/85 border-y border-amber-500/40 py-2.5 px-4 text-center shadow-xl flex items-center justify-center gap-3">
+        <img 
+          src="/Grupopampas.png" 
+          alt="Grupo Pampas" 
+          className="w-7 h-7 object-contain filter drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]" 
+        />
+        <span className="text-xs text-amber-300 font-black tracking-widest uppercase drop-shadow-md">GRUPO PAMPAS — PATROCINADOR MASTER OFICIAL</span>
       </div>
 
       <main className="max-w-md mx-auto p-4 space-y-4 pt-5">
@@ -608,4 +618,4 @@ export default function App() {
       )}
     </div>
   );
-      }
+}
