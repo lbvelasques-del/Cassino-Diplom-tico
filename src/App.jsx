@@ -381,13 +381,13 @@ export default function App() {
     if (currentUser && currentUser.id === id) handleLogout();
   };return (
     <div className="min-h-screen bg-[#070709] text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
-      {/* ✅ Cabeçalho com CassinaCR.png ampliado e visível */}
+      {/* ✅ Cabeçalho com o Logótipo do Grupo Pampas (Grupopampas.png) grande e imponente no topo */}
       <header className="sticky top-0 z-50 bg-[#0c0c0f]/95 backdrop-blur-xl border-b border-amber-500/20 px-4 py-3 flex items-center justify-between shadow-2xl shadow-amber-500/5">
-        <div className="flex items-center">
+        <div className="flex items-center py-1">
           <img 
-            src="/CassinaCR.png" 
-            alt="Cassino da Costa Rica" 
-            className="h-12 w-auto max-w-[170px] object-contain filter drop-shadow-[0_0_12px_rgba(245,158,11,0.6)]" 
+            src="/Grupopampas.png" 
+            alt="Grupo Pampas" 
+            className="h-12 w-auto max-w-[190px] object-contain filter drop-shadow-[0_0_12px_rgba(245,158,11,0.6)]" 
           />
         </div>
 
@@ -411,12 +411,12 @@ export default function App() {
         </div>
       </header>
 
-      {/* ✅ Grupopampas.png grande e expandido de ponta a ponta na área marcada */}
-      <div className="py-4 px-4 text-center bg-[#070709] border-b border-amber-500/30 flex items-center justify-center shadow-lg">
+      {/* ✅ Logótipo principal do Cassino (CassinaCR.png) maximizado e ajustado na área marcada para preencher o espaço com imponência */}
+      <div className="py-4 px-4 text-center bg-[#070709] border-b border-amber-500/30 flex items-center justify-center shadow-xl">
         <img 
-          src="/Grupopampas.png" 
-          alt="Grupo Pampas" 
-          className="h-12 w-auto max-w-[260px] object-contain filter drop-shadow-[0_0_16px_rgba(245,158,11,0.8)] hover:scale-105 transition-transform" 
+          src="/CassinaCR.png" 
+          alt="Cassino da Costa Rica" 
+          className="h-16 w-auto max-w-[320px] object-contain filter drop-shadow-[0_0_18px_rgba(245,158,11,0.9)] transition-transform hover:scale-105" 
         />
       </div>
 
