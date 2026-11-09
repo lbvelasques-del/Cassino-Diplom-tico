@@ -58,7 +58,6 @@ export default function FutebolDiplomatico() {
     }
   }, [myTeam]);
 
-  // Elenco Teste - Aparece apenas se o banco de dados estiver vazio
   const mockSquad = [
     { id: 'm1', name: 'Lucas Velasques', position: 'VOL', overall: 88, class_tier: 'Diamante', age: 26, nationality: 'Brasil' },
     { id: 'm2', name: 'Tiarles', position: 'ZAG', overall: 81, class_tier: 'Ouro', age: 28, nationality: 'Brasil' },
@@ -68,7 +67,6 @@ export default function FutebolDiplomatico() {
 
   const displaySquad = squad.length > 0 ? squad : mockSquad;
 
-  // Lógica Visual das Cartas por Classe
   const getClassStyle = (tier, overall) => {
     const t = tier ? tier.toLowerCase() : (overall >= 85 ? 'diamante' : overall >= 70 ? 'ouro' : overall >= 60 ? 'prata' : 'bronze');
     switch(t) {
@@ -82,8 +80,6 @@ export default function FutebolDiplomatico() {
 
   return (
     <div className="min-h-screen bg-[#050507] text-white font-sans antialiased pb-24 selection:bg-emerald-500 selection:text-black">
-      
-      {/* Cabeçalho do Treinador */}
       <div className="w-full bg-gradient-to-b from-[#0a1210] via-[#050a08] to-[#050507] border-b border-emerald-500/30 px-4 py-6 text-center relative shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
         <h1 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-green-100 to-emerald-500 drop-shadow-[0_2px_10px_rgba(16,185,129,0.5)]">
           FUTEBOL DIPLOMÁTICO
@@ -110,7 +106,6 @@ export default function FutebolDiplomatico() {
         )}
       </div>
 
-      {/* Menu de Navegação Inferior */}
       <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#0a0a0e]/95 backdrop-blur-md border-t border-emerald-500/30 p-2.5 z-40 flex justify-between shadow-[0_-10px_30px_rgba(0,0,0,0.9)] pb-safe">
         <button onClick={() => setActiveTab('dashboard')} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}>
           <span className="text-xl mb-1">🏠</span>
@@ -131,9 +126,8 @@ export default function FutebolDiplomatico() {
       </div>
 
       <main className="max-w-md mx-auto p-4 space-y-4 text-center">
-        
         {activeTab === 'dashboard' && (
-          <div className="space-y-4 animate-fade-in">
+          <div className="space-y-4">
             <div className="bg-[#0f1412] border border-emerald-900/30 rounded-3xl p-5 shadow-xl text-left">
               <h3 className="text-emerald-400 font-black text-sm uppercase mb-3 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Próxima Partida
@@ -152,18 +146,18 @@ export default function FutebolDiplomatico() {
                   <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wide leading-tight block">Rival FC</span>
                 </div>
               </div>
-              <button className="w-full mt-4 bg-gradient-to-r from-emerald-600 to-emerald-400 hover:from-emerald-500 hover:to-emerald-300 text-black font-black py-4 rounded-xl text-sm shadow-[0_5px_20px_rgba(16,185,129,0.3)] transition-all active:scale-95 uppercase tracking-wider">
+              <button className="w-full mt-4 bg-gradient-to-r from-emerald-600 to-emerald-400 hover:from-emerald-500 hover:to-emerald-300 text-black font-black py-4 rounded-xl text-sm shadow-[0_5px_20px_rgba(16,185,129,0.3)] transition-all uppercase tracking-wider">
                 ⚽ Entrar em Campo
               </button>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-[#0f1412] border border-emerald-900/30 rounded-2xl p-4 shadow-xl text-left flex flex-col justify-center">
-                <span className="text-emerald-500/70 text-[10px] font-black uppercase tracking-wider mb-1 block">Orçamento (Saldo)</span>
+              <div className="bg-[#0f1412] border border-emerald-900/30 rounded-2xl p-4 shadow-xl text-left">
+                <span className="text-emerald-500/70 text-[10px] font-black uppercase tracking-wider mb-1 block">Orçamento</span>
                 <span className="text-white font-black text-sm">R$ {balance.toLocaleString('pt-BR')}</span>
               </div>
-              <div className="bg-[#0f1412] border border-emerald-900/30 rounded-2xl p-4 shadow-xl text-left flex flex-col justify-center">
-                <span className="text-emerald-500/70 text-[10px] font-black uppercase tracking-wider mb-1 block">Posição na Liga</span>
+              <div className="bg-[#0f1412] border border-emerald-900/30 rounded-2xl p-4 shadow-xl text-left">
+                <span className="text-emerald-500/70 text-[10px] font-black uppercase tracking-wider mb-1 block">Posição</span>
                 <span className="text-emerald-400 font-black text-sm">1º Lugar 🏆</span>
               </div>
             </div>
@@ -171,123 +165,61 @@ export default function FutebolDiplomatico() {
         )}
 
         {activeTab === 'taticas' && (
-          <div className="bg-[#0f1412] border border-emerald-900/30 rounded-3xl p-5 shadow-xl animate-fade-in">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-emerald-400 font-black text-sm uppercase">Quadro Tático</h3>
-              <span className="bg-emerald-500/10 text-emerald-400 text-[10px] font-bold px-2 py-1 rounded border border-emerald-500/20">4-3-3 Ofensivo</span>
-            </div>
-            
-            <div className="bg-gradient-to-b from-green-900/40 to-green-950/40 border border-emerald-800/30 h-56 rounded-2xl mb-5 relative overflow-hidden flex items-center justify-center shadow-inner">
-               <div className="absolute inset-0 border-2 border-white/10 m-3 rounded pointer-events-none"></div>
-               <div className="absolute top-1/2 left-0 right-0 border-t-2 border-white/10 pointer-events-none"></div>
-               <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-16 h-16 border-2 border-white/10 rounded-full pointer-events-none"></div>
-               
-               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-[9px] font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-white">GOL</div>
-               <div className="absolute bottom-16 left-1/4 -translate-x-1/2 bg-zinc-400 text-black text-[9px] font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-white">ZAG</div>
-               <div className="absolute bottom-16 right-1/4 translate-x-1/2 bg-yellow-400 text-black text-[9px] font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-white">ZAG</div>
-               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-cyan-400 text-black text-[9px] font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-white">VOL</div>
-               <div className="absolute top-16 left-1/2 -translate-x-1/2 bg-yellow-400 text-black text-[9px] font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-white">ATA</div>
-            </div>
-            
-            <div className="space-y-2 text-left">
-              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Instruções da Equipa</p>
-              <button className="w-full bg-black/40 border border-emerald-900/40 text-zinc-300 text-xs py-2.5 rounded-lg flex justify-between px-4">
-                <span>Estilo de Jogo</span> <span className="text-emerald-400 font-bold">Posse de Bola ▼</span>
-              </button>
-              <button className="w-full bg-black/40 border border-emerald-900/40 text-zinc-300 text-xs py-2.5 rounded-lg flex justify-between px-4">
-                <span>Mentalidade</span> <span className="text-emerald-400 font-bold">Ofensiva ▼</span>
-              </button>
+          <div className="bg-[#0f1412] border border-emerald-900/30 rounded-3xl p-5 shadow-xl text-left">
+            <h3 className="text-emerald-400 font-black text-sm uppercase mb-4">Quadro Tático</h3>
+            <div className="bg-green-900/30 border border-emerald-800/35 h-48 rounded-2xl mb-4 relative flex items-center justify-center">
+               <span className="text-green-500/20 text-5xl font-black">4-3-3</span>
             </div>
           </div>
         )}
 
         {activeTab === 'elenco' && (
-          <div className="animate-fade-in text-left space-y-4">
+          <div className="text-left space-y-4">
             <div className="flex justify-between items-end px-1">
               <div>
                 <h3 className="text-emerald-400 font-black text-lg uppercase tracking-wide">Plantel Principal</h3>
-                <p className="text-zinc-400 text-xs mt-0.5">Gerencie os seus atletas e atributos.</p>
+                <p className="text-zinc-400 text-xs mt-0.5">Gerencie os seus atletas.</p>
               </div>
               <span className="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded font-bold border border-emerald-500/20">
                 {displaySquad.length} Atletas
               </span>
             </div>
 
-            {loadingSquad ? (
-              <div className="space-y-3 mt-4">
-                {[1,2,3].map(i => (
-                  <div key={i} className="animate-pulse flex items-center space-x-4 bg-[#0f1412] p-4 rounded-2xl border border-emerald-900/20">
-                    <div className="rounded bg-black/50 h-12 w-10"></div>
-                    <div className="flex-1 space-y-2">
-                      <div className="h-3 bg-black/50 rounded w-2/3"></div>
-                      <div className="h-2 bg-black/50 rounded w-1/3"></div>
+            <div className="space-y-3 mt-4">
+              {displaySquad.map((player) => (
+                <div key={player.id} className={`relative overflow-hidden flex items-center bg-gradient-to-r ${getClassStyle(player.class_tier, player.overall)} p-0.5 rounded-2xl`}>
+                  <div className="flex items-center w-full bg-[#0a0a0e] rounded-[14px] p-3 gap-3 relative z-10">
+                    <div className={`flex flex-col items-center justify-center min-w-[45px] h-[55px] rounded-lg bg-gradient-to-br ${getClassStyle(player.class_tier, player.overall)}`}>
+                      <span className="text-[10px] font-black opacity-80 uppercase leading-none mt-1">{player.position}</span>
+                      <span className="text-xl font-black leading-none mt-0.5">{player.overall}</span>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-3 mt-4">
-                {squad.length === 0 && (
-                  <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-2xl text-center mb-4">
-                    <p className="text-amber-400 text-xs font-bold">O banco de dados de jogadores ainda está vazio, geramos um elenco teste! Atribua o clube ao utilizador no Painel Admin.</p>
-                  </div>
-                )}
-                
-                {displaySquad.map((player) => (
-                  <div key={player.id} className={`relative overflow-hidden flex items-center bg-gradient-to-r ${getClassStyle(player.class_tier, player.overall)} p-0.5 rounded-2xl transition-all active:scale-95`}>
-                    <div className="flex items-center w-full bg-[#0a0a0e] rounded-[14px] p-3 gap-3 relative z-10">
-                      <div className={`flex flex-col items-center justify-center min-w-[45px] h-[55px] rounded-lg bg-gradient-to-br ${getClassStyle(player.class_tier, player.overall)} border-none shadow-inner`}>
-                        <span className="text-[10px] font-black opacity-80 uppercase leading-none mt-1">{player.position}</span>
-                        <span className="text-xl font-black leading-none mt-0.5">{player.overall}</span>
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-white font-black text-sm truncate uppercase tracking-wide">{player.name}</h4>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[9px] bg-black/50 text-zinc-300 px-1.5 py-0.5 rounded uppercase font-bold">{player.nationality || 'Brasil'}</span>
-                          <span className="text-[9px] bg-black/50 text-zinc-300 px-1.5 py-0.5 rounded font-bold">{player.age ? `${player.age} anos` : 'Idade N/A'}</span>
-                        </div>
-                      </div>
-                      
-                      <div className="text-right">
-                        <span className="text-[8px] font-black uppercase tracking-widest opacity-60 block mb-0.5">Classe</span>
-                        <span className="text-xs font-black uppercase drop-shadow-md" style={{
-                           color: player.class_tier === 'Diamante' ? '#67e8f9' : 
-                                  player.class_tier === 'Ouro' ? '#fcd34d' : 
-                                  player.class_tier === 'Prata' ? '#d1d5db' : '#fdba74'
-                        }}>
-                          {player.class_tier || (player.overall >= 85 ? 'Diamante' : player.overall >= 70 ? 'Ouro' : player.overall >= 60 ? 'Prata' : 'Bronze')}
-                        </span>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-white font-black text-sm truncate uppercase tracking-wide">{player.name}</h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[9px] bg-black/50 text-zinc-300 px-1.5 py-0.5 rounded uppercase font-bold">{player.nationality || 'Brasil'}</span>
+                        <span className="text-[9px] bg-black/50 text-zinc-300 px-1.5 py-0.5 rounded font-bold">{player.age ? `${player.age} anos` : 'Idade N/A'}</span>
                       </div>
                     </div>
+                    <div className="text-right">
+                      <span className="text-[8px] font-black uppercase tracking-widest opacity-60 block mb-0.5">Classe</span>
+                      <span className="text-xs font-black uppercase">{player.class_tier || 'Ouro'}</span>
+                    </div>
                   </div>
-                ))}
-              </div>
-            )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
         {activeTab === 'mercado' && (
-          <div className="bg-[#0f1412] border border-emerald-900/30 rounded-3xl p-5 shadow-xl animate-fade-in text-left">
-            <div className="flex items-center gap-3 mb-4">
-              <span className="text-3xl">🤝</span>
-              <div>
-                <h3 className="text-emerald-400 font-black text-sm uppercase">Mercado da Série A</h3>
-                <p className="text-zinc-400 text-[10px] font-bold uppercase mt-0.5">Janela de Transferências Aberta</p>
-              </div>
-            </div>
-            
-            <div className="bg-black/40 p-4 rounded-2xl border border-emerald-900/40 mb-4 text-center">
-              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mb-1">Seu Orçamento Disponível</p>
-              <p className="text-emerald-400 font-black text-xl">R$ {balance.toLocaleString('pt-BR')}</p>
-            </div>
-            
-            <button className="w-full bg-zinc-800 border border-emerald-500/30 text-emerald-400 font-black py-3.5 rounded-xl text-xs shadow-lg active:scale-95 transition-all">
+          <div className="bg-[#0f1412] border border-emerald-900/30 rounded-3xl p-5 shadow-xl text-left">
+            <h3 className="text-emerald-400 font-black text-sm uppercase mb-2">Mercado de Transferências</h3>
+            <p className="text-zinc-400 text-xs mb-4">Utilize o seu orçamento para contratar reforços.</p>
+            <button className="w-full bg-zinc-800 text-emerald-400 font-black py-3 rounded-xl text-xs">
               🔍 PESQUISAR JOGADORES
             </button>
           </div>
         )}
-
       </main>
     </div>
   );
