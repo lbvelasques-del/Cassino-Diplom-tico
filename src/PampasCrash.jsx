@@ -37,7 +37,9 @@ export default function PampasCrash() {
   const [inputPassword, setInputPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
-  const animationRef = useRef(null);const fetchUsersDb = async () => {
+  const animationRef = useRef(null);
+
+  const fetchUsersDb = async () => {
     if (isSupabaseConfigured) {
       try {
         const { data, error } = await supabase.from('users').select('*').order('id', { ascending: true });
@@ -133,7 +135,9 @@ export default function PampasCrash() {
     } else {
       setAuthError('Dados incorretos.');
     }
-  };return (
+  };
+
+  return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       <div className="py-6 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-3">
         <img 
