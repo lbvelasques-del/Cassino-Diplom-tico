@@ -18,6 +18,7 @@ const isSupabaseConfigured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KE
 const supabase = isSupabaseConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 export default function App() {
+  // Garantido aqui a abrir no 'lobby' para nunca entrar direto num jogo
   const [activeGame, setActiveGame] = useState('lobby'); 
   const [usersDb, setUsersDb] = useState(() => {
     const saved = localStorage.getItem('pampas_users_db');
@@ -51,8 +52,7 @@ export default function App() {
 
   const [adminTargetId, setAdminTargetId] = useState('');
   const [adminDepositAmount, setAdminDepositAmount] = useState('');
-
-  const fetchUsersDb = async () => {
+    const fetchUsersDb = async () => {
     if (isSupabaseConfigured) {
       try {
         const { data, error } = await supabase.from('users').select('*').order('id', { ascending: true });
@@ -95,7 +95,7 @@ export default function App() {
       if (inputPassword.length < 3) return setAuthError('A senha é muito curta.');
 
       const existing = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase());
-      if (existing) return setAuthError('Este nome de utilizador já está em uso.');
+      if (existing) return setAuthError(' Este nome de utilizador já está em uso.');
 
       const isAdmin = trimmedUser.toLowerCase() === 'lvelasques';
       const newUser = { id: Date.now(), username: trimmedUser, password: inputPassword, balance: 150000, isAdmin };
@@ -240,8 +240,7 @@ export default function App() {
   if (activeGame === 'dice') return renderGameRoute(PampasDice);
   if (activeGame === 'holdandwin') return renderGameRoute(PampasHoldAndWin);
   if (activeGame === 'quedadiplomatica') return renderGameRoute(QuedaDiplomatica);
-
-  return (
+    return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       <header className="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-zinc-900 px-4 py-3 flex items-center justify-between shadow-2xl">
         <div className="flex items-center py-1 cursor-pointer" onClick={() => setActiveGame('lobby')}>
@@ -339,14 +338,13 @@ export default function App() {
           </div>
         </div>
       </main>
-
-      {/* Modais */}
+            {/* Modais de Autenticação, Perfil e Admin */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
-            <button onClick={() => setIsAuthOpen(false)} className="absolute top-4 right-4 text-zinc-400 text-lg">✕</button>
+            <button onClick={() => setIsAuthOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white text-lg">✕</button>
             <h2 className="text-amber-400 font-black text-xl mb-1">{authMode === 'login' ? 'Entrar no Portal' : 'Criar Conta Oficial'}</h2>
-            {authError && <div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl mb-4 font-semibold">{authError}</div>}
+            {authError && <div className="bg-red-500/10 border border-red-500/40 text-red-400 text-xs p-3 rounded-xl mb-4 font-semibold">{authError}</div>}
             <form onSubmit={handleAuthSubmit} className="space-y-4">
               <div>
                 <label className="text-xs text-zinc-400 block mb-1 font-semibold">Nome de Utilizador</label>
@@ -413,4 +411,4 @@ export default function App() {
       )}
     </div>
   );
-                      }
+}
