@@ -26,7 +26,6 @@ export default function PampasCrash() {
     return saved ? JSON.parse(saved).balance : 150000;
   });
 
-  // Estados do Crash
   const [betAmount, setBetAmount] = useState(30000);
   const [gameState, setGameState] = useState('waiting'); // 'waiting', 'running', 'crashed', 'cashed'
   const [multiplier, setMultiplier] = useState(1.00);
@@ -80,7 +79,8 @@ export default function PampasCrash() {
       return updated;
     });
   };
-    const startFlight = () => {
+
+  const startFlight = () => {
     if (!currentUser) return setIsAuthOpen(true);
     if (balance < betAmount) return alert("Saldo insuficiente para levantar voo!");
 
@@ -89,7 +89,6 @@ export default function PampasCrash() {
     setMultiplier(1.00);
     setWinAmount(0);
 
-    // Gerar ponto de queda aleatório (ex: 5% chance de cair no 1.00x, senão sobe exponencialmente)
     const randomCrash = Math.random() < 0.08 ? 1.00 : parseFloat((1.01 + Math.random() * Math.random() * 15).toFixed(2));
     setCrashPoint(randomCrash);
 
@@ -137,7 +136,8 @@ export default function PampasCrash() {
       setAuthError('Dados incorretos.');
     }
   };
-    return (
+
+  return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       {/* Patrocinador Global no Topo */}
       <div className="py-6 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-3">
@@ -208,6 +208,7 @@ export default function PampasCrash() {
         </div>
       </main>
 
+      {/* Modal de Autenticação */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
@@ -225,3 +226,4 @@ export default function PampasCrash() {
     </div>
   );
 }
+```[cite: 5]
