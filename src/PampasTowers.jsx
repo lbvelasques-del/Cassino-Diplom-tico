@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = 'https://tieduoyppbigsaxxjhfl.supabase.co'; 
+const SUPABASE_URL = '[https://tieduoyppbigsaxxjhfl.supabase.co](https://tieduoyppbigsaxxjhfl.supabase.co)'; 
 const SUPABASE_ANON_KEY = 'sb_publishable_EvhGbTRSSqDK426spZx1sw_uRhXIJX2';
 
 const isSupabaseConfigured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20 && SUPABASE_ANON_KEY.startsWith('sb_');
