@@ -211,7 +211,7 @@ export default function App() {
     setAdminDepositAmount('');
     fetchUsersDb();
   };
-          const renderGameRoute = (GameComponent) => (
+    const renderGameRoute = (GameComponent) => (
     <div className="min-h-screen bg-zinc-950 text-white flex flex-col">
       <div className="bg-black px-4 py-3 flex items-center justify-between border-b border-zinc-900 sticky top-0 z-50">
         <button onClick={() => setActiveGame('lobby')} className="bg-zinc-800 hover:bg-zinc-700 text-amber-400 px-4 py-2 rounded-xl text-xs font-bold border border-amber-500/30 transition-all flex items-center gap-2">
@@ -403,4 +403,3 @@ export default function App() {
     </div>
   );
 }
-
