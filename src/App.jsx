@@ -156,7 +156,7 @@ export default function App() {
     setIsUserPanelOpen(false);
     setWithdrawSuccess(false);
   };
-        const handleSelfDelete = async () => {
+    const handleSelfDelete = async () => {
     if (!window.confirm(`Deseja realmente excluir a sua conta de forma permanente?`)) return;
     if (isSupabaseConfigured) {
       try { await supabase.from('users').delete().eq('id', currentUser.id); } catch (e) {}
