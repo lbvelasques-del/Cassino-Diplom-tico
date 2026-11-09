@@ -347,6 +347,11 @@ export default function App() {
                 </div>
               )}
               <button type="submit" className="w-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black py-3.5 rounded-xl text-sm">{authMode === 'login' ? 'Entrar' : 'Criar Conta'}</button>
+              <div className="text-center pt-2">
+                <button type="button" onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthError(''); }} className="text-xs text-amber-400 underline font-bold">
+                  {authMode === 'login' ? 'Não tem conta? Crie uma agora' : 'Já tem conta? Faça login'}
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -354,44 +359,67 @@ export default function App() {
 
       {isUserPanelOpen && currentUser && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
+          <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl space-y-4">
             <button onClick={() => setIsUserPanelOpen(false)} className="absolute top-4 right-4 text-zinc-400 text-lg">✕</button>
-            <h2 className="text-white font-bold text-lg mb-4">{currentUser.username} (#ID {currentUser.id})</h2>
-            <div className="space-y-4">
-              <form onSubmit={handleWithdrawSubmit} className="bg-[#0b0b0e] p-4 rounded-2xl space-y-2">
-                <span className="text-xs text-amber-300 font-bold uppercase">Solicitar Saque</span>
-                {withdrawSuccess ? <p className="text-emerald-400 text-xs font-bold">✅ Pedido enviado!</p> : (
-                  <div className="flex gap-2">
-                    <input type="number" placeholder="Valor (R$)" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} required className="w-full bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs" />
-                    <button type="submit" className="bg-amber-500 text-black font-black px-4 rounded-xl text-xs">Pedir</button>
-                  </div>
-                )}
-              </form>
-              <button onClick={handleLogout} className="w-full bg-zinc-800 text-white font-bold py-3 rounded-xl text-xs">🚪 Sair da Conta</button>
-              <button onClick={handleSelfDelete} className="w-full bg-red-500/10 text-red-500 font-bold py-3 rounded-xl text-xs">🗑️ Apagar Conta</button>
-            </div>
+            <h2 className="text-white font-bold text-lg">{currentUser.username} <span className="text-xs text-amber-400">(#ID {currentUser.id})</span></h2>
+            
+            <form onSubmit={handleWithdrawSubmit} className="bg-[#0b0b0e] p-4 rounded-2xl space-y-3">
+              <span className="text-xs text-amber-300 font-bold uppercase block">Solicitar Saque</span>
+              {withdrawSuccess ? (
+                <p className="text-emerald-400 text-xs font-bold">✅ Pedido de saque enviado ao admin com sucesso!</p>
+              ) : (
+                <div className="flex gap-2">
+                  <input type="number" placeholder="Valor (R$)" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} required className="w-full bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs" />
+                  <button type="submit" className="bg-amber-500 hover:bg-amber-400 text-black font-black px-4 rounded-xl text-xs">Pedir</button>
+                </div>
+              )}
+            </form>
+
+            <button onClick={handleLogout} className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-3 rounded-xl text-xs">🚪 Sair da Conta</button>
+            <button onClick={handleSelfDelete} className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold py-3 rounded-xl text-xs">🗑️ Apagar Conta Permanentemente</button>
           </div>
         </div>
       )}
 
       {isAdminPanelOpen && currentUser && (currentUser.isAdmin || currentUser.username.toLowerCase() === 'lvelasques') && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-lg flex items-center justify-center p-4">
-          <div className="bg-[#141418] border-2 border-amber-500 w-full max-w-2xl rounded-3xl p-6 relative max-h-[90vh] overflow-y-auto">
-            <button onClick={() => setIsAdminPanelOpen(false)} className="absolute top-4 right-4 text-zinc-400 text-lg">✕</button>
-            <h2 className="text-amber-400 font-black text-xl mb-4">Painel Admin - Grupo Pampas</h2>
-            <div className="space-y-4">
-              <div className="bg-[#0b0b0e] border border-amber-500/40 p-4 rounded-2xl space-y-3">
-                <h3 className="text-xs text-amber-300 font-bold uppercase">Gestão de Saldo por ID</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  <input type="text" placeholder="ID da Conta" value={adminTargetId} onChange={(e) => setAdminTargetId(e.target.value)} className="bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs" />
-                  <input type="number" placeholder="Valor (R$)" value={adminDepositAmount} onChange={(e) => setAdminDepositAmount(e.target.value)} className="bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs" />
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => handleAdminBalanceUpdate('add')} className="flex-1 bg-emerald-500 text-black font-black py-2 rounded-xl text-xs">➕ Adicionar</button>
-                  <button onClick={() => handleAdminBalanceUpdate('remove')} className="flex-1 bg-red-500 text-black font-black py-2 rounded-xl text-xs">➖ Remover</button>
-                </div>
+          <div className="bg-[#141418] border-2 border-amber-500 w-full max-w-xl rounded-3xl p-6 relative max-h-[90vh] overflow-y-auto space-y-5">
+            <button onClick={() => setIsAdminPanelOpen(false)} className="absolute top-4 right-4 text-zinc-400 text-lg font-bold">✕</button>
+            
+            <div className="border-b border-zinc-800 pb-3">
+              <h2 className="text-amber-400 font-black text-xl">Painel Admin - Grupo Pampas</h2>
+              <p className="text-xs text-zinc-400">Controlo total de saldos, contas e saques</p>
+            </div>
+
+            {/* Secção 1: Gestão de Saldo por ID */}
+            <div className="bg-[#0b0b0e] border border-amber-500/40 p-4 rounded-2xl space-y-3">
+              <h3 className="text-xs text-amber-300 font-bold uppercase tracking-wider">Gestão de Saldo por ID</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <input type="text" placeholder="ID da Conta" value={adminTargetId} onChange={(e) => setAdminTargetId(e.target.value)} className="bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs outline-none" />
+                <input type="number" placeholder="Valor (R$)" value={adminDepositAmount} onChange={(e) => setAdminDepositAmount(e.target.value)} className="bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs outline-none" />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => handleAdminBalanceUpdate('add')} className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black font-black py-2.5 rounded-xl text-xs transition-all">➕ Adicionar Saldo</button>
+                <button onClick={() => handleAdminBalanceUpdate('remove')} className="flex-1 bg-red-500 hover:bg-red-400 text-black font-black py-2.5 rounded-xl text-xs transition-all">➖ Remover Saldo</button>
               </div>
             </div>
+
+            {/* Secção 2: Lista de Contas de Utilizadores */}
+            <div className="bg-[#0b0b0e] border border-zinc-800 p-4 rounded-2xl space-y-3">
+              <h3 className="text-xs text-amber-400 font-bold uppercase tracking-wider">Contas Registadas ({usersDb.length})</h3>
+              <div className="max-h-40 overflow-y-auto space-y-2 pr-1">
+                {usersDb.map(u => (
+                  <div key={u.id} className="flex items-center justify-between bg-[#141418] p-2.5 rounded-xl border border-zinc-800 text-xs">
+                    <div>
+                      <span className="text-amber-300 font-bold">{u.username}</span>
+                      <span className="text-[10px] text-zinc-500 block">ID: {u.id}</span>
+                    </div>
+                    <span className="text-emerald-400 font-black">R$ {Number(u.balance || 0).toLocaleString('pt-BR')}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
           </div>
         </div>
       )}
