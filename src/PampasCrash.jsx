@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://tieduoyppbigsaxxjhfl.supabase.co'; 
@@ -7,7 +7,7 @@ const SUPABASE_ANON_KEY = 'sb_publishable_EvhGbTRSSqDK426spZx1sw_uRhXIJX2';
 const isSupabaseConfigured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20 && SUPABASE_ANON_KEY.startsWith('sb_');
 const supabase = isSupabaseConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
-export default function DiamondStriker() {
+export default function PampasCrash() {
   const [usersDb, setUsersDb] = useState(() => {
     const saved = localStorage.getItem('pampas_users_db');
     if (saved) {
@@ -26,21 +26,19 @@ export default function DiamondStriker() {
     return saved ? JSON.parse(saved).balance : 150000;
   });
 
+  // Estados do Crash
   const [betAmount, setBetAmount] = useState(30000);
-  const [threatLevel, setThreatLevel] = useState(3);
-  const [grid, setGrid] = useState(Array(25).fill({ isThreat: false, revealed: false }));
-  const [gameActive, setGameActive] = useState(false);
-  const [gameOver, setGameOver] = useState(false);
-  const [territoriesWon, setTerritoriesWon] = useState(0);
-  const [currentMultiplier, setCurrentMultiplier] = useState(1.00);
-  const [battleMessage, setBattleMessage] = useState('');
+  const [gameState, setGameState] = useState('waiting'); // 'waiting', 'running', 'crashed', 'cashed'
+  const [multiplier, setMultiplier] = useState(1.00);
+  const [crashPoint, setCrashPoint] = useState(1.00);
+  const [winAmount, setWinAmount] = useState(0);
 
   const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [authMode, setAuthMode] = useState('login');
   const [inputUsername, setInputUsername] = useState('');
   const [inputPassword, setInputPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [authError, setAuthError] = useState('');
+
+  const animationRef = useRef(null);
 
   const fetchUsersDb = async () => {
     if (isSupabaseConfigured) {
@@ -55,7 +53,7 @@ export default function DiamondStriker() {
           }
           return;
         }
-      } catch (e) { console.warn("Supabase falhou, usando local"); }
+      } catch (e) { }
     }
   };
 
@@ -82,105 +80,66 @@ export default function DiamondStriker() {
       return updated;
     });
   };
-    const startBattle = () => {
+    const startFlight = () => {
     if (!currentUser) return setIsAuthOpen(true);
-    if (balance < betAmount) return alert("Saldo insuficiente para iniciar a campanha!");
+    if (balance < betAmount) return alert("Saldo insuficiente para levantar voo!");
 
     updateBalanceOnDb(currentUser.id, balance - betAmount);
-    
-    let newGrid = Array(25).fill({ isThreat: false, revealed: false });
-    let threatsPlaced = 0;
-    while(threatsPlaced < threatLevel) {
-      let rand = Math.floor(Math.random() * 25);
-      if(!newGrid[rand].isThreat) {
-        newGrid[rand] = { isThreat: true, revealed: false };
-        threatsPlaced++;
+    setGameState('running');
+    setMultiplier(1.00);
+    setWinAmount(0);
+
+    // Gerar ponto de queda aleatório (ex: 5% chance de cair no 1.00x, senão sobe exponencialmente)
+    const randomCrash = Math.random() < 0.08 ? 1.00 : parseFloat((1.01 + Math.random() * Math.random() * 15).toFixed(2));
+    setCrashPoint(randomCrash);
+
+    let currentM = 1.00;
+    const startTime = Date.now();
+
+    const loop = () => {
+      const elapsed = (Date.now() - startTime) / 1000;
+      currentM = parseFloat((1.00 + elapsed * 0.4 + elapsed * elapsed * 0.15).toFixed(2));
+
+      if (currentM >= randomCrash) {
+        setMultiplier(randomCrash);
+        setGameState('crashed');
+        cancelAnimationFrame(animationRef.current);
+      } else {
+        setMultiplier(currentM);
+        animationRef.current = requestAnimationFrame(loop);
       }
-    }
-    
-    setGrid(newGrid);
-    setGameActive(true);
-    setGameOver(false);
-    setTerritoriesWon(0);
-    setCurrentMultiplier(1.00);
-    setBattleMessage('');
+    };
+
+    animationRef.current = requestAnimationFrame(loop);
   };
 
-  const handleSectorClick = (index) => {
-    if (!gameActive || grid[index].revealed) return;
-    
-    let newGrid = [...grid];
-    newGrid[index] = { ...newGrid[index], revealed: true };
-    setGrid(newGrid);
+  const cashOut = () => {
+    if (gameState !== 'running') return;
+    cancelAnimationFrame(animationRef.current);
 
-    if (newGrid[index].isThreat) {
-      setGameActive(false);
-      setGameOver(true);
-      setBattleMessage('💥 EMBOSCADA GEOPOLÍTICA! Missão comprometida.');
-      setGrid(newGrid.map(t => ({ ...t, revealed: true })));
-    } else {
-      const nextTerritories = territoriesWon + 1;
-      setTerritoriesWon(nextTerritories);
-      
-      let m = 1;
-      for (let i = 0; i < nextTerritories; i++) {
-        m *= (25 - i) / (25 - threatLevel - i);
-      }
-      const nextMult = m * 0.95; 
-      setCurrentMultiplier(nextMult);
-
-      if (nextTerritories === 25 - threatLevel) {
-        secureVictory(nextMult); 
-      }
-    }
-  };
-
-  const secureVictory = (overrideMult = currentMultiplier) => {
-    if (!gameActive) return;
-    const prize = betAmount * overrideMult;
+    const prize = Math.floor(betAmount * multiplier);
     updateBalanceOnDb(currentUser.id, balance + prize);
-    setGameActive(false);
-    setGameOver(true);
-    setBattleMessage(`🏆 VITÓRIA ABSOLUTA! Recompensa: R$ ${prize.toLocaleString('pt-BR', {maximumFractionDigits: 0})} (${overrideMult.toFixed(2)}x)`);
-    setGrid(grid.map(t => ({ ...t, revealed: true })));
+    setWinAmount(prize);
+    setGameState('cashed');
   };
 
-  const handleAuthSubmit = async (e) => {
+  const handleAuthSubmit = (e) => {
     e.preventDefault();
     setAuthError('');
-    const trimmedUser = inputUsername.trim();
-
-    if (authMode === 'register') {
-      if (inputPassword !== confirmPassword) return setAuthError('As senhas não coincidem!');
-      const existing = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase());
-      if (existing) return setAuthError('Utilizador já em uso.');
-
-      const newUser = { id: Date.now(), username: trimmedUser, password: inputPassword, balance: 150000, isAdmin: false };
-      if (isSupabaseConfigured) {
-        try {
-          const { data, error } = await supabase.from('users').insert([newUser]).select();
-          if (!error && data) { setCurrentUser(data[0]); setBalance(Number(data[0].balance)); }
-        } catch (err) { }
-      } else {
-        const updated = [...usersDb, newUser];
-        setUsersDb(updated);
-        localStorage.setItem('pampas_users_db', JSON.stringify(updated));
-        setCurrentUser(newUser);
-        setBalance(newUser.balance);
-      }
-      setIsAuthOpen(false); resetAuthForm();
+    const foundUser = usersDb.find(u => u.username.toLowerCase() === inputUsername.trim().toLowerCase() && u.password === inputPassword);
+    if (foundUser) {
+      setCurrentUser(foundUser);
+      setBalance(Number(foundUser.balance));
+      setIsAuthOpen(false);
+      setInputUsername('');
+      setInputPassword('');
     } else {
-      const foundUser = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase() && u.password === inputPassword);
-      if (foundUser) {
-        setCurrentUser(foundUser); setBalance(Number(foundUser.balance)); setIsAuthOpen(false); resetAuthForm();
-      } else setAuthError('Dados incorretos.');
+      setAuthError('Dados incorretos.');
     }
   };
-
-  const resetAuthForm = () => { setInputUsername(''); setInputPassword(''); setConfirmPassword(''); setAuthError(''); };
     return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
-      {/* Imagem do Patrocinador Global no Topo */}
+      {/* Patrocinador Global no Topo */}
       <div className="py-6 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-3">
         <img 
           src="/Grupopampas.png" 
@@ -188,83 +147,64 @@ export default function DiamondStriker() {
           className="h-14 w-auto max-w-[200px] object-contain drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" 
         />
         <h1 className="text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-500 drop-shadow-[0_5px_15px_rgba(245,158,11,0.6)]">
-          ⚔️ GUERRA DAS AMÉRICAS ⚔️
+          🚀 PAMPAS CRASH 🚀
         </h1>
-        <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Estratégia & Domínio Territorial</p>
+        <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">O Voo dos Campeões</p>
       </div>
 
       <main className="max-w-md mx-auto p-4 space-y-4 pt-5">
-        <div className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/50 rounded-3xl p-5 shadow-[0_10px_30px_rgba(0,0,0,0.8)] space-y-4">
-          <div className="flex justify-between items-center px-1">
-            <span className="text-xs text-zinc-400 font-bold uppercase">Poder de Multiplicação</span>
-            <span className="text-amber-400 font-black text-xl drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]">{currentMultiplier.toFixed(2)}x</span>
+        <div className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/50 rounded-3xl p-6 shadow-[0_10px_30px_rgba(0,0,0,0.8)] space-y-6 text-center">
+          
+          {/* Ecrã do Voo / Multiplicador */}
+          <div className="relative h-48 bg-[#07070a] border border-zinc-800/80 rounded-2xl flex flex-col items-center justify-center shadow-inner overflow-hidden">
+            {gameState === 'running' && (
+              <div className="absolute inset-0 bg-gradient-to-t from-amber-500/10 to-transparent animate-pulse pointer-events-none"></div>
+            )}
+            
+            <span className={`text-5xl font-black tracking-wider transition-all ${
+              gameState === 'crashed' ? 'text-red-500 scale-110' : 
+              gameState === 'cashed' ? 'text-emerald-400 scale-110' : 
+              'text-amber-400 drop-shadow-[0_0_20px_rgba(245,158,11,0.6)]'
+            }`}>
+              {multiplier.toFixed(2)}x
+            </span>
+
+            <p className="text-xs text-zinc-400 font-bold uppercase mt-2">
+              {gameState === 'waiting' && 'Pronto para descolar'}
+              {gameState === 'running' && '✈️ Jato em voo...'}
+              {gameState === 'crashed' && '💥 VOO CRASHOU!'}
+              {gameState === 'cashed' && `🎉 RESGATADO COM SUCESSO!`}
+            </p>
+
+            {winAmount > 0 && gameState === 'cashed' && (
+              <p className="text-emerald-400 font-black text-sm mt-1 animate-bounce">
+                + R$ {winAmount.toLocaleString('pt-BR', {maximumFractionDigits: 0})}
+              </p>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] text-zinc-500 font-bold uppercase mb-1 block">Orçamento (R$)</label>
-              <select disabled={gameActive} value={betAmount} onChange={(e) => setBetAmount(Number(e.target.value))} className="w-full bg-[#18181e] text-amber-400 border border-zinc-700 rounded-xl px-3 py-2.5 font-black outline-none text-xs">
-                <option value={30000}>R$ 30k</option>
-                <option value={100000}>R$ 100k</option>
-                <option value={500000}>R$ 500k</option>
-                <option value={1000000}>R$ 1M</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-[10px] text-zinc-500 font-bold uppercase mb-1 block">Ameaças no Mapa</label>
-              <select disabled={gameActive} value={threatLevel} onChange={(e) => setThreatLevel(Number(e.target.value))} className="w-full bg-[#18181e] text-red-400 border border-zinc-700 rounded-xl px-3 py-2.5 font-black outline-none text-xs">
-                <option value={1}>1 Setor Hostil</option>
-                <option value={3}>3 Setores Hostis</option>
-                <option value={5}>5 Setores Hostis</option>
-                <option value={10}>10 Setores (HARD)</option>
-              </select>
-            </div>
+          {/* Seleção de Aposta */}
+          <div className="space-y-2 text-left">
+            <label className="text-[10px] text-zinc-500 font-bold uppercase block">Valor da Aposta (R$)</label>
+            <select disabled={gameState === 'running'} value={betAmount} onChange={(e) => setBetAmount(Number(e.target.value))} className="w-full bg-[#18181e] text-amber-400 border border-zinc-700 rounded-xl px-3 py-3 font-black outline-none text-sm">
+              <option value={30000}>R$ 30k</option>
+              <option value={100000}>R$ 100k</option>
+              <option value={500000}>R$ 500k</option>
+              <option value={1000000}>R$ 1M</option>
+            </select>
           </div>
 
-          <div className="grid grid-cols-5 gap-2 my-3 p-3 bg-[#07070a] rounded-2xl border border-zinc-800/80 shadow-inner">
-            {grid.map((tile, idx) => {
-              let symbol = '';
-              let tileStyle = "bg-[#14141a] hover:bg-[#1f1f28] cursor-pointer border-b-2 border-zinc-800 hover:border-amber-500/50";
-              
-              if (tile.revealed) {
-                if (tile.isThreat) {
-                  symbol = '💥';
-                  tileStyle = "bg-red-500/20 border border-red-500/60 scale-95 opacity-90";
-                } else {
-                  symbol = '⭐';
-                  tileStyle = "bg-amber-500/15 border border-amber-400 scale-105 shadow-[0_0_15px_rgba(245,158,11,0.4)]";
-                }
-              } else if (gameOver) {
-                tileStyle = "bg-zinc-900 opacity-25 cursor-not-allowed";
-              }
-
-              return (
-                <div 
-                  key={idx} 
-                  onClick={() => handleSectorClick(idx)}
-                  className={`aspect-square rounded-xl flex items-center justify-center text-xl transition-all duration-300 select-none ${tileStyle}`}
-                >
-                  {symbol}
-                </div>
-              );
-            })}
-          </div>
-
-          {battleMessage && (
-            <div className={`p-3 text-center rounded-xl font-black text-xs uppercase tracking-wide animate-pulse ${battleMessage.includes('EMBOSCADA') ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'}`}>
-              {battleMessage}
-            </div>
-          )}
-
-          {!gameActive ? (
-            <button onClick={startBattle} className="w-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 text-black font-black text-sm py-3.5 rounded-xl shadow-[0_5px_20px_rgba(245,158,11,0.4)] transition-all">
-              🚀 LANÇAR CAMPANHA DE GUERRA
+          {/* Botões de Ação do Jogo */}
+          {gameState !== 'running' ? (
+            <button onClick={startFlight} className="w-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 text-black font-black text-base py-4 rounded-2xl shadow-[0_5px_20px_rgba(245,158,11,0.4)] transition-all active:scale-95">
+              🚀 INICIAR VOO
             </button>
           ) : (
-            <button onClick={() => secureVictory()} className="w-full bg-gradient-to-r from-emerald-500 to-green-400 hover:from-emerald-400 text-black font-black text-sm py-3.5 rounded-xl shadow-[0_5px_20px_rgba(16,185,129,0.4)] animate-bounce transition-all">
-              💰 RESGATAR LUCRO (R$ {(betAmount * currentMultiplier).toLocaleString('pt-BR', {maximumFractionDigits: 0})})
+            <button onClick={cashOut} className="w-full bg-gradient-to-r from-emerald-500 to-green-400 hover:from-emerald-400 text-black font-black text-lg py-4 rounded-2xl shadow-[0_5px_25px_rgba(16,185,129,0.5)] animate-bounce transition-all active:scale-95">
+              💰 RESGATAR AGORA (R$ {(betAmount * multiplier).toLocaleString('pt-BR', {maximumFractionDigits: 0})})
             </button>
           )}
+
         </div>
       </main>
 
@@ -272,7 +212,8 @@ export default function DiamondStriker() {
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
             <button onClick={() => setIsAuthOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white text-lg">✕</button>
-            <h2 className="text-amber-400 font-black text-xl mb-1">{authMode === 'login' ? 'Entrar na Campanha' : 'Criar Conta'}</h2>
+            <h2 className="text-amber-400 font-black text-xl mb-1">Entrar no Pampas Crash</h2>
+            {authError && <div className="text-red-400 text-xs mb-3 font-semibold">{authError}</div>}
             <form onSubmit={handleAuthSubmit} className="space-y-4 mt-4">
               <input type="text" value={inputUsername} onChange={(e) => setInputUsername(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm outline-none" placeholder="Utilizador" />
               <input type="password" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm outline-none" placeholder="Senha" />
