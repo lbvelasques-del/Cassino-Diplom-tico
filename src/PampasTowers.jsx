@@ -28,13 +28,12 @@ export default function PampasTowers() {
 
   const [betAmount, setBetAmount] = useState(30000);
   const [gameActive, setGameActive] = useState(false);
-  const [currentFloor, setCurrentFloor] = useState(0); // 0 a 7 (8 andares)
-  const [revealedDoors, setRevealedDoors] = useState({}); // { floorIndex: chosenDoorIndex }
-  const [trapDoors, setTrapDoors] = useState({}); // { floorIndex: trapDoorIndex }
+  const [currentFloor, setCurrentFloor] = useState(0); 
+  const [revealedDoors, setRevealedDoors] = useState({}); 
+  const [trapDoors, setTrapDoors] = useState({}); 
   const [message, setMessage] = useState('');
   const [gameOver, setGameOver] = useState(false);
 
-  // Multiplicadores por andar (8 andares de pura adrenalina)
   const multipliers = [1.35, 1.80, 2.50, 3.50, 5.00, 7.50, 12.00, 25.00];
 
   const fetchUsersDb = async () => {
@@ -88,7 +87,6 @@ export default function PampasTowers() {
     setRevealedDoors({});
     setGameOver(false);
     
-    // Sortear antecipadamente a porta armadilha (0, 1 ou 2) para cada um dos 8 andares
     const newTraps = {};
     for (let i = 0; i < 8; i++) {
       newTraps[i] = Math.floor(Math.random() * 3);
@@ -107,14 +105,11 @@ export default function PampasTowers() {
     setRevealedDoors(newRevealed);
 
     if (isTrap) {
-      // Bateu na armadilha - Perdeu
       setGameOver(true);
       setGameActive(false);
       setMessage(`💥 ARMADILHA! A porta ${doorIndex + 1} escondeu o perigo. Aposta perdida.`);
     } else {
-      // Acertou! Pode subir ou resgatar
       if (currentFloor === 7) {
-        // Chegou ao topo! Vitória máxima automática
         const prize = Math.floor(betAmount * multipliers[7]);
         updateBalanceOnDb(currentUser.id, balance + prize);
         setGameOver(true);
@@ -140,7 +135,6 @@ export default function PampasTowers() {
 
   return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
-      {/* Topo Global */}
       <div className="py-6 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-3">
         <img 
           src="/Grupopampas.png" 
@@ -162,12 +156,11 @@ export default function PampasTowers() {
             </div>
           )}
 
-          {/* Torre de Andares (Exibida de cima para baixo: Andar 8 até Andar 1) */}
           <div className="bg-black border border-amber-500/40 rounded-2xl p-3 space-y-2">
             <h3 className="text-[11px] text-amber-300 font-bold uppercase tracking-wider mb-2">Estrutura da Torre</h3>
             
             {[...Array(8)].map((_, index) => {
-              const floorNum = 7 - index; // De 7 (topo) até 0 (base)
+              const floorNum = 7 - index; 
               const isCurrent = gameActive && currentFloor === floorNum;
               const isPassed = currentFloor > floorNum || (gameOver && !message.includes('ARMADILHA') && floorNum < currentFloor);
 
@@ -187,7 +180,6 @@ export default function PampasTowers() {
             })}
           </div>
 
-          {/* Seleção de Aposta */}
           <div className="space-y-1 text-left">
             <label className="text-[10px] text-zinc-400 font-bold uppercase block">Valor da Aposta (R$)</label>
             <select disabled={gameActive} value={betAmount} onChange={(e) => setBetAmount(Number(e.target.value))} className="w-full bg-black text-amber-400 border border-zinc-800 rounded-xl px-3 py-2.5 font-black outline-none text-xs">
@@ -198,7 +190,6 @@ export default function PampasTowers() {
             </select>
           </div>
 
-          {/* Área de Escolha de Portas para o Andar Atual */}
           {gameActive && (
             <div className="space-y-3 bg-black border border-amber-500/30 rounded-2xl p-4">
               <p className="text-xs text-amber-400 font-bold uppercase">Escolha 1 de 3 Portas (Andar {currentFloor + 1})</p>
@@ -216,7 +207,6 @@ export default function PampasTowers() {
             </div>
           )}
 
-          {/* Botões de Ação */}
           {!gameActive ? (
             <button onClick={startGame} className="w-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 text-black font-black text-sm py-3.5 rounded-xl shadow-[0_5px_20px_rgba(245,158,11,0.4)] transition-all active:scale-95">
               🏰 INICIAR ESCALADA DA TORRE
@@ -234,4 +224,3 @@ export default function PampasTowers() {
     </div>
   );
 }
-```[cite: 4]
