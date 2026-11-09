@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import CassinoCostaRica from './CassinoCostaRica';
+import DiamondStriker from './DiamondStriker';
+import PampasCrash from './PampasCrash';
+import RoletaDiplomatica from './RoletaDiplomatica';
+import PampasGoal from './PampasGoal';
+import PampasTowers from './PampasTowers';
+import PampasHiLo from './PampasHiLo';
+import PampasDice from './PampasDice';
+import PampasHoldAndWin from './PampasHoldAndWin';
+import QuedaDiplomatica from './QuedaDiplomatica';
 
 const SUPABASE_URL = 'https://tieduoyppbigsaxxjhfl.supabase.co'; 
 const SUPABASE_ANON_KEY = 'sb_publishable_EvhGbTRSSqDK426spZx1sw_uRhXIJX2';
@@ -7,12 +17,11 @@ const SUPABASE_ANON_KEY = 'sb_publishable_EvhGbTRSSqDK426spZx1sw_uRhXIJX2';
 const isSupabaseConfigured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20 && SUPABASE_ANON_KEY.startsWith('sb_');
 const supabase = isSupabaseConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
-export default function QuedaDiplomatica() {
+export default function App() {
+  const [activeGame, setActiveGame] = useState('lobby'); 
   const [usersDb, setUsersDb] = useState(() => {
     const saved = localStorage.getItem('pampas_users_db');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { }
-    }
+    if (saved) { try { return JSON.parse(saved); } catch (e) { } }
     return [{ id: 1, username: 'LVelasques', password: 'Lucas123!', balance: 99999999, isAdmin: true }];
   });
 
@@ -26,15 +35,23 @@ export default function QuedaDiplomatica() {
     return saved ? JSON.parse(saved).balance : 150000;
   });
 
-  const [grid, setGrid] = useState(() => Array(30).fill(null).map(() => getRandomSymbol()));
-  const [betAmount, setBetAmount] = useState(30000);
-  const [spinning, setSpinning] = useState(false);
-  const [message, setMessage] = useState('Encontre 8+ símbolos iguais para vencer!');
-  const [totalWin, setTotalWin] = useState(0);
-  const [accumulatedMultiplier, setAccumulatedMultiplier] = useState(1);
-  const [animatingCells, setAnimatingCells] = useState([]);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState('login');
+  const [inputUsername, setInputUsername] = useState('');
+  const [inputPassword, setInputPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [authError, setAuthError] = useState('');
 
-  const fetchUsersDb = async () => {
+  const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
+  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawSuccess, setWithdrawSuccess] = useState(false);
+  const [newPassword, setNewPassword] = useState(''); 
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  const [adminTargetId, setAdminTargetId] = useState('');
+  const [adminDepositAmount, setAdminDepositAmount] = useState('');
+    const fetchUsersDb = async () => {
     if (isSupabaseConfigured) {
       try {
         const { data, error } = await supabase.from('users').select('*').order('id', { ascending: true });
@@ -45,234 +62,352 @@ export default function QuedaDiplomatica() {
             const updatedMe = data.find(u => u.id === currentUser.id);
             if (updatedMe) setBalance(Number(updatedMe.balance));
           }
+          return;
         }
       } catch (e) { }
     }
+    const local = localStorage.getItem('pampas_users_db');
+    if (local) setUsersDb(JSON.parse(local));
   };
-       useEffect(() => {
+
+  useEffect(() => {
     fetchUsersDb();
     const interval = setInterval(fetchUsersDb, 3000);
     return () => clearInterval(interval);
   }, [currentUser]);
 
   useEffect(() => {
-    if (currentUser) localStorage.setItem('pampas_current_user', JSON.stringify(currentUser));
-    else localStorage.removeItem('pampas_current_user');
+    if (currentUser) {
+      localStorage.setItem('pampas_current_user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('pampas_current_user');
+    }
   }, [currentUser]);
 
-  const updateBalanceOnDb = async (userId, newBal) => {
-    setBalance(newBal);
-    setCurrentUser(prev => prev ? { ...prev, balance: newBal } : null);
-    if (isSupabaseConfigured) {
-      try { await supabase.from('users').update({ balance: newBal }).eq('id', userId); } catch (e) { }
+  const handleAuthSubmit = async (e) => {
+    e.preventDefault();
+    setAuthError('');
+    const trimmedUser = inputUsername.trim();
+
+    if (authMode === 'register') {
+      if (inputPassword !== confirmPassword) return setAuthError('As senhas não coincidem!');
+      if (inputPassword.length < 3) return setAuthError('A senha é muito curta.');
+
+      const existing = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase());
+      if (existing) return setAuthError('Este nome de utilizador já está em uso.');
+
+      const isAdmin = trimmedUser.toLowerCase() === 'lvelasques';
+      const newUser = { id: Date.now(), username: trimmedUser, password: inputPassword, balance: 150000, isAdmin };
+
+      let registeredOnCloud = false;
+      if (isSupabaseConfigured) {
+        try {
+          const { data, error } = await supabase.from('users').insert([{ username: trimmedUser, password: inputPassword, balance: 150000, isAdmin }]).select();
+          if (!error && data && data[0]) {
+            setCurrentUser(data[0]);
+            setBalance(Number(data[0].balance));
+            registeredOnCloud = true;
+          }
+        } catch (err) { }
+      }
+
+      if (!registeredOnCloud) {
+        const updated = [...usersDb, newUser];
+        setUsersDb(updated);
+        localStorage.setItem('pampas_users_db', JSON.stringify(updated));
+        setCurrentUser(newUser);
+        setBalance(newUser.balance);
+      }
+
+      setIsAuthOpen(false);
+      resetAuthForm();
+      fetchUsersDb();
+    } else {
+      let foundUser = null;
+      if (isSupabaseConfigured) {
+        try {
+          const { data, error } = await supabase.from('users').select('*').ilike('username', trimmedUser).eq('password', inputPassword);
+          if (!error && data && data.length > 0) foundUser = data[0];
+        } catch (e) { }
+      }
+
+      if (!foundUser) {
+        foundUser = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase() && u.password === inputPassword);
+      }
+
+      if (foundUser) {
+        setCurrentUser(foundUser);
+        setBalance(Number(foundUser.balance));
+        setIsAuthOpen(false);
+        resetAuthForm();
+      } else {
+        setAuthError('Utilizador ou senha incorretos.');
+      }
     }
+  };
+
+  const resetAuthForm = () => {
+    setInputUsername('');
+    setInputPassword('');
+    setConfirmPassword('');
+    setAuthError('');
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('pampas_current_user');
+    setIsUserPanelOpen(false);
+    setWithdrawSuccess(false);
+    setPasswordSuccess(false);
+  };
+
+  const handleSelfDelete = async () => {
+    if (!window.confirm(`Deseja realmente excluir a sua conta de forma permanente?`)) return;
+    if (isSupabaseConfigured) {
+      try { await supabase.from('users').delete().eq('id', currentUser.id); } catch (e) {}
+    }
+    const updatedList = usersDb.filter(u => u.id !== currentUser.id);
+    setUsersDb(updatedList);
+    localStorage.setItem('pampas_users_db', JSON.stringify(updatedList));
+    handleLogout();
+  };
+
+  const handleWithdrawSubmit = (e) => {
+    e.preventDefault();
+    const amountNum = parseFloat(withdrawAmount);
+    if (isNaN(amountNum) || amountNum <= 0) return alert('Insira um valor válido.');
+    if (amountNum > balance) return alert('Saldo insuficiente.');
+    
+    const finalBal = balance - amountNum;
+    setBalance(finalBal);
+    if (currentUser) setCurrentUser(prev => ({ ...prev, balance: finalBal }));
+    setWithdrawSuccess(true);
+    setWithdrawAmount('');
+  };
+
+  const handleAdminBalanceUpdate = async (type) => {
+    const targetIdVal = adminTargetId.trim();
+    const amountVal = parseFloat(adminDepositAmount);
+    if (!targetIdVal || isNaN(amountVal) || amountVal <= 0) return alert('Insira ID válida e valor > 0.');
+    const targetUser = usersDb.find(u => String(u.id) === targetIdVal);
+    if (!targetUser) return alert('Conta não encontrada.');
+
+    let newBal = type === 'add' ? Number(targetUser.balance) + amountVal : Number(targetUser.balance) - amountVal;
+    if (type === 'remove' && newBal < 0) return alert('Saldo insuficiente na conta alvo.');
+
+    if (isSupabaseConfigured) {
+      try { await supabase.from('users').update({ balance: newBal }).eq('id', targetUser.id); } catch (e) { }
+    }
+
     setUsersDb(prev => {
-      const updated = prev.map(u => u.id === userId ? { ...u, balance: newBal } : u);
+      const updated = prev.map(u => String(u.id) === targetIdVal ? { ...u, balance: newBal } : u);
       localStorage.setItem('pampas_users_db', JSON.stringify(updated));
       return updated;
     });
-  };
 
-  function getRandomSymbol() {
-    const symbols = [
-      { id: 'pampas', icon: '/pampas.png', mult: 1.2 },
-      { id: 'petroleo', icon: '/petroleo.png', mult: 2.5 },
-      { id: 'brasil', icon: '/brasil.png', mult: 5.0 },
-      { id: 'diamante', icon: '/diamante.png', mult: 10.0 },
-      { id: 'bola', icon: '/bola.png', mult: 20.0 }
-    ];
-    if (Math.random() < 0.05) {
-      return { id: 'orb', icon: '💎', isOrb: true, multValue: 1 };
-    }
-    return symbols[Math.floor(Math.random() * symbols.length)];
-  }
-
-  const handleSpin = () => {
-    if (!currentUser) return alert("Faça login para jogar!");
-    if (balance < betAmount) return alert("Saldo insuficiente!");
-    if (spinning) return;
-
-    setSpinning(true);
-    setTotalWin(0);
-    setAccumulatedMultiplier(1);
-    setAnimatingCells([]);
-    updateBalanceOnDb(currentUser.id, balance - betAmount);
-    setMessage('🌪️ A queda começou...');
-
-    let currentGrid = Array(30).fill(null).map(() => getRandomSymbol());
-    setGrid(currentGrid);
-
-    setTimeout(() => {
-      processAvalanche(currentGrid, betAmount, 0, 1, 0);
-    }, 500);
-  };
-    const processAvalanche = (currentGrid, bet, currentRoundWin, currentMult, cascadeCount) => {
-    if (cascadeCount >= 5) {
-      finalizePayout(currentRoundWin, currentMult, bet);
-      return;
+    if (currentUser && String(currentUser.id) === targetIdVal) {
+      setBalance(newBal);
+      setCurrentUser(prev => ({ ...prev, balance: newBal }));
     }
 
-    const counts = {};
-    let orbCount = 0;
-    let winningIndices = [];
-
-    currentGrid.forEach((cell, idx) => {
-      if (cell.id === 'orb') {
-        orbCount += 1;
-        winningIndices.push(idx);
-      } else {
-        counts[cell.id] = (counts[cell.id] || 0) + 1;
-      }
-    });
-
-    let winningSymbols = [];
-    let roundPrize = 0;
-
-    Object.keys(counts).forEach(symId => {
-      if (counts[symId] >= 8) {
-        winningSymbols.push(symId);
-        const baseSymbol = currentGrid.find(c => c.id === symId);
-        const symbolMultiplier = baseSymbol ? baseSymbol.mult : 1;
-        roundPrize += bet * symbolMultiplier * (counts[symId] / 8);
-
-        currentGrid.forEach((cell, idx) => {
-          if (cell.id === symId) winningIndices.push(idx);
-        });
-      }
-    });
-
-    setAnimatingCells(winningIndices);
-
-    // O multiplicador sobe progressivamente cascata a cascata até o teto estrito de 5x
-    let newMult = Math.min(currentMult + (cascadeCount > 0 ? 1 : 0) + orbCount, 5);
-    setAccumulatedMultiplier(newMult);
-
-    if (winningSymbols.length > 0 || orbCount > 0) {
-      const multipliedPrize = roundPrize > 0 ? roundPrize * newMult : 0;
-      const newTotalWin = currentRoundWin + multipliedPrize;
-      setTotalWin(newTotalWin);
-      setMessage(`✨ CASCATA #${cascadeCount + 1}! R$ ${newTotalWin.toLocaleString('pt-BR')}`);
-
-      setTimeout(() => {
-        let nextGrid = currentGrid.map((cell, idx) => {
-          if (winningSymbols.includes(cell.id) || cell.id === 'orb') {
-            return getRandomSymbol();
-          }
-          return cell;
-        });
-        setGrid(nextGrid);
-        setAnimatingCells([]);
-        
-        processAvalanche(nextGrid, bet, newTotalWin, newMult, cascadeCount + 1);
-      }, 700);
-
-    } else {
-      finalizePayout(currentRoundWin, newMult, bet);
-    }
+    alert(`Sucesso! Saldo atualizado.`);
+    setAdminTargetId('');
+    setAdminDepositAmount('');
+    fetchUsersDb();
   };
+    const renderGameRoute = (GameComponent) => (
+    <div>
+      <div className="bg-black px-4 py-2.5 flex items-center justify-between border-b border-zinc-900 sticky top-0 z-50">
+        <button onClick={() => setActiveGame('lobby')} className="bg-zinc-800 hover:bg-zinc-700 text-amber-400 font-bold px-3 py-1.5 rounded-xl text-xs border border-zinc-700 transition-all">
+          🏠 Voltar ao Lobby
+        </button>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-amber-400 font-black">R$ {balance.toLocaleString('pt-BR')}</span>
+        </div>
+      </div>
+      <GameComponent />
+    </div>
+  );
 
-  const finalizePayout = (currentRoundWin, currentMult, bet) => {
-    let finalPayout = currentRoundWin > 0 ? currentRoundWin * currentMult : 0;
-    const maxAllowedWin = bet * 50;
-    if (finalPayout > maxAllowedWin) finalPayout = maxAllowedWin;
-
-    if (finalPayout > 0) {
-      updateBalanceOnDb(currentUser.id, balance - bet + finalPayout);
-      setMessage(`🏆 VITÓRIA! R$ ${finalPayout.toLocaleString('pt-BR')}`);
-    } else {
-      setMessage('Não premiado. Tente novamente!');
-    }
-    setSpinning(false);
-    setAnimatingCells([]);
-  };
+  if (activeGame === 'costarica') return renderGameRoute(CassinoCostaRica);
+  if (activeGame === 'diamond') return renderGameRoute(DiamondStriker);
+  if (activeGame === 'crash') return renderGameRoute(PampasCrash);
+  if (activeGame === 'roleta') return renderGameRoute(RoletaDiplomatica);
+  if (activeGame === 'goal') return renderGameRoute(PampasGoal);
+  if (activeGame === 'towers') return renderGameRoute(PampasTowers);
+  if (activeGame === 'hilo') return renderGameRoute(PampasHiLo);
+  if (activeGame === 'dice') return renderGameRoute(PampasDice);
+  if (activeGame === 'holdandwin') return renderGameRoute(PampasHoldAndWin);
+  if (activeGame === 'quedadiplomatica') return renderGameRoute(QuedaDiplomatica);
     return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
-      
-      <div className="py-5 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-2">
-        <h1 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-500 drop-shadow-[0_2px_10px_rgba(245,158,11,0.3)]">
-          QUEDA DIPLOMÁTICA
-        </h1>
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-          Cascata Progressiva até 5x
-        </p>
-      </div>
-
-      <main className="max-w-lg mx-auto p-4 space-y-4 pt-3">
-        
-        <div className="bg-gradient-to-b from-[#121216] to-[#0a0a0e] border-2 border-amber-500/50 rounded-3xl p-4 shadow-[0_0_25px_rgba(245,158,11,0.15)] space-y-3 text-center relative overflow-hidden">
-          
-          <div className="flex justify-between items-center bg-black/60 border border-amber-500/30 p-2.5 rounded-xl">
-            <div className="text-left">
-              <span className="text-[9px] text-zinc-400 uppercase font-bold block">Multiplicador Atual</span>
-              <span className="text-amber-400 font-black text-sm">{accumulatedMultiplier}x</span>
-            </div>
-            <div className="text-right">
-              <span className="text-[9px] text-zinc-400 uppercase font-bold block">Ganho Total</span>
-              <span className="text-amber-400 font-black text-sm">R$ {totalWin.toLocaleString('pt-BR')}</span>
-            </div>
-          </div>
-
-          <div className={`p-2.5 border text-center rounded-xl font-black text-xs uppercase tracking-wide h-10 flex items-center justify-center transition-all duration-300 ${totalWin > 0 ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'bg-black/40 border-amber-500/30 text-amber-400'}`}>
-            {message}
-          </div>
-
-          <div className="grid grid-cols-6 gap-1.5 p-2 bg-black border-2 border-zinc-800 rounded-xl shadow-inner relative z-10">
-            {grid.map((cell, i) => {
-              const isWinning = animatingCells.includes(i);
-              let cellStyle = "h-13 rounded-lg flex flex-col items-center justify-center transition-all duration-300 relative ";
-              
-              if (spinning) {
-                cellStyle += "opacity-40 scale-95 blur-[1px] ";
-              } else if (cell.id === 'orb') {
-                cellStyle += "bg-gradient-to-br from-purple-600 via-indigo-800 to-black border-2 border-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.7)] animate-bounce ";
-              } else if (isWinning) {
-                cellStyle += "bg-amber-500/30 border-2 border-amber-300 scale-105 shadow-[0_0_15px_rgba(245,158,11,0.8)] z-20 ";
-              } else {
-                cellStyle += "bg-[#0c0c10] border-2 border-amber-500/40 shadow-[inset_0_0_5px_rgba(0,0,0,0.8)] ";
-              }
-
-              return (
-                <div key={i} className={cellStyle}>
-                  {cell.id === 'orb' ? (
-                    <div className="flex flex-col items-center justify-center">
-                      <span className="text-sm animate-pulse">💎</span>
-                      <span className="text-[9px] font-black text-amber-200">+1x</span>
-                    </div>
-                  ) : (
-                    <img src={cell.icon} alt="símbolo" className="w-7 h-7 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" />
+      <header className="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-zinc-900 px-4 py-3 flex items-center justify-between shadow-2xl">
+        <div className="flex items-center py-1 cursor-pointer" onClick={() => setActiveGame('lobby')}>
+          <img src="/Grupopampas.png" alt="Patrocinador" className="h-12 w-auto max-w-[180px] object-contain" />
+        </div>
+        <div className="flex items-center gap-2">
+          {currentUser ? (
+            <div className="flex items-center gap-2.5 bg-[#0f0f12] border border-zinc-800 px-3 py-1.5 rounded-2xl shadow-inner">
+              <div className="text-right">
+                <div className="flex items-center justify-end gap-1.5">
+                  <span className="text-[11px] text-amber-300 font-bold">{currentUser.username}</span>
+                  {(currentUser.isAdmin || currentUser.username.toLowerCase() === 'lvelasques') && (
+                    <button onClick={() => setIsAdminPanelOpen(true)} className="bg-amber-500 hover:bg-amber-400 text-black text-[9px] font-black px-1.5 py-0.5 rounded shadow transition-all">ADMIN ⚙️</button>
                   )}
                 </div>
-              );
-            })}
-          </div>
-
-          <div className="flex justify-between items-center bg-black/60 border border-amber-500/30 rounded-2xl p-2.5 relative z-10">
-            <div className="text-left">
-              <span className="text-[9px] text-zinc-400 uppercase font-bold block">Aposta</span>
-              <select disabled={spinning} value={betAmount} onChange={(e) => setBetAmount(Number(e.target.value))} className="bg-transparent text-amber-400 font-black outline-none text-xs appearance-none cursor-pointer">
-                <option value={1000}>R$ 1k</option>
-                <option value={5000}>R$ 5k</option>
-                <option value={10000}>R$ 10k</option>
-                <option value={30000}>R$ 30k</option>
-                <option value={50000}>R$ 50k</option>
-                <option value={100000}>R$ 100k</option>
-                <option value={500000}>R$ 500k</option>
-                <option value={1000000}>R$ 1M</option>
-                <option value={5000000}>R$ 5M</option>
-              </select>
+                <p className="text-amber-400 font-black text-sm">R$ {balance.toLocaleString('pt-BR')}</p>
+              </div>
+              <button onClick={() => setIsUserPanelOpen(true)} className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xs px-3 py-2 rounded-xl transition-all shadow-lg active:scale-95">⚙️ Perfil</button>
             </div>
+          ) : (
+            <button onClick={() => { setAuthMode('login'); setIsAuthOpen(true); }} className="bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black font-black text-xs px-4 py-2.5 rounded-xl shadow-lg hover:scale-105 transition-all">👤 Criar Conta / Entrar</button>
+          )}
+        </div>
+      </header>
+
+      <main className="max-w-md mx-auto p-4 space-y-6 pt-6 text-center">
+        <div className="flex flex-col items-center justify-center space-y-3 pt-2">
+          <img src="/CassinaCR.png" alt="Logótipo Cassino" className="h-28 w-auto max-w-[320px] object-contain" />
+          <h1 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-500">
+            LOBBY DE ELITE
+          </h1>
+          <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Escolha a sua plataforma de apostas unificadas</p>
+        </div>
+
+        {/* 10 Cartões de Jogos no Lobby */}
+        <div className="space-y-4 pt-2">
+          <div onClick={() => setActiveGame('costarica')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
+            <h3 className="text-lg font-black text-amber-300">👑 CAÇA-NÍQUEL DOS PAMPAS</h3>
+            <p className="text-xs text-zinc-300">O caça-níqueis oficial com roleta de bônus e símbolos diplomáticos.</p>
+            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
           </div>
 
-          <button 
-            disabled={spinning} 
-            onClick={handleSpin} 
-            className="w-full font-black text-sm py-3.5 rounded-xl shadow-[0_5px_20px_rgba(245,158,11,0.4)] transition-all active:scale-95 relative z-10 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 text-black border border-yellow-200"
-          >
-            {spinning ? '🌪️ QUEDA A ROLAR...' : '🌪️ GIRAR QUEDA'}
-          </button>
-          
+          <div onClick={() => setActiveGame('holdandwin')} className="bg-gradient-to-b from-[#14141a] to-[#260f0f] border-2 border-red-500/60 hover:border-red-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
+            <h3 className="text-lg font-black text-red-400">🪙 O COFRE DO BARÃO</h3>
+            <p className="text-xs text-zinc-300">Caça-níquel Hold & Win. Tranca 6 moedas para ativar os Respins e o Jackpot!</p>
+            <span className="inline-block bg-red-600 text-white font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
+          </div>
+
+          <div onClick={() => setActiveGame('quedadiplomatica')} className="bg-gradient-to-b from-[#14141a] to-[#120a1a] border-2 border-purple-500/60 hover:border-purple-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
+            <h3 className="text-lg font-black text-purple-300">🌪️ QUEDA DIPLOMÁTICA</h3>
+            <p className="text-xs text-zinc-300">Símbolos em cascata e orbes com multiplicadores progressivos até 5x.</p>
+            <span className="inline-block bg-purple-600 text-white font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
+          </div>
+
+          <div onClick={() => setActiveGame('diamond')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
+            <h3 className="text-lg font-black text-amber-300">⚔️ GUERRA DAS AMÉRICAS</h3>
+            <p className="text-xs text-zinc-300">Estratégia tática e multiplicadores em campo minado.</p>
+            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
+          </div>
+
+          <div onClick={() => setActiveGame('crash')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
+            <h3 className="text-lg font-black text-amber-300">🚀 PAMPAS CRASH</h3>
+            <p className="text-xs text-zinc-300">O voo dos campeões com multiplicadores exponenciais em tempo real.</p>
+            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
+          </div>
+
+          <div onClick={() => setActiveGame('roleta')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
+            <h3 className="text-lg font-black text-amber-300">🎡 ROLETA DIPLOMÁTICA</h3>
+            <p className="text-xs text-zinc-300">A clássica roleta da fortuna adaptada à diplomacia do Grupo Pampas.</p>
+            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
+          </div>
+
+          <div onClick={() => setActiveGame('goal')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
+            <h3 className="text-lg font-black text-amber-300">⚽ PAMPAS GOAL</h3>
+            <p className="text-xs text-zinc-300">A batalha defensiva de pênaltis com o goleiro de elite.</p>
+            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
+          </div>
+
+          <div onClick={() => setActiveGame('towers')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
+            <h3 className="text-lg font-black text-amber-300">🏰 PAMPAS TOWERS</h3>
+            <p className="text-xs text-zinc-300">A escada de risco e portas multiplicadoras até ao topo da torre.</p>
+            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
+          </div>
+
+          <div onClick={() => setActiveGame('hilo')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
+            <h3 className="text-lg font-black text-amber-300">🃏 PAMPAS HI-LO</h3>
+            <p className="text-xs text-zinc-300">A adivinhação rápida de cartas altas ou baixas em sequência.</p>
+            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
+          </div>
+
+          <div onClick={() => setActiveGame('dice')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
+            <h3 className="text-lg font-black text-amber-300">🎲 PAMPAS DICE</h3>
+            <p className="text-xs text-zinc-300">O seletor de probabilidade e dados com multiplicador personalizado.</p>
+            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
+          </div>
         </div>
       </main>
+            {/* Modais de Autenticação, Perfil e Admin */}
+      {isAuthOpen && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
+            <button onClick={() => setIsAuthOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white text-lg">✕</button>
+            <h2 className="text-amber-400 font-black text-xl mb-1">{authMode === 'login' ? 'Entrar no Portal' : 'Criar Conta Oficial'}</h2>
+            {authError && <div className="bg-red-500/10 border border-red-500/40 text-red-400 text-xs p-3 rounded-xl mb-4 font-semibold">{authError}</div>}
+            <form onSubmit={handleAuthSubmit} className="space-y-4">
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1 font-semibold">Nome de Utilizador</label>
+                <input type="text" value={inputUsername} onChange={(e) => setInputUsername(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm outline-none" />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1 font-semibold">Senha</label>
+                <input type="password" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm outline-none" />
+              </div>
+              {authMode === 'register' && (
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1 font-semibold">Confirmar Senha</label>
+                  <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm outline-none" />
+                </div>
+              )}
+              <button type="submit" className="w-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black py-3.5 rounded-xl text-sm">{authMode === 'login' ? 'Entrar' : 'Criar Conta'}</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isUserPanelOpen && currentUser && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
+            <button onClick={() => setIsUserPanelOpen(false)} className="absolute top-4 right-4 text-zinc-400 text-lg">✕</button>
+            <h2 className="text-white font-bold text-lg mb-4">{currentUser.username} (#ID {currentUser.id})</h2>
+            <div className="space-y-4">
+              <form onSubmit={handleWithdrawSubmit} className="bg-[#0b0b0e] p-4 rounded-2xl space-y-2">
+                <span className="text-xs text-amber-300 font-bold uppercase">Solicitar Saque</span>
+                {withdrawSuccess ? <p className="text-emerald-400 text-xs font-bold">✅ Pedido enviado!</p> : (
+                  <div className="flex gap-2">
+                    <input type="number" placeholder="Valor (R$)" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} required className="w-full bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs" />
+                    <button type="submit" className="bg-amber-500 text-black font-black px-4 rounded-xl text-xs">Pedir</button>
+                  </div>
+                )}
+              </form>
+              <button onClick={handleLogout} className="w-full bg-zinc-800 text-white font-bold py-3 rounded-xl text-xs">🚪 Sair da Conta</button>
+              <button onClick={handleSelfDelete} className="w-full bg-red-500/10 text-red-500 font-bold py-3 rounded-xl text-xs">🗑️ Apagar Conta</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isAdminPanelOpen && currentUser && (currentUser.isAdmin || currentUser.username.toLowerCase() === 'lvelasques') && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-lg flex items-center justify-center p-4">
+          <div className="bg-[#141418] border-2 border-amber-500 w-full max-w-2xl rounded-3xl p-6 relative max-h-[90vh] overflow-y-auto">
+            <button onClick={() => setIsAdminPanelOpen(false)} className="absolute top-4 right-4 text-zinc-400 text-lg">✕</button>
+            <h2 className="text-amber-400 font-black text-xl mb-4">Painel Admin - Grupo Pampas</h2>
+            <div className="space-y-4">
+              <div className="bg-[#0b0b0e] border border-amber-500/40 p-4 rounded-2xl space-y-3">
+                <h3 className="text-xs text-amber-300 font-bold uppercase">Gestão de Saldo por ID</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="text" placeholder="ID da Conta" value={adminTargetId} onChange={(e) => setAdminTargetId(e.target.value)} className="bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs" />
+                  <input type="number" placeholder="Valor (R$)" value={adminDepositAmount} onChange={(e) => setAdminDepositAmount(e.target.value)} className="bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs" />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => handleAdminBalanceUpdate('add')} className="flex-1 bg-emerald-500 text-black font-black py-2 rounded-xl text-xs">➕ Adicionar</button>
+                  <button onClick={() => handleAdminBalanceUpdate('remove')} className="flex-1 bg-red-500 text-black font-black py-2 rounded-xl text-xs">➖ Remover</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
