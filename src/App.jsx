@@ -1,3 +1,4 @@
+// Forçar novo build limpo do Lobby - Queda Diplomática removido
 import React, { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import CassinoCostaRica from './CassinoCostaRica';
@@ -39,7 +40,8 @@ export default function App() {
   if (activeGame === 'hilo') return renderGameRoute(PampasHiLo);
   if (activeGame === 'dice') return renderGameRoute(PampasDice);
   if (activeGame === 'holdandwin') return renderGameRoute(PampasHoldAndWin);
-    return (
+
+  return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12">
       <header className="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-zinc-900 px-4 py-3 flex items-center justify-between shadow-2xl">
         <div className="flex items-center py-1 cursor-pointer" onClick={() => setActiveGame('lobby')}>
@@ -61,7 +63,7 @@ export default function App() {
           <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Escolha a sua plataforma de apostas unificadas</p>
         </div>
 
-        {/* 9 Cartões de Jogos no Lobby (Avalanche Removido) */}
+        {/* 9 Cartões de Jogos no Lobby */}
         <div className="space-y-4 pt-2">
           <div onClick={() => setActiveGame('costarica')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
             <h3 className="text-lg font-black text-amber-300">👑 CAÇA-NÍQUEL DOS PAMPAS</h3>
