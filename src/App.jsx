@@ -51,9 +51,7 @@ export default function App() {
   const [adminTargetId, setAdminTargetId] = useState('');
   const [adminDepositAmount, setAdminDepositAmount] = useState('');
   const [adminTeamName, setAdminTeamName] = useState('');
-  const [pendingUpdates, setPendingUpdates] = useState([]);
-
-  const fetchUsersDb = async () => {
+  const [pendingUpdates, setPendingUpdates] = useState([]);const fetchUsersDb = async () => {
     if (isSupabaseConfigured) {
       try {
         const { data, error } = await supabase.from('users').select('*').order('id', { ascending: true });
@@ -441,4 +439,4 @@ export default function App() {
       )}
     </div>
   );
-              }
+                  }
