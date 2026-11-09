@@ -9,6 +9,7 @@ import PampasTowers from './PampasTowers';
 import PampasHiLo from './PampasHiLo';
 import PampasDice from './PampasDice';
 import PampasHoldAndWin from './PampasHoldAndWin';
+import FutebolDiplomatico from './FutebolDiplomatico';
 
 const SUPABASE_URL = 'https://tieduoyppbigsaxxjhfl.supabase.co'; 
 const SUPABASE_ANON_KEY = 'sb_publishable_EvhGbTRSSqDK426spZx1sw_uRhXIJX2';
@@ -253,6 +254,7 @@ export default function App() {
   if (activeGame === 'hilo') return renderGameRoute(PampasHiLo);
   if (activeGame === 'dice') return renderGameRoute(PampasDice);
   if (activeGame === 'holdandwin') return renderGameRoute(PampasHoldAndWin);
+  if (activeGame === 'futebol') return renderGameRoute(FutebolDiplomatico);
 
   return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
@@ -290,6 +292,13 @@ export default function App() {
         </div>
 
         <div className="space-y-4 pt-2">
+          
+          <div onClick={() => setActiveGame('futebol')} className="bg-gradient-to-b from-[#1a1a24] to-[#0a0a0e] border-2 border-emerald-500/60 hover:border-emerald-400 rounded-3xl p-5 cursor-pointer shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all hover:scale-105 space-y-2">
+            <h3 className="text-xl font-black text-emerald-400">⚔️ FUTEBOL DIPLOMÁTICO</h3>
+            <p className="text-xs text-zinc-300">Manager Oficial 2026. Escale a sua equipa, domine o mercado e vença a liga.</p>
+            <span className="inline-block bg-emerald-600 text-white font-black text-xs px-5 py-2 rounded-xl mt-2 shadow-lg hover:bg-emerald-500">ABRIR PAINEL DE TREINADOR ▶</span>
+          </div>
+
           <div onClick={() => setActiveGame('costarica')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
             <h3 className="text-lg font-black text-amber-300">👑 CAÇA-NÍQUEL DOS PAMPAS</h3>
             <p className="text-xs text-zinc-300">O caça-níqueis oficial com roleta de bônus e símbolos diplomáticos.</p>
@@ -444,7 +453,6 @@ export default function App() {
                     <div className="text-right flex flex-col items-end gap-1.5">
                       <span className="text-emerald-400 font-black">R$ {Number(u.balance || 0).toLocaleString('pt-BR')}</span>
                       
-                      {/* Botão de gerir Admin - Visível apenas para a conta Master */}
                       {currentUser?.username?.toLowerCase() === 'lvelasques' && u.username.toLowerCase() !== 'lvelasques' && (
                         <button 
                           onClick={() => handleToggleAdmin(u.id, u.isAdmin)}
