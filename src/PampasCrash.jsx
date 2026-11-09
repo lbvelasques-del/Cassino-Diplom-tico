@@ -171,7 +171,7 @@ export default function PampasCrash() {
               {gameState === 'waiting' && 'Pronto para descolar'}
               {gameState === 'running' && '✈️ Jato em voo...'}
               {gameState === 'crashed' && '💥 VOO CRASHOU!'}
-              {gameState === 'cashed' && `🎉 RESGATADO COM SUCESSO!`}
+              {gameState === 'cashed' && '🎉 RESGATADO COM SUCESSO!'}
             </p>
 
             {winAmount > 0 && gameState === 'cashed' && (
