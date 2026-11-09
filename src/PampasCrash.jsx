@@ -27,7 +27,7 @@ export default function PampasCrash() {
   });
 
   const [betAmount, setBetAmount] = useState(30000);
-  const [gameState, setGameState] = useState('waiting'); // 'waiting', 'running', 'crashed', 'cashed'
+  const [gameState, setGameState] = useState('waiting');
   const [multiplier, setMultiplier] = useState(1.00);
   const [crashPoint, setCrashPoint] = useState(1.00);
   const [winAmount, setWinAmount] = useState(0);
@@ -37,9 +37,7 @@ export default function PampasCrash() {
   const [inputPassword, setInputPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
-  const animationRef = useRef(null);
-
-  const fetchUsersDb = async () => {
+  const animationRef = useRef(null);const fetchUsersDb = async () => {
     if (isSupabaseConfigured) {
       try {
         const { data, error } = await supabase.from('users').select('*').order('id', { ascending: true });
@@ -135,11 +133,8 @@ export default function PampasCrash() {
     } else {
       setAuthError('Dados incorretos.');
     }
-  };
-
-  return (
+  };return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
-      {/* Patrocinador Global no Topo */}
       <div className="py-6 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-3">
         <img 
           src="/Grupopampas.png" 
@@ -155,7 +150,6 @@ export default function PampasCrash() {
       <main className="max-w-md mx-auto p-4 space-y-4 pt-5">
         <div className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/50 rounded-3xl p-6 shadow-[0_10px_30px_rgba(0,0,0,0.8)] space-y-6 text-center">
           
-          {/* Ecrã do Voo / Multiplicador */}
           <div className="relative h-48 bg-[#07070a] border border-zinc-800/80 rounded-2xl flex flex-col items-center justify-center shadow-inner overflow-hidden">
             {gameState === 'running' && (
               <div className="absolute inset-0 bg-gradient-to-t from-amber-500/10 to-transparent animate-pulse pointer-events-none"></div>
@@ -183,7 +177,6 @@ export default function PampasCrash() {
             )}
           </div>
 
-          {/* Seleção de Aposta */}
           <div className="space-y-2 text-left">
             <label className="text-[10px] text-zinc-500 font-bold uppercase block">Valor da Aposta (R$)</label>
             <select disabled={gameState === 'running'} value={betAmount} onChange={(e) => setBetAmount(Number(e.target.value))} className="w-full bg-[#18181e] text-amber-400 border border-zinc-700 rounded-xl px-3 py-3 font-black outline-none text-sm">
@@ -194,7 +187,6 @@ export default function PampasCrash() {
             </select>
           </div>
 
-          {/* Botões de Ação do Jogo */}
           {gameState !== 'running' ? (
             <button onClick={startFlight} className="w-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 text-black font-black text-base py-4 rounded-2xl shadow-[0_5px_20px_rgba(245,158,11,0.4)] transition-all active:scale-95">
               🚀 INICIAR VOO
@@ -208,7 +200,6 @@ export default function PampasCrash() {
         </div>
       </main>
 
-      {/* Modal de Autenticação */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
@@ -226,4 +217,3 @@ export default function PampasCrash() {
     </div>
   );
 }
-```[cite: 5]
