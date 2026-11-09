@@ -22,7 +22,7 @@ export default function App() {
   const [usersDb, setUsersDb] = useState(() => {
     const saved = localStorage.getItem('pampas_users_db');
     if (saved) { try { return JSON.parse(saved); } catch (e) { } }
-    return [{ id: 1, username: 'LVelasques', password: 'Lucas123!', balance: 99999999, isAdmin: true }];
+    return [{ id: 1, username: 'LVelasques', password: 'Lucas123!', balance: 99999999, isAdmin: true, team: null }];
   });
 
   const [currentUser, setCurrentUser] = useState(() => {
@@ -47,8 +47,14 @@ export default function App() {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawSuccess, setWithdrawSuccess] = useState(false);
 
+  // Estados do Painel Admin
+  const [adminTab, setAdminTab] = useState('contas'); // 'contas' ou 'futebol'
   const [adminTargetId, setAdminTargetId] = useState('');
-  const [adminDepositAmount, setAdminDepositAmount] = useState('');const fetchUsersDb = async () => {
+  const [adminDepositAmount, setAdminDepositAmount] = useState('');
+  const [adminTeamName, setAdminTeamName] = useState('');
+  
+  // Fila de Atualização de Elencos
+  const [pendingUpdates, setPendingUpdates] = useState([]);const fetchUsersDb = async () => {
     if (isSupabaseConfigured) {
       try {
         const { data, error } = await supabase.from('users').select('*').order('id', { ascending: true });
@@ -57,7 +63,10 @@ export default function App() {
           localStorage.setItem('pampas_users_db', JSON.stringify(data));
           if (currentUser) {
             const updatedMe = data.find(u => u.id === currentUser.id);
-            if (updatedMe) setBalance(Number(updatedMe.balance));
+            if (updatedMe) {
+              setBalance(Number(updatedMe.balance));
+              setCurrentUser(updatedMe);
+            }
           }
           return;
         }
@@ -67,18 +76,28 @@ export default function App() {
     if (local) setUsersDb(JSON.parse(local));
   };
 
+  const fetchPendingUpdates = async () => {
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase.from('squad_updates').select('*').eq('status', 'pending').order('created_at', { ascending: false });
+        if (!error && data) setPendingUpdates(data);
+      } catch (e) { }
+    }
+  };
+
   useEffect(() => {
     fetchUsersDb();
-    const interval = setInterval(fetchUsersDb, 3000);
+    const interval = setInterval(fetchUsersDb, 5000);
     return () => clearInterval(interval);
   }, [currentUser]);
 
   useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('pampas_current_user', JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem('pampas_current_user');
-    }
+    if (isAdminPanelOpen && adminTab === 'futebol') fetchPendingUpdates();
+  }, [isAdminPanelOpen, adminTab]);
+
+  useEffect(() => {
+    if (currentUser) localStorage.setItem('pampas_current_user', JSON.stringify(currentUser));
+    else localStorage.removeItem('pampas_current_user');
   }, [currentUser]);
 
   const handleAuthSubmit = async (e) => {
@@ -89,17 +108,15 @@ export default function App() {
     if (authMode === 'register') {
       if (inputPassword !== confirmPassword) return setAuthError('As senhas não coincidem!');
       if (inputPassword.length < 3) return setAuthError('A senha é muito curta.');
-
-      const existing = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase());
-      if (existing) return setAuthError('Este nome de utilizador já está em uso.');
+      if (usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase())) return setAuthError('Utilizador já em uso.');
 
       const isAdmin = trimmedUser.toLowerCase() === 'lvelasques';
-      const newUser = { id: Date.now(), username: trimmedUser, password: inputPassword, balance: 150000, isAdmin };
+      const newUser = { id: Date.now(), username: trimmedUser, password: inputPassword, balance: 150000, isAdmin, team: null };
 
       let registeredOnCloud = false;
       if (isSupabaseConfigured) {
         try {
-          const { data, error } = await supabase.from('users').insert([{ username: trimmedUser, password: inputPassword, balance: 150000, isAdmin }]).select();
+          const { data, error } = await supabase.from('users').insert([{ username: trimmedUser, password: inputPassword, balance: 150000, isAdmin, team: null }]).select();
           if (!error && data && data[0]) {
             setCurrentUser(data[0]);
             setBalance(Number(data[0].balance));
@@ -115,10 +132,7 @@ export default function App() {
         setCurrentUser(newUser);
         setBalance(newUser.balance);
       }
-
-      setIsAuthOpen(false);
-      resetAuthForm();
-      fetchUsersDb();
+      setIsAuthOpen(false); resetAuthForm(); fetchUsersDb();
     } else {
       let foundUser = null;
       if (isSupabaseConfigured) {
@@ -127,110 +141,93 @@ export default function App() {
           if (!error && data && data.length > 0) foundUser = data[0];
         } catch (e) { }
       }
-
-      if (!foundUser) {
-        foundUser = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase() && u.password === inputPassword);
-      }
+      if (!foundUser) foundUser = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase() && u.password === inputPassword);
 
       if (foundUser) {
         setCurrentUser(foundUser);
         setBalance(Number(foundUser.balance));
-        setIsAuthOpen(false);
-        resetAuthForm();
-      } else {
-        setAuthError('Utilizador ou senha incorretos.');
-      }
+        setIsAuthOpen(false); resetAuthForm();
+      } else { setAuthError('Utilizador ou senha incorretos.'); }
     }
   };
 
-  const resetAuthForm = () => {
-    setInputUsername('');
-    setInputPassword('');
-    setConfirmPassword('');
-    setAuthError('');
-  };
-
-  const handleLogout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('pampas_current_user');
-    setIsUserPanelOpen(false);
-    setWithdrawSuccess(false);
-  };
-
+  const resetAuthForm = () => { setInputUsername(''); setInputPassword(''); setConfirmPassword(''); setAuthError(''); };
+  const handleLogout = () => { setCurrentUser(null); localStorage.removeItem('pampas_current_user'); setIsUserPanelOpen(false); setWithdrawSuccess(false); };
   const handleSelfDelete = async () => {
-    if (!window.confirm(`Deseja realmente excluir a sua conta de forma permanente?`)) return;
-    if (isSupabaseConfigured) {
-      try { await supabase.from('users').delete().eq('id', currentUser.id); } catch (e) {}
-    }
-    const updatedList = usersDb.filter(u => u.id !== currentUser.id);
-    setUsersDb(updatedList);
-    localStorage.setItem('pampas_users_db', JSON.stringify(updatedList));
+    if (!window.confirm(`Deseja realmente excluir a sua conta?`)) return;
+    if (isSupabaseConfigured) { try { await supabase.from('users').delete().eq('id', currentUser.id); } catch (e) {} }
+    const updated = usersDb.filter(u => u.id !== currentUser.id);
+    setUsersDb(updated); localStorage.setItem('pampas_users_db', JSON.stringify(updated));
     handleLogout();
   };
 
   const handleWithdrawSubmit = (e) => {
     e.preventDefault();
     const amountNum = parseFloat(withdrawAmount);
-    if (isNaN(amountNum) || amountNum <= 0) return alert('Insira um valor válido.');
-    if (amountNum > balance) return alert('Saldo insuficiente.');
-    
+    if (isNaN(amountNum) || amountNum <= 0 || amountNum > balance) return alert('Valor inválido ou saldo insuficiente.');
     const finalBal = balance - amountNum;
-    setBalance(finalBal);
-    if (currentUser) setCurrentUser(prev => ({ ...prev, balance: finalBal }));
-    setWithdrawSuccess(true);
-    setWithdrawAmount('');
+    setBalance(finalBal); if (currentUser) setCurrentUser(prev => ({ ...prev, balance: finalBal }));
+    setWithdrawSuccess(true); setWithdrawAmount('');
   };
 
   const handleAdminBalanceUpdate = async (type) => {
-    const targetIdVal = adminTargetId.trim();
-    const amountVal = parseFloat(adminDepositAmount);
-    if (!targetIdVal || isNaN(amountVal) || amountVal <= 0) return alert('Insira ID válida e valor > 0.');
+    const targetIdVal = adminTargetId.trim(); const amountVal = parseFloat(adminDepositAmount);
+    if (!targetIdVal || isNaN(amountVal) || amountVal <= 0) return alert('Insira ID e valor válidos.');
     const targetUser = usersDb.find(u => String(u.id) === targetIdVal);
     if (!targetUser) return alert('Conta não encontrada.');
 
     let newBal = type === 'add' ? Number(targetUser.balance) + amountVal : Number(targetUser.balance) - amountVal;
-    if (type === 'remove' && newBal < 0) return alert('Saldo insuficiente na conta alvo.');
+    if (type === 'remove' && newBal < 0) return alert('Saldo insuficiente.');
 
-    if (isSupabaseConfigured) {
-      try { await supabase.from('users').update({ balance: newBal }).eq('id', targetUser.id); } catch (e) { }
-    }
+    if (isSupabaseConfigured) { try { await supabase.from('users').update({ balance: newBal }).eq('id', targetUser.id); } catch (e) { } }
+    setUsersDb(prev => { const updated = prev.map(u => String(u.id) === targetIdVal ? { ...u, balance: newBal } : u); localStorage.setItem('pampas_users_db', JSON.stringify(updated)); return updated; });
+    if (currentUser && String(currentUser.id) === targetIdVal) { setBalance(newBal); setCurrentUser(prev => ({ ...prev, balance: newBal })); }
+    alert('Saldo atualizado!'); setAdminDepositAmount(''); fetchUsersDb();
+  };
 
-    setUsersDb(prev => {
-      const updated = prev.map(u => String(u.id) === targetIdVal ? { ...u, balance: newBal } : u);
-      localStorage.setItem('pampas_users_db', JSON.stringify(updated));
-      return updated;
-    });
+  const handleAdminTeamUpdate = async (type) => {
+    const targetIdVal = adminTargetId.trim();
+    if (!targetIdVal) return alert('Insira a ID do utilizador.');
+    const targetUser = usersDb.find(u => String(u.id) === targetIdVal);
+    if (!targetUser) return alert('Conta não encontrada.');
+    
+    const newTeam = type === 'add' ? adminTeamName.trim() : null;
+    if (type === 'add' && !newTeam) return alert('Insira o nome do clube.');
 
-    if (currentUser && String(currentUser.id) === targetIdVal) {
-      setBalance(newBal);
-      setCurrentUser(prev => ({ ...prev, balance: newBal }));
-    }
-
-    alert(`Sucesso! Saldo atualizado.`);
-    setAdminTargetId('');
-    setAdminDepositAmount('');
-    fetchUsersDb();
+    if (isSupabaseConfigured) { try { await supabase.from('users').update({ team: newTeam }).eq('id', targetUser.id); } catch (e) { } }
+    
+    setUsersDb(prev => { const updated = prev.map(u => String(u.id) === targetIdVal ? { ...u, team: newTeam } : u); localStorage.setItem('pampas_users_db', JSON.stringify(updated)); return updated; });
+    if (currentUser && String(currentUser.id) === targetIdVal) setCurrentUser(prev => ({ ...prev, team: newTeam }));
+    
+    alert(type === 'add' ? `Clube ${newTeam} atribuído!` : `Clube removido da conta.`);
+    setAdminTeamName(''); fetchUsersDb();
   };
 
   const handleToggleAdmin = async (userId, currentStatus) => {
     const isMaster = currentUser && currentUser.username.toLowerCase() === 'lvelasques';
-    if (!isMaster) return alert('Apenas a conta Master (LVelasques) pode promover ou rebaixar administradores.');
-    
+    if (!isMaster) return alert('Apenas a conta Master pode gerir admins.');
     const targetUser = usersDb.find(u => u.id === userId);
-    if (!targetUser) return;
-    if (targetUser.username.toLowerCase() === 'lvelasques') return alert('A conta Master não pode ser alterada.');
-
+    if (!targetUser || targetUser.username.toLowerCase() === 'lvelasques') return;
     const newStatus = !currentStatus;
-    if (isSupabaseConfigured) {
-      try { await supabase.from('users').update({ isAdmin: newStatus }).eq('id', userId); } catch (e) { }
-    }
+    if (isSupabaseConfigured) { try { await supabase.from('users').update({ isAdmin: newStatus }).eq('id', userId); } catch (e) { } }
+    setUsersDb(prev => { const updated = prev.map(u => u.id === userId ? { ...u, isAdmin: newStatus } : u); localStorage.setItem('pampas_users_db', JSON.stringify(updated)); return updated; });
+    alert(`Estatuto alterado!`);
+  };
 
-    setUsersDb(prev => {
-      const updated = prev.map(u => u.id === userId ? { ...u, isAdmin: newStatus } : u);
-      localStorage.setItem('pampas_users_db', JSON.stringify(updated));
-      return updated;
-    });
-    alert(`O utilizador ${targetUser.username} agora ${newStatus ? 'É UM SUB-ADMIN' : 'PERDEU O ACESSO ADMIN'}.`);
+  const handleTransferAction = async (updateId, playerId, newClub, action) => {
+    if (isSupabaseConfigured) {
+      try {
+        if (action === 'approve') {
+          if (playerId) await supabase.from('players').update({ current_club: newClub }).eq('id', playerId);
+          await supabase.from('squad_updates').update({ status: 'approved' }).eq('id', updateId);
+          alert('Transferência Aprovada!');
+        } else {
+          await supabase.from('squad_updates').update({ status: 'rejected' }).eq('id', updateId);
+          alert('Transferência Rejeitada (Rumor).');
+        }
+        fetchPendingUpdates();
+      } catch (e) { alert('Erro ao processar transferência.'); }
+    }
   };const renderGameRoute = (GameComponent) => (
     <div>
       <div className="bg-black px-4 py-2.5 flex items-center justify-between border-b border-zinc-900 sticky top-0 z-50">
@@ -277,79 +274,39 @@ export default function App() {
               <button onClick={() => setIsUserPanelOpen(true)} className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xs px-3 py-2 rounded-xl transition-all shadow-lg active:scale-95">⚙️ Perfil</button>
             </div>
           ) : (
-            <button onClick={() => { setAuthMode('login'); setIsAuthOpen(true); }} className="bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black font-black text-xs px-4 py-2.5 rounded-xl shadow-lg hover:scale-105 transition-all">👤 Criar Conta / Entrar</button>
+            <button onClick={() => { setAuthMode('login'); setIsAuthOpen(true); }} className="bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black font-black text-xs px-4 py-2.5 rounded-xl shadow-lg hover:scale-105 transition-all">👤 Criar Conta</button>
           )}
         </div>
       </header>
 
       <main className="max-w-md mx-auto p-4 space-y-6 pt-6 text-center">
         <div className="flex flex-col items-center justify-center space-y-3 pt-2">
-          <img src="/CassinaCR.png" alt="Logótipo Cassino" className="h-28 w-auto max-w-[320px] object-contain" />
+          <img src="/CassinaCR.png" alt="Logótipo" className="h-28 w-auto max-w-[320px] object-contain" />
           <h1 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-500">
             LOBBY DE ELITE
           </h1>
-          <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Escolha a sua plataforma de apostas unificadas</p>
         </div>
 
         <div className="space-y-4 pt-2">
-          
           <div onClick={() => setActiveGame('futebol')} className="bg-gradient-to-b from-[#1a1a24] to-[#0a0a0e] border-2 border-emerald-500/60 hover:border-emerald-400 rounded-3xl p-5 cursor-pointer shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all hover:scale-105 space-y-2">
             <h3 className="text-xl font-black text-emerald-400">⚔️ FUTEBOL DIPLOMÁTICO</h3>
             <p className="text-xs text-zinc-300">Manager Oficial 2026. Escale a sua equipa, domine o mercado e vença a liga.</p>
-            <span className="inline-block bg-emerald-600 text-white font-black text-xs px-5 py-2 rounded-xl mt-2 shadow-lg hover:bg-emerald-500">ABRIR PAINEL DE TREINADOR ▶</span>
+            <span className="inline-block bg-emerald-600 text-white font-black text-xs px-5 py-2 rounded-xl mt-2 shadow-lg">ABRIR PAINEL DE TREINADOR ▶</span>
           </div>
-
           <div onClick={() => setActiveGame('costarica')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
             <h3 className="text-lg font-black text-amber-300">👑 CAÇA-NÍQUEL DOS PAMPAS</h3>
-            <p className="text-xs text-zinc-300">O caça-níqueis oficial com roleta de bônus e símbolos diplomáticos.</p>
             <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
           </div>
-
           <div onClick={() => setActiveGame('holdandwin')} className="bg-gradient-to-b from-[#14141a] to-[#260f0f] border-2 border-red-500/60 hover:border-red-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
             <h3 className="text-lg font-black text-red-400">🪙 O COFRE DO BARÃO</h3>
-            <p className="text-xs text-zinc-300">Caça-níquel Hold & Win. Tranca 6 moedas para ativar os Respins e o Jackpot!</p>
             <span className="inline-block bg-red-600 text-white font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
           </div>
-
-          <div onClick={() => setActiveGame('diamond')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
-            <h3 className="text-lg font-black text-amber-300">⚔️ GUERRA DAS AMÉRICAS</h3>
-            <p className="text-xs text-zinc-300">Estratégia tática e multiplicadores em campo minado.</p>
-            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
-          </div>
-
           <div onClick={() => setActiveGame('crash')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
             <h3 className="text-lg font-black text-amber-300">🚀 PAMPAS CRASH</h3>
-            <p className="text-xs text-zinc-300">O voo dos campeões com multiplicadores exponenciais em tempo real.</p>
             <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
           </div>
-
           <div onClick={() => setActiveGame('roleta')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
             <h3 className="text-lg font-black text-amber-300">🎡 ROLETA DIPLOMÁTICA</h3>
-            <p className="text-xs text-zinc-300">A clássica roleta da fortuna adaptada à diplomacia do Grupo Pampas.</p>
-            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
-          </div>
-
-          <div onClick={() => setActiveGame('goal')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
-            <h3 className="text-lg font-black text-amber-300">⚽ PAMPAS GOAL</h3>
-            <p className="text-xs text-zinc-300">A batalha defensiva de pênaltis com o goleiro de elite.</p>
-            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
-          </div>
-
-          <div onClick={() => setActiveGame('towers')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
-            <h3 className="text-lg font-black text-amber-300">🏰 PAMPAS TOWERS</h3>
-            <p className="text-xs text-zinc-300">A escada de risco e portas multiplicadoras até ao topo da torre.</p>
-            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
-          </div>
-
-          <div onClick={() => setActiveGame('hilo')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
-            <h3 className="text-lg font-black text-amber-300">🃏 PAMPAS HI-LO</h3>
-            <p className="text-xs text-zinc-300">A adivinhação rápida de cartas altas ou baixas em sequência.</p>
-            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
-          </div>
-
-          <div onClick={() => setActiveGame('dice')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
-            <h3 className="text-lg font-black text-amber-300">🎲 PAMPAS DICE</h3>
-            <p className="text-xs text-zinc-300">O seletor de probabilidade e dados com multiplicador personalizado.</p>
             <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
           </div>
         </div>
@@ -357,30 +314,15 @@ export default function App() {
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
-            <button onClick={() => setIsAuthOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white text-lg">✕</button>
-            <h2 className="text-amber-400 font-black text-xl mb-1">{authMode === 'login' ? 'Entrar no Portal' : 'Criar Conta Oficial'}</h2>
-            {authError && <div className="bg-red-500/10 border border-red-500/40 text-red-400 text-xs p-3 rounded-xl mb-4 font-semibold">{authError}</div>}
+            <button onClick={() => setIsAuthOpen(false)} className="absolute top-4 right-4 text-zinc-400 text-lg">✕</button>
+            <h2 className="text-amber-400 font-black text-xl mb-4">{authMode === 'login' ? 'Entrar' : 'Criar Conta'}</h2>
+            {authError && <div className="bg-red-500/10 border border-red-500/40 text-red-400 text-xs p-3 rounded-xl mb-4">{authError}</div>}
             <form onSubmit={handleAuthSubmit} className="space-y-4">
-              <div>
-                <label className="text-xs text-zinc-400 block mb-1 font-semibold">Nome de Utilizador</label>
-                <input type="text" value={inputUsername} onChange={(e) => setInputUsername(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm outline-none" />
-              </div>
-              <div>
-                <label className="text-xs text-zinc-400 block mb-1 font-semibold">Senha</label>
-                <input type="password" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm outline-none" />
-              </div>
-              {authMode === 'register' && (
-                <div>
-                  <label className="text-xs text-zinc-400 block mb-1 font-semibold">Confirmar Senha</label>
-                  <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm outline-none" />
-                </div>
-              )}
-              <button type="submit" className="w-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black py-3.5 rounded-xl text-sm">{authMode === 'login' ? 'Entrar' : 'Criar Conta'}</button>
-              <div className="text-center pt-2">
-                <button type="button" onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthError(''); }} className="text-xs text-amber-400 underline font-bold">
-                  {authMode === 'login' ? 'Não tem conta? Crie uma agora' : 'Já tem conta? Faça login'}
-                </button>
-              </div>
+              <input type="text" placeholder="Utilizador" value={inputUsername} onChange={(e) => setInputUsername(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm" />
+              <input type="password" placeholder="Senha" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm" />
+              {authMode === 'register' && <input type="password" placeholder="Confirmar Senha" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm" />}
+              <button type="submit" className="w-full bg-amber-500 text-black font-black py-3 rounded-xl text-sm">{authMode === 'login' ? 'Entrar' : 'Registar'}</button>
+              <button type="button" onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} className="w-full text-xs text-amber-400 underline mt-2">{authMode === 'login' ? 'Criar conta' : 'Já tenho conta'}</button>
             </form>
           </div>
         </div>
@@ -389,84 +331,110 @@ export default function App() {
       {isUserPanelOpen && currentUser && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl space-y-4">
-            <button onClick={() => setIsUserPanelOpen(false)} className="absolute top-4 right-4 text-zinc-400 text-lg">✕</button>
-            <h2 className="text-white font-bold text-lg">{currentUser.username} <span className="text-xs text-amber-400">(#ID {currentUser.id})</span></h2>
-            
-            <form onSubmit={handleWithdrawSubmit} className="bg-[#0b0b0e] p-4 rounded-2xl space-y-3">
-              <span className="text-xs text-amber-300 font-bold uppercase block">Solicitar Saque</span>
-              {withdrawSuccess ? (
-                <p className="text-emerald-400 text-xs font-bold">✅ Pedido de saque enviado ao admin com sucesso!</p>
-              ) : (
+            <button onClick={() => setIsUserPanelOpen(false)} className="absolute top-4 right-4 text-zinc-400">✕</button>
+            <h2 className="text-white font-bold text-lg">{currentUser.username} <span className="text-amber-400 text-xs">(#{currentUser.id})</span></h2>
+            {currentUser.team && <div className="bg-emerald-500/10 border border-emerald-500/30 p-2 rounded-lg text-emerald-400 text-xs font-bold text-center">Treinador do {currentUser.team}</div>}
+            <form onSubmit={handleWithdrawSubmit} className="bg-[#0b0b0e] p-4 rounded-2xl space-y-2">
+              <span className="text-xs text-amber-300 font-bold">Saque</span>
+              {withdrawSuccess ? <p className="text-emerald-400 text-xs">✅ Pedido enviado!</p> : (
                 <div className="flex gap-2">
-                  <input type="number" placeholder="Valor (R$)" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} required className="w-full bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs" />
-                  <button type="submit" className="bg-amber-500 hover:bg-amber-400 text-black font-black px-4 rounded-xl text-xs">Pedir</button>
+                  <input type="number" placeholder="R$" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} className="w-full bg-[#141418] border border-zinc-700 rounded-xl px-3 text-white text-xs" />
+                  <button className="bg-amber-500 text-black font-bold px-4 py-2 rounded-xl text-xs">Pedir</button>
                 </div>
               )}
             </form>
-
-            <button onClick={handleLogout} className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-3 rounded-xl text-xs">🚪 Sair da Conta</button>
-            <button onClick={handleSelfDelete} className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold py-3 rounded-xl text-xs">🗑️ Apagar Conta Permanentemente</button>
+            <button onClick={handleLogout} className="w-full bg-zinc-800 text-white font-bold py-3 rounded-xl text-xs">Sair</button>
           </div>
         </div>
       )}
 
       {isAdminPanelOpen && currentUser && (currentUser.isAdmin || currentUser.username.toLowerCase() === 'lvelasques') && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-lg flex items-center justify-center p-4">
-          <div className="bg-[#141418] border-2 border-amber-500 w-full max-w-xl rounded-3xl p-6 relative max-h-[90vh] overflow-y-auto space-y-5">
-            <button onClick={() => setIsAdminPanelOpen(false)} className="absolute top-4 right-4 text-zinc-400 text-lg font-bold">✕</button>
+        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-lg flex items-center justify-center p-2 md:p-4">
+          <div className="bg-[#0b0b0e] border-2 border-amber-500 w-full max-w-2xl rounded-2xl md:rounded-3xl p-4 md:p-6 relative max-h-[95vh] overflow-y-auto">
+            <button onClick={() => setIsAdminPanelOpen(false)} className="absolute top-4 right-4 text-zinc-400 font-bold text-xl bg-black px-2 rounded-md">✕</button>
             
-            <div className="border-b border-zinc-800 pb-3 flex items-center justify-between">
-              <div>
-                <h2 className="text-amber-400 font-black text-xl">Painel Admin - Grupo Pampas</h2>
-                <p className="text-xs text-zinc-400">Controlo de saldos e utilizadores</p>
-              </div>
-              {currentUser.username.toLowerCase() === 'lvelasques' && (
-                <span className="bg-amber-500 text-black px-2 py-1 rounded text-[10px] font-black uppercase shadow-lg">👑 Master</span>
-              )}
+            <div className="flex border-b border-zinc-800 mb-4 pt-2">
+              <button onClick={() => setAdminTab('contas')} className={`flex-1 py-3 text-xs font-black uppercase transition-all ${adminTab === 'contas' ? 'border-b-2 border-amber-500 text-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Saldos & Contas</button>
+              <button onClick={() => setAdminTab('futebol')} className={`flex-1 py-3 text-xs font-black uppercase transition-all ${adminTab === 'futebol' ? 'border-b-2 border-emerald-500 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Futebol (Aprovações)</button>
             </div>
 
-            <div className="bg-[#0b0b0e] border border-amber-500/40 p-4 rounded-2xl space-y-3">
-              <h3 className="text-xs text-amber-300 font-bold uppercase tracking-wider">Gestão de Saldo por ID</h3>
-              <div className="grid grid-cols-2 gap-2">
-                <input type="text" placeholder="ID da Conta" value={adminTargetId} onChange={(e) => setAdminTargetId(e.target.value)} className="bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs outline-none" />
-                <input type="number" placeholder="Valor (R$)" value={adminDepositAmount} onChange={(e) => setAdminDepositAmount(e.target.value)} className="bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs outline-none" />
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => handleAdminBalanceUpdate('add')} className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black font-black py-2.5 rounded-xl text-xs transition-all">➕ Adicionar Saldo</button>
-                <button onClick={() => handleAdminBalanceUpdate('remove')} className="flex-1 bg-red-500 hover:bg-red-400 text-black font-black py-2.5 rounded-xl text-xs transition-all">➖ Remover Saldo</button>
-              </div>
-            </div>
-
-            <div className="bg-[#0b0b0e] border border-zinc-800 p-4 rounded-2xl space-y-3">
-              <h3 className="text-xs text-amber-400 font-bold uppercase tracking-wider">Contas Registadas ({usersDb.length})</h3>
-              <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
-                {usersDb.map(u => (
-                  <div key={u.id} className="flex items-center justify-between bg-[#141418] p-2.5 rounded-xl border border-zinc-800 text-xs">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-amber-300 font-bold">{u.username}</span>
-                        {u.isAdmin && <span className="bg-amber-500 text-black text-[9px] font-black px-1.5 py-0.5 rounded">ADMIN</span>}
-                      </div>
-                      <span className="text-[10px] text-zinc-500 block">ID: {u.id}</span>
-                    </div>
-                    
-                    <div className="text-right flex flex-col items-end gap-1.5">
-                      <span className="text-emerald-400 font-black">R$ {Number(u.balance || 0).toLocaleString('pt-BR')}</span>
-                      
-                      {currentUser?.username?.toLowerCase() === 'lvelasques' && u.username.toLowerCase() !== 'lvelasques' && (
-                        <button 
-                          onClick={() => handleToggleAdmin(u.id, u.isAdmin)}
-                          className={`text-[9px] font-bold px-2 py-1 rounded transition-all ${u.isAdmin ? 'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20' : 'bg-zinc-800 text-zinc-300 border border-zinc-600 hover:bg-zinc-700'}`}
-                        >
-                          {u.isAdmin ? '✕ REVOGAR ADMIN' : '✓ TORNAR ADMIN'}
-                        </button>
-                      )}
+            {adminTab === 'contas' && (
+              <div className="space-y-4">
+                <div className="bg-[#141418] border border-zinc-800 p-4 rounded-2xl">
+                  <h3 className="text-[10px] text-amber-300 font-bold uppercase mb-2">Ações Rápidas (Use a ID da conta)</h3>
+                  <input type="text" placeholder="ID da Conta Alvo" value={adminTargetId} onChange={(e) => setAdminTargetId(e.target.value)} className="w-full bg-[#0b0b0e] border border-zinc-700 rounded-lg px-3 py-2 text-white text-xs mb-3" />
+                  
+                  <div className="grid grid-cols-2 gap-3 mb-3 border-b border-zinc-800 pb-3">
+                    <input type="number" placeholder="Valor (R$)" value={adminDepositAmount} onChange={(e) => setAdminDepositAmount(e.target.value)} className="bg-[#0b0b0e] border border-zinc-700 rounded-lg px-3 py-2 text-white text-xs" />
+                    <div className="flex gap-1">
+                      <button onClick={() => handleAdminBalanceUpdate('add')} className="flex-1 bg-emerald-500 text-black font-black text-[10px] rounded-lg">➕ Saldo</button>
+                      <button onClick={() => handleAdminBalanceUpdate('remove')} className="flex-1 bg-red-500 text-black font-black text-[10px] rounded-lg">➖ Saldo</button>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
 
+                  <div className="grid grid-cols-2 gap-3">
+                    <input type="text" placeholder="Nome do Clube" value={adminTeamName} onChange={(e) => setAdminTeamName(e.target.value)} className="bg-[#0b0b0e] border border-emerald-900 rounded-lg px-3 py-2 text-white text-xs" />
+                    <div className="flex gap-1">
+                      <button onClick={() => handleAdminTeamUpdate('add')} className="flex-1 bg-emerald-600 text-white font-black text-[10px] rounded-lg">Atribuir Clube</button>
+                      <button onClick={() => handleAdminTeamUpdate('remove')} className="flex-1 bg-zinc-700 text-white font-black text-[10px] rounded-lg">Remover</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-[#141418] border border-zinc-800 p-4 rounded-2xl">
+                  <h3 className="text-xs text-amber-400 font-bold uppercase mb-2">Utilizadores ({usersDb.length})</h3>
+                  <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
+                    {usersDb.map(u => (
+                      <div key={u.id} className="flex flex-col md:flex-row md:items-center justify-between bg-[#0b0b0e] p-2.5 rounded-lg border border-zinc-800 text-xs gap-2">
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-amber-300 font-bold">{u.username}</span>
+                            {u.isAdmin && <span className="bg-amber-500 text-black text-[8px] font-black px-1 rounded">ADMIN</span>}
+                            {u.team && <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-bold px-1.5 rounded flex items-center gap-1">🛡️ {u.team}</span>}
+                          </div>
+                          <span className="text-[9px] text-zinc-500">ID: {u.id}</span>
+                        </div>
+                        <div className="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto">
+                          <span className="text-emerald-400 font-black">R$ {Number(u.balance || 0).toLocaleString('pt-BR')}</span>
+                          {currentUser?.username?.toLowerCase() === 'lvelasques' && u.username.toLowerCase() !== 'lvelasques' && (
+                            <button onClick={() => handleToggleAdmin(u.id, u.isAdmin)} className={`text-[8px] font-bold px-2 py-1 rounded ${u.isAdmin ? 'bg-red-500/20 text-red-400' : 'bg-zinc-800 text-zinc-300'}`}>
+                              {u.isAdmin ? 'REVOGAR ADMIN' : 'TORNAR ADMIN'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {adminTab === 'futebol' && (
+              <div className="space-y-4">
+                <div className="bg-[#141418] border border-emerald-900/50 p-4 rounded-2xl">
+                  <h3 className="text-xs text-emerald-400 font-bold uppercase mb-4">Transferências Pendentes (Fila)</h3>
+                  {pendingUpdates.length === 0 ? (
+                     <div className="text-center py-6 text-emerald-500/50 text-xs font-bold border border-dashed border-emerald-900/50 rounded-xl">✅ Nenhuma movimentação detectada nos elencos oficiais.</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {pendingUpdates.map(update => (
+                        <div key={update.id} className="bg-[#0b0b0e] p-3 rounded-xl border border-emerald-900/30 flex flex-col md:flex-row justify-between items-center gap-3">
+                          <div className="text-left w-full">
+                            <p className="text-[10px] text-amber-400 font-black uppercase mb-1">{update.transfer_type}</p>
+                            <p className="text-sm text-white font-black">{update.player_name}</p>
+                            <p className="text-xs text-zinc-400 mt-1"><span className="line-through text-red-400">{update.old_club}</span> ➔ <span className="text-emerald-400 font-bold">{update.new_club}</span></p>
+                          </div>
+                          <div className="flex gap-2 w-full md:w-auto">
+                            <button onClick={() => handleTransferAction(update.id, update.player_id, update.new_club, 'reject')} className="flex-1 bg-red-500/10 text-red-400 border border-red-500/30 text-[10px] font-black py-2 px-3 rounded-lg hover:bg-red-500/20">REJEITAR</button>
+                            <button onClick={() => handleTransferAction(update.id, update.player_id, update.new_club, 'approve')} className="flex-1 bg-emerald-600 text-white text-[10px] font-black py-2 px-4 rounded-lg hover:bg-emerald-500">APROVAR</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
