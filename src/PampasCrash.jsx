@@ -1,127 +1,227 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createClient } from '@supabase/supabase-js';
 
-export default function PampasCrash({ currentUser, balance, setBalance }) {
-  const [betAmount, setBetAmount] = useState('10');
+const SUPABASE_URL = 'https://tieduoyppbigsaxxjhfl.supabase.co'; 
+const SUPABASE_ANON_KEY = 'sb_publishable_EvhGbTRSSqDK426spZx1sw_uRhXIJX2';
+
+const isSupabaseConfigured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20 && SUPABASE_ANON_KEY.startsWith('sb_');
+const supabase = isSupabaseConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+export default function PampasCrash() {
+  const [usersDb, setUsersDb] = useState(() => {
+    const saved = localStorage.getItem('pampas_users_db');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { }
+    }
+    return [{ id: 1, username: 'LVelasques', password: 'Lucas123!', balance: 99999999, isAdmin: true }];
+  });
+
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem('pampas_current_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const [balance, setBalance] = useState(() => {
+    const saved = localStorage.getItem('pampas_current_user');
+    return saved ? JSON.parse(saved).balance : 150000;
+  });
+
+  // Estados do Crash
+  const [betAmount, setBetAmount] = useState(30000);
   const [gameState, setGameState] = useState('waiting'); // 'waiting', 'running', 'crashed', 'cashed'
   const [multiplier, setMultiplier] = useState(1.00);
   const [crashPoint, setCrashPoint] = useState(1.00);
-  const [cashedMultiplier, setCashedMultiplier] = useState(0);
-  const [history, setHistory] = useState([]);
-  
-  const timerRef = useRef(null);
+  const [winAmount, setWinAmount] = useState(0);
 
-  const startCrashGame = () => {
-    const bet = parseFloat(betAmount);
-    if (isNaN(bet) || bet <= 0) return alert('Insira um valor de aposta válido.');
-    if (bet > balance) return alert('Saldo insuficiente.');
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [inputUsername, setInputUsername] = useState('');
+  const [inputPassword, setInputPassword] = useState('');
+  const [authError, setAuthError] = useState('');
 
-    setBalance(prev => prev - bet);
+  const animationRef = useRef(null);
+
+  const fetchUsersDb = async () => {
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase.from('users').select('*').order('id', { ascending: true });
+        if (!error && data && data.length > 0) {
+          setUsersDb(data);
+          localStorage.setItem('pampas_users_db', JSON.stringify(data));
+          if (currentUser) {
+            const updatedMe = data.find(u => u.id === currentUser.id);
+            if (updatedMe) setBalance(Number(updatedMe.balance));
+          }
+          return;
+        }
+      } catch (e) { }
+    }
+  };
+
+  useEffect(() => {
+    fetchUsersDb();
+    const interval = setInterval(fetchUsersDb, 3000);
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (currentUser) localStorage.setItem('pampas_current_user', JSON.stringify(currentUser));
+    else localStorage.removeItem('pampas_current_user');
+  }, [currentUser]);
+
+  const updateBalanceOnDb = async (userId, newBal) => {
+    setBalance(newBal);
+    setCurrentUser(prev => prev ? { ...prev, balance: newBal } : null);
+    if (isSupabaseConfigured) {
+      try { await supabase.from('users').update({ balance: newBal }).eq('id', userId); } catch (e) { }
+    }
+    setUsersDb(prev => {
+      const updated = prev.map(u => u.id === userId ? { ...u, balance: newBal } : u);
+      localStorage.setItem('pampas_users_db', JSON.stringify(updated));
+      return updated;
+    });
+  };
+    const startFlight = () => {
+    if (!currentUser) return setIsAuthOpen(true);
+    if (balance < betAmount) return alert("Saldo insuficiente para levantar voo!");
+
+    updateBalanceOnDb(currentUser.id, balance - betAmount);
     setGameState('running');
     setMultiplier(1.00);
-    setCashedMultiplier(0);
+    setWinAmount(0);
 
-    // Gerar ponto de crash aleatório (ex: entre 1.05x e 10.00x)
-    const randomCrash = parseFloat((1.01 + Math.random() * (Math.random() < 0.2 ? 1.5 : 8.5)).toFixed(2));
+    // Gerar ponto de queda aleatório (ex: 5% chance de cair no 1.00x, senão sobe exponencialmente)
+    const randomCrash = Math.random() < 0.08 ? 1.00 : parseFloat((1.01 + Math.random() * Math.random() * 15).toFixed(2));
     setCrashPoint(randomCrash);
 
-    let currentMult = 1.00;
-    timerRef.current = setInterval(() => {
-      currentMult = parseFloat((currentMult + 0.03).toFixed(2));
-      setMultiplier(currentMult);
+    let currentM = 1.00;
+    const startTime = Date.now();
 
-      if (currentMult >= randomCrash) {
-        clearInterval(timerRef.current);
+    const loop = () => {
+      const elapsed = (Date.now() - startTime) / 1000;
+      currentM = parseFloat((1.00 + elapsed * 0.4 + elapsed * elapsed * 0.15).toFixed(2));
+
+      if (currentM >= randomCrash) {
         setMultiplier(randomCrash);
-        setGameState(prev => prev === 'running' ? 'crashed' : prev);
-        setHistory(prev => [randomCrash, ...prev.slice(0, 4)]);
+        setGameState('crashed');
+        cancelAnimationFrame(animationRef.current);
+      } else {
+        setMultiplier(currentM);
+        animationRef.current = requestAnimationFrame(loop);
       }
-    }, 100);
+    };
+
+    animationRef.current = requestAnimationFrame(loop);
   };
 
   const cashOut = () => {
     if (gameState !== 'running') return;
-    clearInterval(timerRef.current);
-    setCashedMultiplier(multiplier);
-    setGameState('cashed');
+    cancelAnimationFrame(animationRef.current);
 
-    const bet = parseFloat(betAmount);
-    const winVal = bet * multiplier;
-    setBalance(prev => prev + winVal);
-    setHistory(prev => [multiplier, ...prev.slice(0, 4)]);
+    const prize = Math.floor(betAmount * multiplier);
+    updateBalanceOnDb(currentUser.id, balance + prize);
+    setWinAmount(prize);
+    setGameState('cashed');
   };
 
-  useEffect(() => {
-    return () => clearInterval(timerRef.current);
-  }, []);
-
-  return (
-    <div className="max-w-4xl mx-auto px-4 py-8 text-white">
-      <div className="mb-6 bg-zinc-900 border border-zinc-800 p-6 rounded-3xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-black text-amber-400">🚀 Pampas Crash</h2>
-          <p className="text-xs text-zinc-400">Retire antes que o foguetão exploda para multiplicar a sua aposta.</p>
-        </div>
-        <div className="bg-black/60 px-6 py-3 rounded-2xl border border-zinc-800 text-center">
-          <span className="text-[10px] text-zinc-400 block">SEU SALDO</span>
-          <span className="text-lg font-black text-amber-400">R$ {Number(balance).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-        </div>
+  const handleAuthSubmit = (e) => {
+    e.preventDefault();
+    setAuthError('');
+    const foundUser = usersDb.find(u => u.username.toLowerCase() === inputUsername.trim().toLowerCase() && u.password === inputPassword);
+    if (foundUser) {
+      setCurrentUser(foundUser);
+      setBalance(Number(foundUser.balance));
+      setIsAuthOpen(false);
+      setInputUsername('');
+      setInputPassword('');
+    } else {
+      setAuthError('Dados incorretos.');
+    }
+  };
+    return (
+    <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
+      {/* Patrocinador Global no Topo */}
+      <div className="py-6 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-3">
+        <img 
+          src="/Grupopampas.png" 
+          alt="Patrocinador Grupo Pampas" 
+          className="h-14 w-auto max-w-[200px] object-contain drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" 
+        />
+        <h1 className="text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-500 drop-shadow-[0_5px_15px_rgba(245,158,11,0.6)]">
+          🚀 PAMPAS CRASH 🚀
+        </h1>
+        <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">O Voo dos Campeões</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-zinc-900/80 border border-zinc-800 p-8 rounded-3xl shadow-xl flex flex-col items-center justify-center min-h-[320px] relative overflow-hidden">
-          <div className="absolute top-4 left-4 flex gap-2">
-            {history.map((h, i) => (
-              <span key={i} className={`text-xs font-black px-2.5 py-1 rounded-xl border ${h >= 2 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
-                {h}×
-              </span>
-            ))}
-          </div>
+      <main className="max-w-md mx-auto p-4 space-y-4 pt-5">
+        <div className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/50 rounded-3xl p-6 shadow-[0_10px_30px_rgba(0,0,0,0.8)] space-y-6 text-center">
+          
+          {/* Ecrã do Voo / Multiplicador */}
+          <div className="relative h-48 bg-[#07070a] border border-zinc-800/80 rounded-2xl flex flex-col items-center justify-center shadow-inner overflow-hidden">
+            {gameState === 'running' && (
+              <div className="absolute inset-0 bg-gradient-to-t from-amber-500/10 to-transparent animate-pulse pointer-events-none"></div>
+            )}
+            
+            <span className={`text-5xl font-black tracking-wider transition-all ${
+              gameState === 'crashed' ? 'text-red-500 scale-110' : 
+              gameState === 'cashed' ? 'text-emerald-400 scale-110' : 
+              'text-amber-400 drop-shadow-[0_0_20px_rgba(245,158,11,0.6)]'
+            }`}>
+              {multiplier.toFixed(2)}x
+            </span>
 
-          <div className="text-center my-auto">
-            <div className={`text-5xl sm:text-6xl font-black mb-2 transition-all ${gameState === 'crashed' ? 'text-red-500 scale-110' : gameState === 'cashed' ? 'text-emerald-400' : 'text-amber-400'}`}>
-              {multiplier.toFixed(2)}×
-            </div>
-            <p className="text-xs text-zinc-400 font-bold tracking-widest uppercase">
-              {gameState === 'running' && 'Foguetão em voo...'}
-              {gameState === 'crashed' && '💥 CRASHED! Foguetão explodiu!'}
-              {gameState === 'cashed' && `✨ Retirado com sucesso a ${cashedMultiplier}×!`}
+            <p className="text-xs text-zinc-400 font-bold uppercase mt-2">
               {gameState === 'waiting' && 'Pronto para descolar'}
+              {gameState === 'running' && '✈️ Jato em voo...'}
+              {gameState === 'crashed' && '💥 VOO CRASHOU!'}
+              {gameState === 'cashed' && `🎉 RESGATADO COM SUCESSO!`}
             </p>
-          </div>
 
-          <div className="w-full mt-6">
-            {gameState === 'running' ? (
-              <button onClick={cashOut} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-2xl transition-all shadow-xl shadow-emerald-600/20 text-sm tracking-wider">
-                RETIRAR (R$ {(parseFloat(betAmount) * multiplier).toFixed(2)})
-              </button>
-            ) : (
-              <button onClick={startCrashGame} className="w-full bg-amber-500 hover:bg-amber-400 text-black font-black py-4 rounded-2xl transition-all shadow-xl shadow-amber-500/20 text-sm tracking-wider">
-                LANÇAR FOGUETÃO
-              </button>
+            {winAmount > 0 && gameState === 'cashed' && (
+              <p className="text-emerald-400 font-black text-sm mt-1 animate-bounce">
+                + R$ {winAmount.toLocaleString('pt-BR', {maximumFractionDigits: 0})}
+              </p>
             )}
           </div>
-        </div>
 
-        <div className="bg-zinc-900/80 border border-zinc-800 p-6 rounded-3xl shadow-xl flex flex-col justify-between">
-          <div>
-            <h3 className="font-black text-sm text-white mb-4">⚙️ Painel de Aposta</h3>
-            <div className="mb-4">
-              <label className="text-xs font-bold text-zinc-400 block mb-2">Valor da Aposta (R$)</label>
-              <input 
-                type="number" 
-                value={betAmount} 
-                onChange={e => setBetAmount(e.target.value)} 
-                disabled={gameState === 'running'} 
-                className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm focus:border-amber-500 outline-none" 
-              />
-            </div>
+          {/* Seleção de Aposta */}
+          <div className="space-y-2 text-left">
+            <label className="text-[10px] text-zinc-500 font-bold uppercase block">Valor da Aposta (R$)</label>
+            <select disabled={gameState === 'running'} value={betAmount} onChange={(e) => setBetAmount(Number(e.target.value))} className="w-full bg-[#18181e] text-amber-400 border border-zinc-700 rounded-xl px-3 py-3 font-black outline-none text-sm">
+              <option value={30000}>R$ 30k</option>
+              <option value={100000}>R$ 100k</option>
+              <option value={500000}>R$ 500k</option>
+              <option value={1000000}>R$ 1M</option>
+            </select>
           </div>
-          <div className="text-[10px] text-zinc-500 text-center pt-4 border-t border-zinc-800">
-            Pampas Crash • Sistema de Multiplicador Dinâmico
+
+          {/* Botões de Ação do Jogo */}
+          {gameState !== 'running' ? (
+            <button onClick={startFlight} className="w-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 text-black font-black text-base py-4 rounded-2xl shadow-[0_5px_20px_rgba(245,158,11,0.4)] transition-all active:scale-95">
+              🚀 INICIAR VOO
+            </button>
+          ) : (
+            <button onClick={cashOut} className="w-full bg-gradient-to-r from-emerald-500 to-green-400 hover:from-emerald-400 text-black font-black text-lg py-4 rounded-2xl shadow-[0_5px_25px_rgba(16,185,129,0.5)] animate-bounce transition-all active:scale-95">
+              💰 RESGATAR AGORA (R$ {(betAmount * multiplier).toLocaleString('pt-BR', {maximumFractionDigits: 0})})
+            </button>
+          )}
+
+        </div>
+      </main>
+
+      {isAuthOpen && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
+            <button onClick={() => setIsAuthOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white text-lg">✕</button>
+            <h2 className="text-amber-400 font-black text-xl mb-1">Entrar no Pampas Crash</h2>
+            {authError && <div className="text-red-400 text-xs mb-3 font-semibold">{authError}</div>}
+            <form onSubmit={handleAuthSubmit} className="space-y-4 mt-4">
+              <input type="text" value={inputUsername} onChange={(e) => setInputUsername(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm outline-none" placeholder="Utilizador" />
+              <input type="password" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm outline-none" placeholder="Senha" />
+              <button type="submit" className="w-full bg-amber-500 text-black font-black py-3.5 rounded-xl text-sm shadow-lg">Confirmar</button>
+            </form>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
-
