@@ -1,26 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import CassinoCostaRica from './CassinoCostaRica';
-import DiamondStriker from './DiamondStriker';
 import PampasCrash from './PampasCrash';
-import RoletaDiplomatica from './RoletaDiplomatica';
-import PampasGoal from './PampasGoal';
 import PampasTowers from './PampasTowers';
-import PampasHiLo from './PampasHiLo';
-import PampasDice from './PampasDice';
+import DiamondStriker from './DiamondStriker';
 import PampasHoldAndWin from './PampasHoldAndWin';
+import PampasDice from './PampasDice';
+import PampasGoal from './PampasGoal';
+import PampasHiLo from './PampasHiLo';
+import RoletaDiplomatica from './RoletaDiplomatica';
+import CassinoCostaRica from './CassinoCostaRica';
 
 const SUPABASE_URL = 'https://tieduoyppbigsaxxjhfl.supabase.co'; 
 const SUPABASE_ANON_KEY = 'sb_publishable_EvhGbTRSSqDK426spZx1sw_uRhXIJX2';
 
 const isSupabaseConfigured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20 && SUPABASE_ANON_KEY.startsWith('sb_');
-const supabase = isSupabaseConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
-
-export default function App() {
-  const [activeGame, setActiveGame] = useState('lobby'); 
+const supabase = isSupabaseConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;export default function App() {
+  const [activeGame, setActiveGame] = useState('lobby'); // 'lobby', 'crash', 'towers', etc.
+  
   const [usersDb, setUsersDb] = useState(() => {
     const saved = localStorage.getItem('pampas_users_db');
-    if (saved) { try { return JSON.parse(saved); } catch (e) { } }
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { }
+    }
     return [{ id: 1, username: 'LVelasques', password: 'Lucas123!', balance: 99999999, isAdmin: true }];
   });
 
@@ -33,21 +34,6 @@ export default function App() {
     const saved = localStorage.getItem('pampas_current_user');
     return saved ? JSON.parse(saved).balance : 150000;
   });
-
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [authMode, setAuthMode] = useState('login');
-  const [inputUsername, setInputUsername] = useState('');
-  const [inputPassword, setInputPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [authError, setAuthError] = useState('');
-
-  const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
-  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
-  const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [withdrawSuccess, setWithdrawSuccess] = useState(false);
-
-  const [adminTargetId, setAdminTargetId] = useState('');
-  const [adminDepositAmount, setAdminDepositAmount] = useState('');
 
   const fetchUsersDb = async () => {
     if (isSupabaseConfigured) {
@@ -64,375 +50,75 @@ export default function App() {
         }
       } catch (e) { }
     }
-    const local = localStorage.getItem('pampas_users_db');
-    if (local) setUsersDb(JSON.parse(local));
-  };useEffect(() => {
+  };
+
+  useEffect(() => {
     fetchUsersDb();
     const interval = setInterval(fetchUsersDb, 3000);
     return () => clearInterval(interval);
   }, [currentUser]);
 
   useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('pampas_current_user', JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem('pampas_current_user');
-    }
-  }, [currentUser]);
-
-  const handleAuthSubmit = async (e) => {
-    e.preventDefault();
-    setAuthError('');
-    const trimmedUser = inputUsername.trim();
-
-    if (authMode === 'register') {
-      if (inputPassword !== confirmPassword) return setAuthError('As senhas não coincidem!');
-      if (inputPassword.length < 3) return setAuthError('A senha é muito curta.');
-
-      const existing = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase());
-      if (existing) return setAuthError('Este nome de utilizador já está em uso.');
-
-      const isAdmin = trimmedUser.toLowerCase() === 'lvelasques';
-      const newUser = { id: Date.now(), username: trimmedUser, password: inputPassword, balance: 150000, isAdmin };
-
-      let registeredOnCloud = false;
-      if (isSupabaseConfigured) {
-        try {
-          const { data, error } = await supabase.from('users').insert([{ username: trimmedUser, password: inputPassword, balance: 150000, isAdmin }]).select();
-          if (!error && data && data[0]) {
-            setCurrentUser(data[0]);
-            setBalance(Number(data[0].balance));
-            registeredOnCloud = true;
-          }
-        } catch (err) { }
-      }
-
-      if (!registeredOnCloud) {
-        const updated = [...usersDb, newUser];
-        setUsersDb(updated);
-        localStorage.setItem('pampas_users_db', JSON.stringify(updated));
-        setCurrentUser(newUser);
-        setBalance(newUser.balance);
-      }
-
-      setIsAuthOpen(false);
-      resetAuthForm();
-      fetchUsersDb();
-    } else {
-      let foundUser = null;
-      if (isSupabaseConfigured) {
-        try {
-          const { data, error } = await supabase.from('users').select('*').ilike('username', trimmedUser).eq('password', inputPassword);
-          if (!error && data && data.length > 0) foundUser = data[0];
-        } catch (e) { }
-      }
-
-      if (!foundUser) {
-        foundUser = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase() && u.password === inputPassword);
-      }
-
-      if (foundUser) {
-        setCurrentUser(foundUser);
-        setBalance(Number(foundUser.balance));
-        setIsAuthOpen(false);
-        resetAuthForm();
-      } else {
-        setAuthError('Utilizador ou senha incorretos.');
-      }
-    }
-  };
-
-  const resetAuthForm = () => {
-    setInputUsername('');
-    setInputPassword('');
-    setConfirmPassword('');
-    setAuthError('');
-  };
-
-  const handleLogout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('pampas_current_user');
-    setIsUserPanelOpen(false);
-    setWithdrawSuccess(false);
-  };
-
-  const handleSelfDelete = async () => {
-    if (!window.confirm(`Deseja realmente excluir a sua conta de forma permanente?`)) return;
-    if (isSupabaseConfigured) {
-      try { await supabase.from('users').delete().eq('id', currentUser.id); } catch (e) {}
-    }
-    const updatedList = usersDb.filter(u => u.id !== currentUser.id);
-    setUsersDb(updatedList);
-    localStorage.setItem('pampas_users_db', JSON.stringify(updatedList));
-    handleLogout();
-  };
-
-  const handleWithdrawSubmit = (e) => {
-    e.preventDefault();
-    const amountNum = parseFloat(withdrawAmount);
-    if (isNaN(amountNum) || amountNum <= 0) return alert('Insira um valor válido.');
-    if (amountNum > balance) return alert('Saldo insuficiente.');
-    
-    const finalBal = balance - amountNum;
-    setBalance(finalBal);
-    if (currentUser) setCurrentUser(prev => ({ ...prev, balance: finalBal }));
-    setWithdrawSuccess(true);
-    setWithdrawAmount('');
-  };
-
-  const handleAdminBalanceUpdate = async (type) => {
-    const targetIdVal = adminTargetId.trim();
-    const amountVal = parseFloat(adminDepositAmount);
-    if (!targetIdVal || isNaN(amountVal) || amountVal <= 0) return alert('Insira ID válida e valor > 0.');
-    const targetUser = usersDb.find(u => String(u.id) === targetIdVal);
-    if (!targetUser) return alert('Conta não encontrada.');
-
-    let newBal = type === 'add' ? Number(targetUser.balance) + amountVal : Number(targetUser.balance) - amountVal;
-    if (type === 'remove' && newBal < 0) return alert('Saldo insuficiente na conta alvo.');
-
-    if (isSupabaseConfigured) {
-      try { await supabase.from('users').update({ balance: newBal }).eq('id', targetUser.id); } catch (e) { }
-    }
-
-    setUsersDb(prev => {
-      const updated = prev.map(u => String(u.id) === targetIdVal ? { ...u, balance: newBal } : u);
-      localStorage.setItem('pampas_users_db', JSON.stringify(updated));
-      return updated;
-    });
-
-    if (currentUser && String(currentUser.id) === targetIdVal) {
-      setBalance(newBal);
-      setCurrentUser(prev => ({ ...prev, balance: newBal }));
-    }
-
-    alert(`Sucesso! Saldo atualizado.`);
-    setAdminTargetId('');
-    setAdminDepositAmount('');
-    fetchUsersDb();
-  };
-
-  const handleDeleteUser = async (id, username) => {
-    if (!window.confirm(`Tem a certeza que deseja excluir o utilizador ${username} (#${id})?`)) return;
-    if (isSupabaseConfigured) {
-      try { await supabase.from('users').delete().eq('id', id); } catch (e) { }
-    }
-    const updatedList = usersDb.filter(u => u.id !== id);
-    setUsersDb(updatedList);
-    localStorage.setItem('pampas_users_db', JSON.stringify(updatedList));
-    if (currentUser && currentUser.id === id) handleLogout();
-  };
-
-  const renderGameRoute = (GameComponent) => (
-    <div>
-      <div className="bg-black px-4 py-2.5 flex items-center justify-between border-b border-zinc-900 sticky top-0 z-50">
-        <button onClick={() => setActiveGame('lobby')} className="bg-zinc-800 hover:bg-zinc-700 text-amber-400 font-bold px-3 py-1.5 rounded-xl text-xs border border-zinc-700 transition-all">
+    if (currentUser) localStorage.setItem('pampas_current_user', JSON.stringify(currentUser));
+    else localStorage.removeItem('pampas_current_user');
+  }, [currentUser]);// Renderização condicional garantindo que cada botão chama o jogo exato correto
+  if (activeGame === 'crash') {
+    return (
+      <div>
+        <button 
+          onClick={() => setActiveGame('lobby')} 
+          className="m-3 px-4 py-2 bg-zinc-800 text-amber-400 font-bold rounded-xl text-xs border border-amber-500/30"
+        >
           🏠 Voltar ao Lobby
         </button>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-amber-400 font-black">R$ {balance.toLocaleString('pt-BR')}</span>
+        <PampasCrash />
+      </div>
+    );
+  }
+
+  if (activeGame === 'towers') {
+    return (
+      <div>
+        <button 
+          onClick={() => setActiveGame('lobby')} 
+          className="m-3 px-4 py-2 bg-zinc-800 text-amber-400 font-bold rounded-xl text-xs border border-amber-500/30"
+        >
+          🏠 Voltar ao Lobby
+        </button>
+        <PampasTowers />
+      </div>
+    );
+  }
+
+  if (activeGame === 'diamond') return <DiamondStriker onBack={() => setActiveGame('lobby')} />;
+  if (activeGame === 'hold') return <PampasHoldAndWin onBack={() => setActiveGame('lobby')} />;
+  if (activeGame === 'dice') return <PampasDice onBack={() => setActiveGame('lobby')} />;
+  if (activeGame === 'goal') return <PampasGoal onBack={() => setActiveGame('lobby')} />;
+  if (activeGame === 'hilo') return <PampasHiLo onBack={() => setActiveGame('lobby')} />;
+  if (activeGame === 'roleta') return <RoletaDiplomatica onBack={() => setActiveGame('lobby')} />;
+  if (activeGame === 'costarica') return <CassinoCostaRica onBack={() => setActiveGame('lobby')} />;return (
+    <div className="min-h-screen bg-black text-white p-4 font-sans">
+      <div className="max-w-md mx-auto space-y-6 text-center">
+        <img src="/Grupopampas.png" alt="Grupo Pampas" className="h-16 mx-auto object-contain my-4" />
+        <h1 className="text-2xl font-black text-amber-400">CASSINO DA COSTA RICA</h1>
+        <p className="text-xs text-zinc-400">Saldo: R$ {Number(balance).toLocaleString('pt-BR', {maximumFractionDigits: 0})}</p>
+
+        <div className="grid grid-cols-2 gap-3 pt-4">
+          <button 
+            onClick={() => setActiveGame('crash')}
+            className="p-4 bg-zinc-900 border border-amber-500/50 rounded-2xl text-amber-400 font-black text-sm active:scale-95 transition-all shadow-lg"
+          >
+            🚀 Pampas Crash
+          </button>
+
+          <button 
+            onClick={() => setActiveGame('towers')}
+            className="p-4 bg-zinc-900 border border-amber-500/50 rounded-2xl text-amber-400 font-black text-sm active:scale-95 transition-all shadow-lg"
+          >
+            🏰 Pampas Towers
+          </button>
         </div>
       </div>
-      <GameComponent />
     </div>
   );
-
-  if (activeGame === 'costarica') return renderGameRoute(CassinoCostaRica);
-  if (activeGame === 'diamond') return renderGameRoute(DiamondStriker);
-  if (activeGame === 'crash') return renderGameRoute(PampasCrash);
-  if (activeGame === 'roleta') return renderGameRoute(RoletaDiplomatica);
-  if (activeGame === 'goal') return renderGameRoute(PampasGoal);
-  if (activeGame === 'towers') return renderGameRoute(PampasTowers);
-  if (activeGame === 'hilo') return renderGameRoute(PampasHiLo);
-  if (activeGame === 'dice') return renderGameRoute(PampasDice);
-  if (activeGame === 'holdandwin') return renderGameRoute(PampasHoldAndWin);return (
-    <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
-      <header className="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-zinc-900 px-4 py-3 flex items-center justify-between shadow-2xl">
-        <div className="flex items-center py-1 cursor-pointer" onClick={() => setActiveGame('lobby')}>
-          <img src="/Grupopampas.png" alt="Patrocinador" className="h-12 w-auto max-w-[180px] object-contain" />
-        </div>
-        <div className="flex items-center gap-2">
-          {currentUser ? (
-            <div className="flex items-center gap-2.5 bg-[#0f0f12] border border-zinc-800 px-3 py-1.5 rounded-2xl shadow-inner">
-              <div className="text-right">
-                <div className="flex items-center justify-end gap-1.5">
-                  <span className="text-[11px] text-amber-300 font-bold">{currentUser.username}</span>
-                  {(currentUser.isAdmin || currentUser.username.toLowerCase() === 'lvelasques') && (
-                    <button onClick={() => setIsAdminPanelOpen(true)} className="bg-amber-500 hover:bg-amber-400 text-black text-[9px] font-black px-1.5 py-0.5 rounded shadow transition-all">ADMIN ⚙️</button>
-                  )}
-                </div>
-                <p className="text-amber-400 font-black text-sm">R$ {balance.toLocaleString('pt-BR')}</p>
-              </div>
-              <button onClick={() => setIsUserPanelOpen(true)} className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xs px-3 py-2 rounded-xl transition-all shadow-lg active:scale-95">⚙️ Perfil</button>
-            </div>
-          ) : (
-            <button onClick={() => { setAuthMode('login'); setIsAuthOpen(true); }} className="bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black font-black text-xs px-4 py-2.5 rounded-xl shadow-lg hover:scale-105 transition-all">👤 Criar Conta / Entrar</button>
-          )}
-        </div>
-      </header>
-
-      <main className="max-w-md mx-auto p-4 space-y-6 pt-6 text-center">
-        <div className="flex flex-col items-center justify-center space-y-3 pt-2">
-          <img src="/CassinaCR.png" alt="Logótipo Cassino" className="h-28 w-auto max-w-[320px] object-contain" />
-          <h1 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-500">
-            LOBBY DE ELITE
-          </h1>
-          <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Escolha a sua plataforma de apostas unificadas</p>
-        </div>
-
-        <div className="space-y-4 pt-2">
-          <div onClick={() => setActiveGame('costarica')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
-            <h3 className="text-lg font-black text-amber-300">👑 CAÇA-NÍQUEL DOS PAMPAS</h3>
-            <p className="text-xs text-zinc-300">O caça-níqueis oficial com roleta de bônus e símbolos diplomáticos.</p>
-            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
-          </div>
-          <div onClick={() => setActiveGame('holdandwin')} className="bg-gradient-to-b from-[#14141a] to-[#260f0f] border-2 border-red-500/60 hover:border-red-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
-            <h3 className="text-lg font-black text-red-400">🪙 O COFRE DO BARÃO</h3>
-            <p className="text-xs text-zinc-300">Caça-níquel Hold & Win. Tranca 6 moedas para ativar os Respins e o Jackpot!</p>
-            <span className="inline-block bg-red-600 text-white font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
-          </div>
-          <div onClick={() => setActiveGame('diamond')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
-            <h3 className="text-lg font-black text-amber-300">⚔️ GUERRA DAS AMÉRICAS</h3>
-            <p className="text-xs text-zinc-300">Estratégia tática e multiplicadores em campo minado.</p>
-            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
-          </div>
-          <div onClick={() => setActiveGame('crash')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
-            <h3 className="text-lg font-black text-amber-300">🚀 PAMPAS CRASH</h3>
-            <p className="text-xs text-zinc-300">O voo dos campeões com multiplicadores exponenciais em tempo real.</p>
-            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
-          </div>
-          <div onClick={() => setActiveGame('roleta')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
-            <h3 className="text-lg font-black text-amber-300">🎡 ROLETA DIPLOMÁTICA</h3>
-            <p className="text-xs text-zinc-300">A clássica roleta da fortuna adaptada à diplomacia do Grupo Pampas.</p>
-            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
-          </div>
-          <div onClick={() => setActiveGame('goal')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
-            <h3 className="text-lg font-black text-amber-300">⚽ PAMPAS GOAL</h3>
-            <p className="text-xs text-zinc-300">A batalha defensiva de pênaltis com o goleiro de elite.</p>
-            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
-          </div>
-          <div onClick={() => setActiveGame('towers')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
-            <h3 className="text-lg font-black text-amber-300">🏰 PAMPAS TOWERS</h3>
-            <p className="text-xs text-zinc-300">A escada de risco e portas multiplicadoras até ao topo da torre.</p>
-            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
-          </div>
-          <div onClick={() => setActiveGame('hilo')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
-            <h3 className="text-lg font-black text-amber-300">🃏 PAMPAS HI-LO</h3>
-            <p className="text-xs text-zinc-300">A adivinhação rápida de cartas altas ou baixas em sequência.</p>
-            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
-          </div>
-          <div onClick={() => setActiveGame('dice')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
-            <h3 className="text-lg font-black text-amber-300">🎲 PAMPAS DICE</h3>
-            <p className="text-xs text-zinc-300">O seletor de probabilidade e dados com multiplicador personalizado.</p>
-            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
-          </div>
-        </div>
-      </main>
-
-      {/* Modais */}
-      {isAuthOpen && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
-            <button onClick={() => setIsAuthOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white text-lg">✕</button>
-            <h2 className="text-amber-400 font-black text-xl mb-1">{authMode === 'login' ? 'Entrar no Portal' : 'Criar Conta Oficial'}</h2>
-            {authError && <div className="bg-red-500/10 border border-red-500/40 text-red-400 text-xs p-3 rounded-xl mb-4 font-semibold">{authError}</div>}
-            <form onSubmit={handleAuthSubmit} className="space-y-4">
-              <div>
-                <label className="text-xs text-zinc-400 block mb-1 font-semibold">Nome de Utilizador</label>
-                <input type="text" value={inputUsername} onChange={(e) => setInputUsername(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm outline-none" />
-              </div>
-              <div>
-                <label className="text-xs text-zinc-400 block mb-1 font-semibold">Senha</label>
-                <input type="password" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm outline-none" />
-              </div>
-              {authMode === 'register' && (
-                <div>
-                  <label className="text-xs text-zinc-400 block mb-1 font-semibold">Confirmar Senha</label>
-                  <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm outline-none" />
-                </div>
-              )}
-              <button type="submit" className="w-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black py-3.5 rounded-xl text-sm">{authMode === 'login' ? 'Entrar' : 'Criar Conta'}</button>
-            </form>
-            <div className="mt-4 text-center">
-              <button type="button" onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthError(''); }} className="text-xs text-amber-500 font-bold hover:underline">
-                {authMode === 'login' ? 'Ainda não tens conta? Cria aqui' : 'Já tens conta? Entra aqui'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isUserPanelOpen && currentUser && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
-            <button onClick={() => setIsUserPanelOpen(false)} className="absolute top-4 right-4 text-zinc-400 text-lg">✕</button>
-            <h2 className="text-white font-bold text-lg mb-4">{currentUser.username} (#ID {currentUser.id})</h2>
-            <div className="space-y-4">
-              <form onSubmit={handleWithdrawSubmit} className="bg-[#0b0b0e] p-4 rounded-2xl space-y-2">
-                <span className="text-xs text-amber-300 font-bold uppercase">Solicitar Saque</span>
-                {withdrawSuccess ? <p className="text-emerald-400 text-xs font-bold">✅ Pedido enviado!</p> : (
-                  <div className="flex gap-2">
-                    <input type="number" placeholder="Valor (R$)" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} required className="w-full bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs" />
-                    <button type="submit" className="bg-amber-500 text-black font-black px-4 rounded-xl text-xs">Pedir</button>
-                  </div>
-                )}
-              </form>
-              <button onClick={handleLogout} className="w-full bg-zinc-800 text-white font-bold py-3 rounded-xl text-xs">🚪 Sair da Conta</button>
-              <button onClick={handleSelfDelete} className="w-full bg-red-500/10 text-red-500 font-bold py-3 rounded-xl text-xs">🗑️ Apagar Conta</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isAdminPanelOpen && currentUser && (currentUser.isAdmin || currentUser.username.toLowerCase() === 'lvelasques') && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-lg flex items-center justify-center p-4">
-          <div className="bg-[#141418] border-2 border-amber-500 w-full max-w-2xl rounded-3xl p-6 relative max-h-[90vh] overflow-y-auto">
-            <button onClick={() => setIsAdminPanelOpen(false)} className="absolute top-4 right-4 text-zinc-400 text-lg">✕</button>
-            <h2 className="text-amber-400 font-black text-xl mb-4">Painel Admin - Grupo Pampas</h2>
-            <div className="space-y-4">
-              
-              <div className="bg-[#0b0b0e] border border-amber-500/40 p-4 rounded-2xl space-y-3">
-                <h3 className="text-xs text-amber-300 font-bold uppercase">Gestão de Saldo por ID</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  <input type="text" placeholder="ID da Conta" value={adminTargetId} onChange={(e) => setAdminTargetId(e.target.value)} className="bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs" />
-                  <input type="number" placeholder="Valor (R$)" value={adminDepositAmount} onChange={(e) => setAdminDepositAmount(e.target.value)} className="bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs" />
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => handleAdminBalanceUpdate('add')} className="flex-1 bg-emerald-500 text-black font-black py-2 rounded-xl text-xs">➕ Adicionar</button>
-                  <button onClick={() => handleAdminBalanceUpdate('remove')} className="flex-1 bg-red-500 text-black font-black py-2 rounded-xl text-xs">➖ Remover</button>
-                </div>
-              </div>
-
-              {/* LISTA DE CONTAS CADASTRADAS NO PAINEL DE ADMIN */}
-              <div className="bg-[#0b0b0e] border border-amber-500/40 p-4 rounded-2xl space-y-3">
-                <h3 className="text-xs text-amber-300 font-bold uppercase flex justify-between">
-                  <span>Contas Cadastradas</span>
-                  <span className="bg-amber-500 text-black px-2 py-0.5 rounded-md">{usersDb.length}</span>
-                </h3>
-                <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
-                  {usersDb.map(user => (
-                    <div key={user.id} className="flex justify-between items-center bg-[#141418] border border-zinc-800 p-3 rounded-xl">
-                      <div className="text-left">
-                        <p className="text-sm font-bold text-white">
-                          {user.username} 
-                          {user.isAdmin && <span className="ml-2 text-[8px] bg-amber-500 text-black px-1.5 py-0.5 rounded uppercase">Admin</span>}
-                        </p>
-                        <p className="text-[10px] text-zinc-500 font-mono mt-0.5">ID: {user.id}</p>
-                        <p className="text-[11px] text-amber-400 font-black mt-1">R$ {Number(user.balance).toLocaleString('pt-BR')}</p>
-                      </div>
-                      {user.username.toLowerCase() !== 'lvelasques' && (
-                        <button onClick={() => handleDeleteUser(user.id, user.username)} className="bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-md">
-                          Excluir
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-                                                                }
+}
