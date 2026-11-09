@@ -47,14 +47,13 @@ export default function App() {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawSuccess, setWithdrawSuccess] = useState(false);
 
-  // Estados do Painel Admin
-  const [adminTab, setAdminTab] = useState('contas'); // 'contas' ou 'futebol'
+  const [adminTab, setAdminTab] = useState('contas');
   const [adminTargetId, setAdminTargetId] = useState('');
   const [adminDepositAmount, setAdminDepositAmount] = useState('');
   const [adminTeamName, setAdminTeamName] = useState('');
-  
-  // Fila de Atualização de Elencos
-  const [pendingUpdates, setPendingUpdates] = useState([]);const fetchUsersDb = async () => {
+  const [pendingUpdates, setPendingUpdates] = useState([]);
+
+  const fetchUsersDb = async () => {
     if (isSupabaseConfigured) {
       try {
         const { data, error } = await supabase.from('users').select('*').order('id', { ascending: true });
@@ -223,12 +222,14 @@ export default function App() {
           alert('Transferência Aprovada!');
         } else {
           await supabase.from('squad_updates').update({ status: 'rejected' }).eq('id', updateId);
-          alert('Transferência Rejeitada (Rumor).');
+          alert('Transferência Rejeitada.');
         }
         fetchPendingUpdates();
-      } catch (e) { alert('Erro ao processar transferência.'); }
+      } catch (e) { alert('Erro ao processar.'); }
     }
-  };const renderGameRoute = (GameComponent) => (
+  };
+
+  const renderGameRoute = (GameComponent) => (
     <div>
       <div className="bg-black px-4 py-2.5 flex items-center justify-between border-b border-zinc-900 sticky top-0 z-50">
         <button onClick={() => setActiveGame('lobby')} className="bg-zinc-800 hover:bg-zinc-700 text-amber-400 font-bold px-3 py-1.5 rounded-xl text-xs border border-zinc-700 transition-all">
@@ -251,9 +252,7 @@ export default function App() {
   if (activeGame === 'hilo') return renderGameRoute(PampasHiLo);
   if (activeGame === 'dice') return renderGameRoute(PampasDice);
   if (activeGame === 'holdandwin') return renderGameRoute(PampasHoldAndWin);
-  if (activeGame === 'futebol') return renderGameRoute(FutebolDiplomatico);
-
-  return (
+  if (activeGame === 'futebol') return renderGameRoute(FutebolDiplomatico);return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       <header className="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-zinc-900 px-4 py-3 flex items-center justify-between shadow-2xl">
         <div className="flex items-center py-1 cursor-pointer" onClick={() => setActiveGame('lobby')}>
@@ -310,7 +309,9 @@ export default function App() {
             <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
           </div>
         </div>
-      </main>{/* Modais */}
+      </main>
+
+      {/* Modais */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
@@ -440,4 +441,4 @@ export default function App() {
       )}
     </div>
   );
-}
+              }
