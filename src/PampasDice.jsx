@@ -7,7 +7,7 @@ const SUPABASE_ANON_KEY = 'sb_publishable_EvhGbTRSSqDK426spZx1sw_uRhXIJX2';
 const isSupabaseConfigured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20 && SUPABASE_ANON_KEY.startsWith('sb_');
 const supabase = isSupabaseConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
-export default function PampasGoal() {
+export default function PampasDice() {
   const [usersDb, setUsersDb] = useState(() => {
     const saved = localStorage.getItem('pampas_users_db');
     if (saved) {
@@ -27,16 +27,21 @@ export default function PampasGoal() {
   });
 
   const [betAmount, setBetAmount] = useState(30000);
-  const [gameActive, setGameActive] = useState(false);
+  const [targetNumber, setTargetNumber] = useState(50);
+  const [condition, setCondition] = useState('above'); // 'above' ou 'below'
+  const [rolling, setRolling] = useState(false);
+  const [rolledResult, setRolledResult] = useState(null);
   const [message, setMessage] = useState('');
-  const [shooting, setShooting] = useState(false);
-  const [keeperPos, setKeeperPos] = useState('center'); 
-  const [ballPos, setBallPos] = useState('center'); 
 
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [inputUsername, setInputUsername] = useState('');
-  const [inputPassword, setInputPassword] = useState('');
-  const [authError, setAuthError] = useState('');
+  const getWinChance = () => {
+    return condition === 'above' ? (100 - targetNumber) : targetNumber;
+  };
+
+  const getMultiplier = () => {
+    const chance = getWinChance();
+    if (chance <= 0 || chance >= 100) return 1.00;
+    return parseFloat((99 / chance).toFixed(2));
+  };
 
   const fetchUsersDb = async () => {
     if (isSupabaseConfigured) {
@@ -79,62 +84,37 @@ export default function PampasGoal() {
     });
   };
 
-  const startGame = () => {
-    if (!currentUser) return setIsAuthOpen(true);
-    if (balance < betAmount) return alert("Saldo insuficiente para entrar em campo!");
+  const rollDice = () => {
+    if (!currentUser) return alert("Faça login para jogar!");
+    if (balance < betAmount) return alert("Saldo insuficiente para lançar os dados!");
+    if (rolling) return;
 
     updateBalanceOnDb(currentUser.id, balance - betAmount);
-    setGameActive(true);
-    setKeeperPos('center');
-    setBallPos('center');
-    setMessage('🛡️ O adversário vai chutar! Escolha o canto para defender!');
-  };
-
-  const defendCorner = (userChoiceIndex) => {
-    if (!gameActive || shooting) return;
-    setShooting(true);
-
-    const corners = ['left', 'center', 'right'];
-    const userChosenSide = corners[userChoiceIndex];
-    
-    setKeeperPos(userChosenSide);
-    setMessage('⚽ Bola chutada... A voar para o gol!');
+    setRolling(true);
+    setMessage('🎲 A lançar o dado diplomático...');
+    setRolledResult(null);
 
     setTimeout(() => {
-      const ballRandomIndex = Math.floor(Math.random() * 3);
-      const ballSide = corners[ballRandomIndex];
-      setBallPos(ballSide);
+      const result = parseFloat((Math.random() * 100).toFixed(2));
+      setRolledResult(result);
+      setRolling(false);
 
-      const defended = userChosenSide === ballSide;
+      let won = false;
+      if (condition === 'above' && result > targetNumber) won = true;
+      if (condition === 'below' && result < targetNumber) won = true;
 
-      setShooting(false);
-      setGameActive(false);
-
-      if (defended) {
-        const prize = betAmount * 2;
+      if (won) {
+        const mult = getMultiplier();
+        const prize = Math.floor(betAmount * mult);
         updateBalanceOnDb(currentUser.id, balance - betAmount + prize);
-        setMessage(`🏆 DEFESA ESPETACULAR! Você agarrou a bola! Ganhou R$ ${prize.toLocaleString('pt-BR', {maximumFractionDigits: 0})}`);
+        setMessage(`🎯 VITÓRIA! Sorteado: ${result} | Prémio: R$ ${prize.toLocaleString('pt-BR', {maximumFractionDigits: 0})}`);
       } else {
-        setMessage(`❌ GOOOOL DO ADVERSÁRIO! A bola foi no canto ${ballSide === 'left' ? 'Esquerdo' : ballSide === 'right' ? 'Direito' : 'Central'}.`);
+        setMessage(`❌ DERROTA! Sorteado: ${result}. Tente novamente.`);
       }
-    }, 1200);
+    }, 800);
   };
 
-  const handleAuthSubmit = (e) => {
-    e.preventDefault();
-    setAuthError('');
-    const foundUser = usersDb.find(u => u.username.toLowerCase() === inputUsername.trim().toLowerCase() && u.password === inputPassword);
-    if (foundUser) {
-      setCurrentUser(foundUser);
-      setBalance(Number(foundUser.balance));
-      setIsAuthOpen(false);
-      setInputUsername('');
-      setInputPassword('');
-    } else {
-      setAuthError('Dados incorretos.');
-    }
-  };
-    return (
+  return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       <div className="py-6 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-3">
         <img 
@@ -143,53 +123,66 @@ export default function PampasGoal() {
           className="h-14 w-auto max-w-[200px] object-contain" 
         />
         <h1 className="text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-500">
-          ⚽ PAMPAS GOAL ⚽
+          🎲 PAMPAS DICE 🎲
         </h1>
-        <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">A Defesa de Elite</p>
+        <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">A Probabilidade de Elite</p>
       </div>
 
-      <main className="max-w-md mx-auto p-4 space-y-4 pt-5">
-        <div className="bg-black border-2 border-amber-500/60 rounded-3xl p-6 shadow-2xl space-y-5 text-center">
+      <main className="max-w-md mx-auto p-4 space-y-4 pt-4">
+        <div className="bg-black border-2 border-amber-500/60 rounded-3xl p-5 shadow-2xl space-y-4 text-center">
           
-          <div className="relative h-52 bg-black border-2 border-amber-500/50 rounded-2xl flex flex-col items-center justify-center overflow-hidden p-4 shadow-inner">
-            <div className="absolute inset-x-4 top-3 h-36 border-t-4 border-x-4 border-zinc-700 rounded-t-xl flex justify-between px-3 pt-2 opacity-80 pointer-events-none">
-              <span className="text-[10px] text-amber-400/80 font-bold uppercase">Canto Esq</span>
-              <span className="text-[10px] text-amber-400/80 font-bold uppercase">Canto Dir</span>
-            </div>
-
-            <div className={`absolute z-20 transition-all duration-300 ease-out ${
-              keeperPos === 'left' ? '-translate-x-20 -translate-y-1 scale-105' : 
-              keeperPos === 'right' ? 'translate-x-20 -translate-y-1 scale-105' : 
-              'translate-x-0 translate-y-2'
-            }`}>
-              <img 
-                src="/goleiro.png" 
-                alt="Goleiro" 
-                className="w-24 h-24 object-contain bg-transparent" 
-                onError={(e) => { e.target.src = 'https://cdn-icons-png.flaticon.com/512/1077/1077114.png'; }}
-              />
-            </div>
-
-            {shooting && (
-              <div className={`absolute z-30 transition-all duration-500 ${
-                ballPos === 'left' ? '-translate-x-20 translate-y-6' : 
-                ballPos === 'right' ? 'translate-x-20 translate-y-6' : 
-                'translate-x-0 translate-y-8'
-              }`}>
-                <img src="/bola.png" alt="Bola" className="w-10 h-10 object-contain bg-transparent animate-spin" />
-              </div>
-            )}
-          </div>
-
           {message && (
-            <div className={`p-3 text-center rounded-xl font-black text-xs uppercase tracking-wide animate-pulse ${message.includes('DEFESA ESPETACULAR') ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : message.includes('GOOOOL') ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-black text-amber-400 border border-amber-500/40'}`}>
+            <div className={`p-3 text-center rounded-xl font-black text-xs uppercase tracking-wide ${message.includes('VITÓRIA') ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : message.includes('DERROTA') ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-black text-amber-400 border border-amber-500/40'}`}>
               {message}
             </div>
           )}
 
+          <div className="relative h-36 bg-black border-2 border-amber-500/50 rounded-2xl flex flex-col items-center justify-center p-4 shadow-inner">
+            <span className="text-[10px] text-zinc-400 uppercase font-bold mb-1">Resultado do Sorteio</span>
+            <div className="text-4xl font-black text-amber-400 font-mono tracking-wider">
+              {rolledResult !== null ? rolledResult.toFixed(2) : '---'}
+            </div>
+            <div className="mt-2 text-xs text-zinc-400 flex gap-4">
+              <span>Multiplicador: <strong className="text-amber-300">{getMultiplier()}x</strong></span>
+              <span>Chance: <strong className="text-amber-300">{getWinChance().toFixed(1)}%</strong></span>
+            </div>
+          </div>
+
+          <div className="space-y-3 bg-black border border-amber-500/30 rounded-2xl p-4 text-left">
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setCondition('above')} 
+                className={`flex-1 py-2 rounded-xl text-xs font-black transition-all border ${condition === 'above' ? 'bg-amber-500 text-black border-amber-400' : 'bg-black text-zinc-400 border-zinc-800'}`}
+              >
+                ROLAR ACIMA DE
+              </button>
+              <button 
+                onClick={() => setCondition('below')} 
+                className={`flex-1 py-2 rounded-xl text-xs font-black transition-all border ${condition === 'below' ? 'bg-amber-500 text-black border-amber-400' : 'bg-black text-zinc-400 border-zinc-800'}`}
+              >
+                ROLAR ABAIXO DE
+              </button>
+            </div>
+
+            <div className="space-y-1 pt-2">
+              <div className="flex justify-between text-xs font-bold text-zinc-300">
+                <span>Alvo: {targetNumber}</span>
+                <span className="text-amber-400 font-mono">{getMultiplier()}x</span>
+              </div>
+              <input 
+                type="range" 
+                min="5" 
+                max="95" 
+                value={targetNumber} 
+                onChange={(e) => setTargetNumber(Number(e.target.value))} 
+                className="w-full accent-amber-500 cursor-pointer"
+              />
+            </div>
+          </div>
+
           <div className="space-y-1 text-left">
             <label className="text-[10px] text-zinc-400 font-bold uppercase block">Valor da Aposta (R$)</label>
-            <select disabled={gameActive} value={betAmount} onChange={(e) => setBetAmount(Number(e.target.value))} className="w-full bg-black text-amber-400 border border-zinc-800 rounded-xl px-3 py-2.5 font-black outline-none text-xs">
+            <select disabled={rolling} value={betAmount} onChange={(e) => setBetAmount(Number(e.target.value))} className="w-full bg-black text-amber-400 border border-zinc-800 rounded-xl px-3 py-2.5 font-black outline-none text-xs">
               <option value={30000}>R$ 30k</option>
               <option value={100000}>R$ 100k</option>
               <option value={500000}>R$ 500k</option>
@@ -197,44 +190,16 @@ export default function PampasGoal() {
             </select>
           </div>
 
-          {!gameActive ? (
-            <button onClick={startGame} className="w-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 text-black font-black text-sm py-3.5 rounded-xl shadow-[0_5px_20px_rgba(245,158,11,0.4)] transition-all active:scale-95">
-              🛡️ PREPARAR DEFESA (INICIAR)
-            </button>
-          ) : (
-            <div className="space-y-3">
-              <label className="text-[10px] text-zinc-400 font-bold uppercase block">Para onde o Goleiro deve saltar?</label>
-              <div className="grid grid-cols-3 gap-2">
-                <button disabled={shooting} onClick={() => defendCorner(0)} className="py-3.5 bg-black border border-amber-500/60 hover:bg-amber-500 hover:text-black rounded-xl font-black text-xs text-amber-400 transition-all shadow-md">
-                  ⬅️ ESQUERDA
-                </button>
-                <button disabled={shooting} onClick={() => defendCorner(1)} className="py-3.5 bg-black border border-amber-500/60 hover:bg-amber-500 hover:text-black rounded-xl font-black text-xs text-amber-400 transition-all shadow-md">
-                  ⬆️ CENTRO
-                </button>
-                <button disabled={shooting} onClick={() => defendCorner(2)} className="py-3.5 bg-black border border-amber-500/60 hover:bg-amber-500 hover:text-black rounded-xl font-black text-xs text-amber-400 transition-all shadow-md">
-                  ➡️ DIREITA
-                </button>
-              </div>
-            </div>
-          )}
+          <button 
+            disabled={rolling} 
+            onClick={rollDice} 
+            className="w-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 text-black font-black text-sm py-3.5 rounded-xl shadow-[0_5px_20px_rgba(245,158,11,0.4)] transition-all active:scale-95"
+          >
+            {rolling ? '🎲 A LANÇAR...' : '🎲 LANÇAR DADO (APOSTAR)'}
+          </button>
 
         </div>
       </main>
-
-      {isAuthOpen && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-black border border-amber-500/50 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
-            <button onClick={() => setIsAuthOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white text-lg">✕</button>
-            <h2 className="text-amber-400 font-black text-xl mb-1">Entrar no Pampas Goal</h2>
-            {authError && <div className="text-red-400 text-xs mb-3 font-semibold">{authError}</div>}
-            <form onSubmit={handleAuthSubmit} className="space-y-4 mt-4">
-              <input type="text" value={inputUsername} onChange={(e) => setInputUsername(e.target.value)} required className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm outline-none" placeholder="Utilizador" />
-              <input type="password" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} required className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm outline-none" placeholder="Senha" />
-              <button type="submit" className="w-full bg-amber-500 text-black font-black py-3.5 rounded-xl text-sm shadow-lg">Confirmar</button>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
