@@ -9,7 +9,6 @@ import PampasTowers from './PampasTowers';
 import PampasHiLo from './PampasHiLo';
 import PampasDice from './PampasDice';
 import PampasHoldAndWin from './PampasHoldAndWin';
-import QuedaDiplomatica from './QuedaDiplomatica';
 
 const SUPABASE_URL = 'https://tieduoyppbigsaxxjhfl.supabase.co'; 
 const SUPABASE_ANON_KEY = 'sb_publishable_EvhGbTRSSqDK426spZx1sw_uRhXIJX2';
@@ -213,8 +212,7 @@ export default function App() {
     setAdminDepositAmount('');
     fetchUsersDb();
   };
-
-  const renderGameRoute = (GameComponent) => (
+    const renderGameRoute = (GameComponent) => (
     <div>
       <div className="bg-black px-4 py-2.5 flex items-center justify-between border-b border-zinc-900 sticky top-0 z-50">
         <button onClick={() => setActiveGame('lobby')} className="bg-zinc-800 hover:bg-zinc-700 text-amber-400 font-bold px-3 py-1.5 rounded-xl text-xs border border-zinc-700 transition-all">
@@ -237,7 +235,6 @@ export default function App() {
   if (activeGame === 'hilo') return renderGameRoute(PampasHiLo);
   if (activeGame === 'dice') return renderGameRoute(PampasDice);
   if (activeGame === 'holdandwin') return renderGameRoute(PampasHoldAndWin);
-  if (activeGame === 'quedadiplomatica') return renderGameRoute(QuedaDiplomatica);
     return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       <header className="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-zinc-900 px-4 py-3 flex items-center justify-between shadow-2xl">
@@ -273,7 +270,7 @@ export default function App() {
           <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Escolha a sua plataforma de apostas unificadas</p>
         </div>
 
-        {/* 10 Cartões de Jogos no Lobby */}
+        {/* 9 Cartões de Jogos no Lobby */}
         <div className="space-y-4 pt-2">
           <div onClick={() => setActiveGame('costarica')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
             <h3 className="text-lg font-black text-amber-300">👑 CAÇA-NÍQUEL DOS PAMPAS</h3>
@@ -285,12 +282,6 @@ export default function App() {
             <h3 className="text-lg font-black text-red-400">🪙 O COFRE DO BARÃO</h3>
             <p className="text-xs text-zinc-300">Caça-níquel Hold & Win. Tranca 6 moedas para ativar os Respins e o Jackpot!</p>
             <span className="inline-block bg-red-600 text-white font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
-          </div>
-
-          <div onClick={() => setActiveGame('quedadiplomatica')} className="bg-gradient-to-b from-[#14141a] to-[#120a1a] border-2 border-purple-500/60 hover:border-purple-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
-            <h3 className="text-lg font-black text-purple-300">🌪️ QUEDA DIPLOMÁTICA</h3>
-            <p className="text-xs text-zinc-300">Símbolos em cascata e orbes com multiplicadores progressivos até 5x.</p>
-            <span className="inline-block bg-purple-600 text-white font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
           </div>
 
           <div onClick={() => setActiveGame('diamond')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
