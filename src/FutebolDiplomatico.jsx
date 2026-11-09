@@ -1,11 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
-
-const SUPABASE_URL = 'https://tieduoyppbigsaxxjhfl.supabase.co'; 
-const SUPABASE_ANON_KEY = 'sb_publishable_EvhGbTRSSqDK426spZx1sw_uRhXIJX2';
-
-const isSupabaseConfigured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20 && SUPABASE_ANON_KEY.startsWith('sb_');
-const supabase = isSupabaseConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+import { supabase } from './supabaseClient';
 
 export default function FutebolDiplomatico() {
   const [currentUser] = useState(() => {
@@ -36,18 +30,18 @@ export default function FutebolDiplomatico() {
 
   const fetchSquad = async (clubName) => {
     setLoadingSquad(true);
-    if (isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase
-          .from('players')
-          .select('*')
-          .eq('current_club', clubName)
-          .order('overall', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('players')
+        .select('*')
+        .eq('current_club', clubName)
+        .order('overall', { ascending: false });
 
-        if (!error && data) {
-          setSquad(data);
-        }
-      } catch (e) { console.error(e); }
+      if (!error && data) {
+        setSquad(data);
+      }
+    } catch (e) { 
+      console.error(e); 
     }
     setLoadingSquad(false);
   };
