@@ -209,6 +209,27 @@ export default function App() {
     setAdminTargetId('');
     setAdminDepositAmount('');
     fetchUsersDb();
+  };
+
+  const handleToggleAdmin = async (userId, currentStatus) => {
+    const isMaster = currentUser && currentUser.username.toLowerCase() === 'lvelasques';
+    if (!isMaster) return alert('Apenas a conta Master (LVelasques) pode promover ou rebaixar administradores.');
+    
+    const targetUser = usersDb.find(u => u.id === userId);
+    if (!targetUser) return;
+    if (targetUser.username.toLowerCase() === 'lvelasques') return alert('A conta Master não pode ser alterada.');
+
+    const newStatus = !currentStatus;
+    if (isSupabaseConfigured) {
+      try { await supabase.from('users').update({ isAdmin: newStatus }).eq('id', userId); } catch (e) { }
+    }
+
+    setUsersDb(prev => {
+      const updated = prev.map(u => u.id === userId ? { ...u, isAdmin: newStatus } : u);
+      localStorage.setItem('pampas_users_db', JSON.stringify(updated));
+      return updated;
+    });
+    alert(`O utilizador ${targetUser.username} agora ${newStatus ? 'É UM SUB-ADMIN' : 'PERDEU O ACESSO ADMIN'}.`);
   };const renderGameRoute = (GameComponent) => (
     <div>
       <div className="bg-black px-4 py-2.5 flex items-center justify-between border-b border-zinc-900 sticky top-0 z-50">
@@ -268,7 +289,6 @@ export default function App() {
           <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Escolha a sua plataforma de apostas unificadas</p>
         </div>
 
-        {/* 9 Cartões de Jogos no Lobby */}
         <div className="space-y-4 pt-2">
           <div onClick={() => setActiveGame('costarica')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
             <h3 className="text-lg font-black text-amber-300">👑 CAÇA-NÍQUEL DOS PAMPAS</h3>
@@ -386,12 +406,16 @@ export default function App() {
           <div className="bg-[#141418] border-2 border-amber-500 w-full max-w-xl rounded-3xl p-6 relative max-h-[90vh] overflow-y-auto space-y-5">
             <button onClick={() => setIsAdminPanelOpen(false)} className="absolute top-4 right-4 text-zinc-400 text-lg font-bold">✕</button>
             
-            <div className="border-b border-zinc-800 pb-3">
-              <h2 className="text-amber-400 font-black text-xl">Painel Admin - Grupo Pampas</h2>
-              <p className="text-xs text-zinc-400">Controlo total de saldos, contas e saques</p>
+            <div className="border-b border-zinc-800 pb-3 flex items-center justify-between">
+              <div>
+                <h2 className="text-amber-400 font-black text-xl">Painel Admin - Grupo Pampas</h2>
+                <p className="text-xs text-zinc-400">Controlo de saldos e utilizadores</p>
+              </div>
+              {currentUser.username.toLowerCase() === 'lvelasques' && (
+                <span className="bg-amber-500 text-black px-2 py-1 rounded text-[10px] font-black uppercase shadow-lg">👑 Master</span>
+              )}
             </div>
 
-            {/* Secção 1: Gestão de Saldo por ID */}
             <div className="bg-[#0b0b0e] border border-amber-500/40 p-4 rounded-2xl space-y-3">
               <h3 className="text-xs text-amber-300 font-bold uppercase tracking-wider">Gestão de Saldo por ID</h3>
               <div className="grid grid-cols-2 gap-2">
@@ -404,17 +428,32 @@ export default function App() {
               </div>
             </div>
 
-            {/* Secção 2: Lista de Contas de Utilizadores */}
             <div className="bg-[#0b0b0e] border border-zinc-800 p-4 rounded-2xl space-y-3">
               <h3 className="text-xs text-amber-400 font-bold uppercase tracking-wider">Contas Registadas ({usersDb.length})</h3>
-              <div className="max-h-40 overflow-y-auto space-y-2 pr-1">
+              <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
                 {usersDb.map(u => (
                   <div key={u.id} className="flex items-center justify-between bg-[#141418] p-2.5 rounded-xl border border-zinc-800 text-xs">
-                    <div>
-                      <span className="text-amber-300 font-bold">{u.username}</span>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-amber-300 font-bold">{u.username}</span>
+                        {u.isAdmin && <span className="bg-amber-500 text-black text-[9px] font-black px-1.5 py-0.5 rounded">ADMIN</span>}
+                      </div>
                       <span className="text-[10px] text-zinc-500 block">ID: {u.id}</span>
                     </div>
-                    <span className="text-emerald-400 font-black">R$ {Number(u.balance || 0).toLocaleString('pt-BR')}</span>
+                    
+                    <div className="text-right flex flex-col items-end gap-1.5">
+                      <span className="text-emerald-400 font-black">R$ {Number(u.balance || 0).toLocaleString('pt-BR')}</span>
+                      
+                      {/* Botão de gerir Admin - Visível apenas para a conta Master */}
+                      {currentUser?.username?.toLowerCase() === 'lvelasques' && u.username.toLowerCase() !== 'lvelasques' && (
+                        <button 
+                          onClick={() => handleToggleAdmin(u.id, u.isAdmin)}
+                          className={`text-[9px] font-bold px-2 py-1 rounded transition-all ${u.isAdmin ? 'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20' : 'bg-zinc-800 text-zinc-300 border border-zinc-600 hover:bg-zinc-700'}`}
+                        >
+                          {u.isAdmin ? '✕ REVOGAR ADMIN' : '✓ TORNAR ADMIN'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
