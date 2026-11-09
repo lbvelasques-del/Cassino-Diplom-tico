@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from './supabaseClient';
 import CassinoCostaRica from './CassinoCostaRica';
 import DiamondStriker from './DiamondStriker';
 import PampasCrash from './PampasCrash';
@@ -10,12 +10,6 @@ import PampasHiLo from './PampasHiLo';
 import PampasDice from './PampasDice';
 import PampasHoldAndWin from './PampasHoldAndWin';
 import FutebolDiplomatico from './FutebolDiplomatico';
-
-const SUPABASE_URL = 'https://tieduoyppbigsaxxjhfl.supabase.co'; 
-const SUPABASE_ANON_KEY = 'sb_publishable_EvhGbTRSSqDK426spZx1sw_uRhXIJX2';
-
-const isSupabaseConfigured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20 && SUPABASE_ANON_KEY.startsWith('sb_');
-const supabase = isSupabaseConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 export default function App() {
   const [activeGame, setActiveGame] = useState('lobby'); 
@@ -51,35 +45,33 @@ export default function App() {
   const [adminTargetId, setAdminTargetId] = useState('');
   const [adminDepositAmount, setAdminDepositAmount] = useState('');
   const [adminTeamName, setAdminTeamName] = useState('');
-  const [pendingUpdates, setPendingUpdates] = useState([]);const fetchUsersDb = async () => {
-    if (isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase.from('users').select('*').order('id', { ascending: true });
-        if (!error && data && data.length > 0) {
-          setUsersDb(data);
-          localStorage.setItem('pampas_users_db', JSON.stringify(data));
-          if (currentUser) {
-            const updatedMe = data.find(u => u.id === currentUser.id);
-            if (updatedMe) {
-              setBalance(Number(updatedMe.balance));
-              setCurrentUser(updatedMe);
-            }
+  const [pendingUpdates, setPendingUpdates] = useState([]);
+
+  const fetchUsersDb = async () => {
+    try {
+      const { data, error } = await supabase.from('users').select('*').order('id', { ascending: true });
+      if (!error && data && data.length > 0) {
+        setUsersDb(data);
+        localStorage.setItem('pampas_users_db', JSON.stringify(data));
+        if (currentUser) {
+          const updatedMe = data.find(u => u.id === currentUser.id);
+          if (updatedMe) {
+            setBalance(Number(updatedMe.balance));
+            setCurrentUser(updatedMe);
           }
-          return;
         }
-      } catch (e) { }
-    }
+        return;
+      }
+    } catch (e) { }
     const local = localStorage.getItem('pampas_users_db');
     if (local) setUsersDb(JSON.parse(local));
   };
 
   const fetchPendingUpdates = async () => {
-    if (isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase.from('squad_updates').select('*').eq('status', 'pending').order('created_at', { ascending: false });
-        if (!error && data) setPendingUpdates(data);
-      } catch (e) { }
-    }
+    try {
+      const { data, error } = await supabase.from('squad_updates').select('*').eq('status', 'pending').order('created_at', { ascending: false });
+      if (!error && data) setPendingUpdates(data);
+    } catch (e) { }
   };
 
   useEffect(() => {
@@ -111,16 +103,14 @@ export default function App() {
       const newUser = { id: Date.now(), username: trimmedUser, password: inputPassword, balance: 150000, isAdmin, team: null };
 
       let registeredOnCloud = false;
-      if (isSupabaseConfigured) {
-        try {
-          const { data, error } = await supabase.from('users').insert([{ username: trimmedUser, password: inputPassword, balance: 150000, isAdmin, team: null }]).select();
-          if (!error && data && data[0]) {
-            setCurrentUser(data[0]);
-            setBalance(Number(data[0].balance));
-            registeredOnCloud = true;
-          }
-        } catch (err) { }
-      }
+      try {
+        const { data, error } = await supabase.from('users').insert([{ username: trimmedUser, password: inputPassword, balance: 150000, isAdmin, team: null }]).select();
+        if (!error && data && data[0]) {
+          setCurrentUser(data[0]);
+          setBalance(Number(data[0].balance));
+          registeredOnCloud = true;
+        }
+      } catch (err) { }
 
       if (!registeredOnCloud) {
         const updated = [...usersDb, newUser];
@@ -129,30 +119,27 @@ export default function App() {
         setCurrentUser(newUser);
         setBalance(newUser.balance);
       }
-      setIsAuthOpen(false); resetAuthForm(); fetchUsersDb();
+      setIsAuthOpen(false); setAuthError(''); setInputUsername(''); setInputPassword(''); setConfirmPassword(''); fetchUsersDb();
     } else {
       let foundUser = null;
-      if (isSupabaseConfigured) {
-        try {
-          const { data, error } = await supabase.from('users').select('*').ilike('username', trimmedUser).eq('password', inputPassword);
-          if (!error && data && data.length > 0) foundUser = data[0];
-        } catch (e) { }
-      }
+      try {
+        const { data, error } = await supabase.from('users').select('*').ilike('username', trimmedUser).eq('password', inputPassword);
+        if (!error && data && data.length > 0) foundUser = data[0];
+      } catch (e) { }
       if (!foundUser) foundUser = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase() && u.password === inputPassword);
 
       if (foundUser) {
         setCurrentUser(foundUser);
         setBalance(Number(foundUser.balance));
-        setIsAuthOpen(false); resetAuthForm();
+        setIsAuthOpen(false); setAuthError(''); setInputUsername(''); setInputPassword('');
       } else { setAuthError('Utilizador ou senha incorretos.'); }
     }
   };
 
-  const resetAuthForm = () => { setInputUsername(''); setInputPassword(''); setConfirmPassword(''); setAuthError(''); };
   const handleLogout = () => { setCurrentUser(null); localStorage.removeItem('pampas_current_user'); setIsUserPanelOpen(false); setWithdrawSuccess(false); };
   const handleSelfDelete = async () => {
     if (!window.confirm(`Deseja realmente excluir a sua conta?`)) return;
-    if (isSupabaseConfigured) { try { await supabase.from('users').delete().eq('id', currentUser.id); } catch (e) {} }
+    try { await supabase.from('users').delete().eq('id', currentUser.id); } catch (e) {}
     const updated = usersDb.filter(u => u.id !== currentUser.id);
     setUsersDb(updated); localStorage.setItem('pampas_users_db', JSON.stringify(updated));
     handleLogout();
@@ -176,7 +163,7 @@ export default function App() {
     let newBal = type === 'add' ? Number(targetUser.balance) + amountVal : Number(targetUser.balance) - amountVal;
     if (type === 'remove' && newBal < 0) return alert('Saldo insuficiente.');
 
-    if (isSupabaseConfigured) { try { await supabase.from('users').update({ balance: newBal }).eq('id', targetUser.id); } catch (e) { } }
+    try { await supabase.from('users').update({ balance: newBal }).eq('id', targetUser.id); } catch (e) { }
     setUsersDb(prev => { const updated = prev.map(u => String(u.id) === targetIdVal ? { ...u, balance: newBal } : u); localStorage.setItem('pampas_users_db', JSON.stringify(updated)); return updated; });
     if (currentUser && String(currentUser.id) === targetIdVal) { setBalance(newBal); setCurrentUser(prev => ({ ...prev, balance: newBal })); }
     alert('Saldo atualizado!'); setAdminDepositAmount(''); fetchUsersDb();
@@ -191,12 +178,12 @@ export default function App() {
     const newTeam = type === 'add' ? adminTeamName.trim() : null;
     if (type === 'add' && !newTeam) return alert('Insira o nome do clube.');
 
-    if (isSupabaseConfigured) { try { await supabase.from('users').update({ team: newTeam }).eq('id', targetUser.id); } catch (e) { } }
+    try { await supabase.from('users').update({ team: newTeam }).eq('id', targetUser.id); } catch (e) { }
     
     setUsersDb(prev => { const updated = prev.map(u => String(u.id) === targetIdVal ? { ...u, team: newTeam } : u); localStorage.setItem('pampas_users_db', JSON.stringify(updated)); return updated; });
     if (currentUser && String(currentUser.id) === targetIdVal) setCurrentUser(prev => ({ ...prev, team: newTeam }));
     
-    alert(type === 'add' ? `Clube ${newTeam} atribuído!` : `Clube removido da conta.`);
+    alert(type === 'add' ? `Clube ${newTeam} atribuído!` : `Clube removido.`);
     setAdminTeamName(''); fetchUsersDb();
   };
 
@@ -206,25 +193,23 @@ export default function App() {
     const targetUser = usersDb.find(u => u.id === userId);
     if (!targetUser || targetUser.username.toLowerCase() === 'lvelasques') return;
     const newStatus = !currentStatus;
-    if (isSupabaseConfigured) { try { await supabase.from('users').update({ isAdmin: newStatus }).eq('id', userId); } catch (e) { } }
+    try { await supabase.from('users').update({ isAdmin: newStatus }).eq('id', userId); } catch (e) { }
     setUsersDb(prev => { const updated = prev.map(u => u.id === userId ? { ...u, isAdmin: newStatus } : u); localStorage.setItem('pampas_users_db', JSON.stringify(updated)); return updated; });
     alert(`Estatuto alterado!`);
   };
 
   const handleTransferAction = async (updateId, playerId, newClub, action) => {
-    if (isSupabaseConfigured) {
-      try {
-        if (action === 'approve') {
-          if (playerId) await supabase.from('players').update({ current_club: newClub }).eq('id', playerId);
-          await supabase.from('squad_updates').update({ status: 'approved' }).eq('id', updateId);
-          alert('Transferência Aprovada!');
-        } else {
-          await supabase.from('squad_updates').update({ status: 'rejected' }).eq('id', updateId);
-          alert('Transferência Rejeitada.');
-        }
-        fetchPendingUpdates();
-      } catch (e) { alert('Erro ao processar.'); }
-    }
+    try {
+      if (action === 'approve') {
+        if (playerId) await supabase.from('players').update({ current_club: newClub }).eq('id', playerId);
+        await supabase.from('squad_updates').update({ status: 'approved' }).eq('id', updateId);
+        alert('Transferência Aprovada!');
+      } else {
+        await supabase.from('squad_updates').update({ status: 'rejected' }).eq('id', updateId);
+        alert('Transferência Rejeitada.');
+      }
+      fetchPendingUpdates();
+    } catch (e) { alert('Erro ao processar.'); }
   };
 
   const renderGameRoute = (GameComponent) => (
@@ -439,4 +424,4 @@ export default function App() {
       )}
     </div>
   );
-                      }
+          }
