@@ -66,9 +66,7 @@ export default function App() {
     }
     const local = localStorage.getItem('pampas_users_db');
     if (local) setUsersDb(JSON.parse(local));
-  };
-
-  useEffect(() => {
+  };useEffect(() => {
     fetchUsersDb();
     const interval = setInterval(fetchUsersDb, 3000);
     return () => clearInterval(interval);
@@ -149,7 +147,9 @@ export default function App() {
     setInputPassword('');
     setConfirmPassword('');
     setAuthError('');
-  };const handleLogout = () => {
+  };
+
+  const handleLogout = () => {
     setCurrentUser(null);
     localStorage.removeItem('pampas_current_user');
     setIsUserPanelOpen(false);
@@ -211,7 +211,6 @@ export default function App() {
     fetchUsersDb();
   };
 
-  // NOVA FUNÇÃO: DELETAR USUÁRIO PELO PAINEL ADMIN
   const handleDeleteUser = async (id, username) => {
     if (!window.confirm(`Tem a certeza que deseja excluir o utilizador ${username} (#${id})?`)) return;
     if (isSupabaseConfigured) {
@@ -436,4 +435,4 @@ export default function App() {
       )}
     </div>
   );
-                }
+                                                                }
