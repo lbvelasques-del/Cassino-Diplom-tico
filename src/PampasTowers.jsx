@@ -137,7 +137,8 @@ export default function PampasTowers() {
     setGameOver(true);
     setMessage(`🏆 LUCRO RESGATADO! +R$ ${prize.toLocaleString('pt-BR', {maximumFractionDigits: 0})}`);
   };
-    return (
+
+  return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       {/* Topo Global */}
       <div className="py-6 px-4 text-center bg-black border-b border-zinc-900 flex flex-col items-center justify-center space-y-3">
@@ -233,3 +234,4 @@ export default function PampasTowers() {
     </div>
   );
 }
+```[cite: 4]
