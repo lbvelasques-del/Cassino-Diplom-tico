@@ -66,7 +66,9 @@ export default function App() {
     }
     const local = localStorage.getItem('pampas_users_db');
     if (local) setUsersDb(JSON.parse(local));
-  };useEffect(() => {
+  };
+
+  useEffect(() => {
     fetchUsersDb();
     const interval = setInterval(fetchUsersDb, 3000);
     return () => clearInterval(interval);
@@ -147,9 +149,7 @@ export default function App() {
     setInputPassword('');
     setConfirmPassword('');
     setAuthError('');
-  };
-
-  const handleLogout = () => {
+  };const handleLogout = () => {
     setCurrentUser(null);
     localStorage.removeItem('pampas_current_user');
     setIsUserPanelOpen(false);
@@ -211,6 +211,18 @@ export default function App() {
     fetchUsersDb();
   };
 
+  // NOVA FUNÇÃO: DELETAR USUÁRIO PELO PAINEL ADMIN
+  const handleDeleteUser = async (id, username) => {
+    if (!window.confirm(`Tem a certeza que deseja excluir o utilizador ${username} (#${id})?`)) return;
+    if (isSupabaseConfigured) {
+      try { await supabase.from('users').delete().eq('id', id); } catch (e) { }
+    }
+    const updatedList = usersDb.filter(u => u.id !== id);
+    setUsersDb(updatedList);
+    localStorage.setItem('pampas_users_db', JSON.stringify(updatedList));
+    if (currentUser && currentUser.id === id) handleLogout();
+  };
+
   const renderGameRoute = (GameComponent) => (
     <div>
       <div className="bg-black px-4 py-2.5 flex items-center justify-between border-b border-zinc-900 sticky top-0 z-50">
@@ -268,56 +280,47 @@ export default function App() {
           <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Escolha a sua plataforma de apostas unificadas</p>
         </div>
 
-        {/* 9 Cartões de Jogos no Lobby */}
         <div className="space-y-4 pt-2">
           <div onClick={() => setActiveGame('costarica')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
             <h3 className="text-lg font-black text-amber-300">👑 CAÇA-NÍQUEL DOS PAMPAS</h3>
             <p className="text-xs text-zinc-300">O caça-níqueis oficial com roleta de bônus e símbolos diplomáticos.</p>
             <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
           </div>
-
           <div onClick={() => setActiveGame('holdandwin')} className="bg-gradient-to-b from-[#14141a] to-[#260f0f] border-2 border-red-500/60 hover:border-red-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
             <h3 className="text-lg font-black text-red-400">🪙 O COFRE DO BARÃO</h3>
             <p className="text-xs text-zinc-300">Caça-níquel Hold & Win. Tranca 6 moedas para ativar os Respins e o Jackpot!</p>
             <span className="inline-block bg-red-600 text-white font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
           </div>
-
           <div onClick={() => setActiveGame('diamond')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
             <h3 className="text-lg font-black text-amber-300">⚔️ GUERRA DAS AMÉRICAS</h3>
             <p className="text-xs text-zinc-300">Estratégia tática e multiplicadores em campo minado.</p>
             <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
           </div>
-
           <div onClick={() => setActiveGame('crash')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
             <h3 className="text-lg font-black text-amber-300">🚀 PAMPAS CRASH</h3>
             <p className="text-xs text-zinc-300">O voo dos campeões com multiplicadores exponenciais em tempo real.</p>
             <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
           </div>
-
           <div onClick={() => setActiveGame('roleta')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
             <h3 className="text-lg font-black text-amber-300">🎡 ROLETA DIPLOMÁTICA</h3>
             <p className="text-xs text-zinc-300">A clássica roleta da fortuna adaptada à diplomacia do Grupo Pampas.</p>
             <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
           </div>
-
           <div onClick={() => setActiveGame('goal')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
             <h3 className="text-lg font-black text-amber-300">⚽ PAMPAS GOAL</h3>
             <p className="text-xs text-zinc-300">A batalha defensiva de pênaltis com o goleiro de elite.</p>
             <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
           </div>
-
           <div onClick={() => setActiveGame('towers')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
             <h3 className="text-lg font-black text-amber-300">🏰 PAMPAS TOWERS</h3>
             <p className="text-xs text-zinc-300">A escada de risco e portas multiplicadoras até ao topo da torre.</p>
             <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
           </div>
-
           <div onClick={() => setActiveGame('hilo')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
             <h3 className="text-lg font-black text-amber-300">🃏 PAMPAS HI-LO</h3>
             <p className="text-xs text-zinc-300">A adivinhação rápida de cartas altas ou baixas em sequência.</p>
             <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
           </div>
-
           <div onClick={() => setActiveGame('dice')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
             <h3 className="text-lg font-black text-amber-300">🎲 PAMPAS DICE</h3>
             <p className="text-xs text-zinc-300">O seletor de probabilidade e dados com multiplicador personalizado.</p>
@@ -325,15 +328,14 @@ export default function App() {
           </div>
         </div>
       </main>
-      
-      {/* Modais com a correção do Toggle de Login/Registo */}
+
+      {/* Modais */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
             <button onClick={() => setIsAuthOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white text-lg">✕</button>
             <h2 className="text-amber-400 font-black text-xl mb-1">{authMode === 'login' ? 'Entrar no Portal' : 'Criar Conta Oficial'}</h2>
             {authError && <div className="bg-red-500/10 border border-red-500/40 text-red-400 text-xs p-3 rounded-xl mb-4 font-semibold">{authError}</div>}
-            
             <form onSubmit={handleAuthSubmit} className="space-y-4">
               <div>
                 <label className="text-xs text-zinc-400 block mb-1 font-semibold">Nome de Utilizador</label>
@@ -351,14 +353,8 @@ export default function App() {
               )}
               <button type="submit" className="w-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black py-3.5 rounded-xl text-sm">{authMode === 'login' ? 'Entrar' : 'Criar Conta'}</button>
             </form>
-            
-            {/* Botão adicionado para trocar entre Login e Registo */}
             <div className="mt-4 text-center">
-              <button 
-                type="button" 
-                onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthError(''); }} 
-                className="text-xs text-amber-500 font-bold hover:underline"
-              >
+              <button type="button" onClick={() => { setAuthMode(authMode === 'login' ? 'register' : 'login'); setAuthError(''); }} className="text-xs text-amber-500 font-bold hover:underline">
                 {authMode === 'login' ? 'Ainda não tens conta? Cria aqui' : 'Já tens conta? Entra aqui'}
               </button>
             </div>
@@ -394,6 +390,7 @@ export default function App() {
             <button onClick={() => setIsAdminPanelOpen(false)} className="absolute top-4 right-4 text-zinc-400 text-lg">✕</button>
             <h2 className="text-amber-400 font-black text-xl mb-4">Painel Admin - Grupo Pampas</h2>
             <div className="space-y-4">
+              
               <div className="bg-[#0b0b0e] border border-amber-500/40 p-4 rounded-2xl space-y-3">
                 <h3 className="text-xs text-amber-300 font-bold uppercase">Gestão de Saldo por ID</h3>
                 <div className="grid grid-cols-2 gap-2">
@@ -405,10 +402,38 @@ export default function App() {
                   <button onClick={() => handleAdminBalanceUpdate('remove')} className="flex-1 bg-red-500 text-black font-black py-2 rounded-xl text-xs">➖ Remover</button>
                 </div>
               </div>
+
+              {/* LISTA DE CONTAS CADASTRADAS NO PAINEL DE ADMIN */}
+              <div className="bg-[#0b0b0e] border border-amber-500/40 p-4 rounded-2xl space-y-3">
+                <h3 className="text-xs text-amber-300 font-bold uppercase flex justify-between">
+                  <span>Contas Cadastradas</span>
+                  <span className="bg-amber-500 text-black px-2 py-0.5 rounded-md">{usersDb.length}</span>
+                </h3>
+                <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
+                  {usersDb.map(user => (
+                    <div key={user.id} className="flex justify-between items-center bg-[#141418] border border-zinc-800 p-3 rounded-xl">
+                      <div className="text-left">
+                        <p className="text-sm font-bold text-white">
+                          {user.username} 
+                          {user.isAdmin && <span className="ml-2 text-[8px] bg-amber-500 text-black px-1.5 py-0.5 rounded uppercase">Admin</span>}
+                        </p>
+                        <p className="text-[10px] text-zinc-500 font-mono mt-0.5">ID: {user.id}</p>
+                        <p className="text-[11px] text-amber-400 font-black mt-1">R$ {Number(user.balance).toLocaleString('pt-BR')}</p>
+                      </div>
+                      {user.username.toLowerCase() !== 'lvelasques' && (
+                        <button onClick={() => handleDeleteUser(user.id, user.username)} className="bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-md">
+                          Excluir
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
       )}
     </div>
   );
-            }
+                }
