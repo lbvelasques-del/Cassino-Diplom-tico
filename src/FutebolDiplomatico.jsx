@@ -8,12 +8,12 @@ const isSupabaseConfigured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KE
 const supabase = isSupabaseConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 export default function FutebolDiplomatico() {
-  const [currentUser, setCurrentUser] = useState(() => {
+  const [currentUser] = useState(() => {
     const saved = localStorage.getItem('pampas_current_user');
     return saved ? JSON.parse(saved) : null;
   });
 
-  const [balance, setBalance] = useState(() => {
+  const [balance] = useState(() => {
     const saved = localStorage.getItem('pampas_current_user');
     return saved ? JSON.parse(saved).balance : 0;
   });
@@ -26,7 +26,7 @@ export default function FutebolDiplomatico() {
   useEffect(() => {
     if (currentUser) {
       setMyTeam({
-        name: "Unidos FC", 
+        name: currentUser.team || "Unidos FC", 
         stadium: "Campo do São Leopoldo",
         manager: currentUser.username,
         overall: 78
@@ -78,7 +78,9 @@ export default function FutebolDiplomatico() {
       case 'bronze': return 'from-orange-300 via-orange-600 to-amber-900 text-white border-orange-400 shadow-[0_0_10px_rgba(251,146,60,0.3)]';
       default: return 'from-zinc-700 to-zinc-900 text-white border-zinc-500';
     }
-  };return (
+  };
+
+  return (
     <div className="min-h-screen bg-[#050507] text-white font-sans antialiased pb-24 selection:bg-emerald-500 selection:text-black">
       
       {/* Cabeçalho do Treinador */}
@@ -126,7 +128,9 @@ export default function FutebolDiplomatico() {
           <span className="text-xl mb-1">🤝</span>
           <span className="text-[9px] font-black uppercase tracking-wider">Mercado</span>
         </button>
-      </div><main className="max-w-md mx-auto p-4 space-y-4 text-center">
+      </div>
+
+      <main className="max-w-md mx-auto p-4 space-y-4 text-center">
         
         {activeTab === 'dashboard' && (
           <div className="space-y-4 animate-fade-in">
@@ -178,7 +182,6 @@ export default function FutebolDiplomatico() {
                <div className="absolute top-1/2 left-0 right-0 border-t-2 border-white/10 pointer-events-none"></div>
                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-16 h-16 border-2 border-white/10 rounded-full pointer-events-none"></div>
                
-               {/* Posições Mockadas em campo */}
                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-[9px] font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-white">GOL</div>
                <div className="absolute bottom-16 left-1/4 -translate-x-1/2 bg-zinc-400 text-black text-[9px] font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-white">ZAG</div>
                <div className="absolute bottom-16 right-1/4 translate-x-1/2 bg-yellow-400 text-black text-[9px] font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-white">ZAG</div>
@@ -196,7 +199,9 @@ export default function FutebolDiplomatico() {
               </button>
             </div>
           </div>
-        )}{activeTab === 'elenco' && (
+        )}
+
+        {activeTab === 'elenco' && (
           <div className="animate-fade-in text-left space-y-4">
             <div className="flex justify-between items-end px-1">
               <div>
@@ -224,22 +229,18 @@ export default function FutebolDiplomatico() {
               <div className="space-y-3 mt-4">
                 {squad.length === 0 && (
                   <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-2xl text-center mb-4">
-                    <p className="text-amber-400 text-xs font-bold">O banco de dados de jogadores ainda está vazio, então geramos um elenco teste para você ver o layout! Vá ao Mercado para contratar.</p>
+                    <p className="text-amber-400 text-xs font-bold">O banco de dados de jogadores ainda está vazio, geramos um elenco teste! Atribua o clube ao utilizador no Painel Admin.</p>
                   </div>
                 )}
                 
                 {displaySquad.map((player) => (
                   <div key={player.id} className={`relative overflow-hidden flex items-center bg-gradient-to-r ${getClassStyle(player.class_tier, player.overall)} p-0.5 rounded-2xl transition-all active:scale-95`}>
-                    {/* Fundo do Card */}
                     <div className="flex items-center w-full bg-[#0a0a0e] rounded-[14px] p-3 gap-3 relative z-10">
-                      
-                      {/* Rating Box */}
                       <div className={`flex flex-col items-center justify-center min-w-[45px] h-[55px] rounded-lg bg-gradient-to-br ${getClassStyle(player.class_tier, player.overall)} border-none shadow-inner`}>
                         <span className="text-[10px] font-black opacity-80 uppercase leading-none mt-1">{player.position}</span>
                         <span className="text-xl font-black leading-none mt-0.5">{player.overall}</span>
                       </div>
                       
-                      {/* Info do Jogador */}
                       <div className="flex-1 min-w-0">
                         <h4 className="text-white font-black text-sm truncate uppercase tracking-wide">{player.name}</h4>
                         <div className="flex items-center gap-2 mt-1">
@@ -248,7 +249,6 @@ export default function FutebolDiplomatico() {
                         </div>
                       </div>
                       
-                      {/* Selo da Classe */}
                       <div className="text-right">
                         <span className="text-[8px] font-black uppercase tracking-widest opacity-60 block mb-0.5">Classe</span>
                         <span className="text-xs font-black uppercase drop-shadow-md" style={{
