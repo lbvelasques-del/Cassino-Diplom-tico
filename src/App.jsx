@@ -137,6 +137,7 @@ export default function App() {
   };
 
   const handleLogout = () => { setCurrentUser(null); localStorage.removeItem('pampas_current_user'); setIsUserPanelOpen(false); setWithdrawSuccess(false); };
+  
   const handleSelfDelete = async () => {
     if (!window.confirm(`Deseja realmente excluir a sua conta?`)) return;
     try { await supabase.from('users').delete().eq('id', currentUser.id); } catch (e) {}
@@ -424,4 +425,4 @@ export default function App() {
       )}
     </div>
   );
-          }
+            }
