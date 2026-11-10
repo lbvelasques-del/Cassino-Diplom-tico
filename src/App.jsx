@@ -21,7 +21,7 @@ export default function App() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [teamPrice, setTeamPrice] = useState('');
 
-  // Estados de Gestão de ADM
+  // Estados de Gestão do ADM
   const [userList, setUserList] = useState([]);
   const [admTargetUser, setAdmTargetUser] = useState('');
   const [admAmount, setAdmAmount] = useState('');
@@ -239,23 +239,23 @@ export default function App() {
 
           <div className="space-y-4">
             
-            {/* Jogo Principal MASTER: Futebol Diplomático */}
+            {/* ⚽ 1. JOGO PRINCIPAL MASTER: Futebol Diplomático */}
             <div>
-              <h2 className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mb-2 pl-2 border-l-2 border-emerald-500">Simulador Master</h2>
+              <h2 className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mb-2 pl-2 border-l-2 border-emerald-500">Jogo Principal • Master</h2>
               <button onClick={() => setActiveGame('futebol')} className="w-full text-left group relative overflow-hidden bg-gradient-to-br from-[#0d1612] via-[#09100d] to-[#050907] border-2 border-emerald-500/60 rounded-[2.5rem] p-7 shadow-[0_0_40px_rgba(5,150,105,0.2)] hover:border-emerald-400 transition-all cursor-pointer">
                 <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl"></div>
                 <div className="flex flex-col gap-3 relative z-10">
                   <div className="w-16 h-16 bg-emerald-950 border-2 border-emerald-500/60 rounded-2xl flex items-center justify-center text-4xl shadow-inner">⚽</div>
                   <div>
                     <h3 className="text-2xl font-black text-white tracking-tighter group-hover:text-emerald-300">Futebol Diplomático</h3>
-                    <p className="text-[10px] text-emerald-400 font-black uppercase mt-1 tracking-widest">Gerencie Elenco • Táticas • Campeonato Oficial</p>
+                    <p className="text-[10px] text-emerald-400 font-black uppercase mt-1 tracking-widest">Gestão de Elenco • Táticas • Campeonato Oficial</p>
                   </div>
                   <span className="mt-2 inline-block text-center bg-emerald-500 text-black font-black py-3 rounded-xl text-xs uppercase tracking-wider shadow-lg">Entrar no Simulador</span>
                 </div>
               </button>
             </div>
 
-            {/* Portal VIP: Cassino Diplomático */}
+            {/* 🎰 2. ABA SECUNDÁRIA: Cassino Diplomático (Acesso ao Portal de Jogos) */}
             <div>
               <h2 className="text-[10px] text-amber-500 font-black uppercase tracking-widest mb-2 pl-2 border-l-2 border-amber-500">Passatempo VIP</h2>
               <button onClick={() => setActiveGame('cassino')} className="w-full text-left group bg-[#140e0a] border border-amber-900/50 rounded-[2rem] p-6 shadow-xl hover:border-amber-500 transition-all cursor-pointer">
@@ -263,7 +263,7 @@ export default function App() {
                   <div className="w-14 h-14 bg-amber-950 border border-amber-700/50 rounded-2xl flex items-center justify-center text-3xl">🎰</div>
                   <div>
                     <h3 className="text-xl font-black text-white group-hover:text-amber-300">Cassino Diplomático</h3>
-                    <p className="text-[9px] text-amber-600 font-bold uppercase mt-1 tracking-widest">Portal de Jogos • Multiplicadores</p>
+                    <p className="text-[9px] text-amber-600 font-bold uppercase mt-1 tracking-widest">Entrar no Portal de Jogos de Cassino</p>
                   </div>
                 </div>
               </button>
