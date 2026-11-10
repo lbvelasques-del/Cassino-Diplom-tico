@@ -7,7 +7,7 @@ export default function FutebolDiplomatico() {
     return saved ? JSON.parse(saved) : null;
   });
 
-  const [balance] = useState(() => {
+  const [balance, setBalance] = useState(() => {
     const saved = localStorage.getItem('pampas_current_user');
     return saved ? JSON.parse(saved).balance : 0;
   });
@@ -15,12 +15,22 @@ export default function FutebolDiplomatico() {
   const [activeTab, setActiveTab] = useState('elenco'); 
   const [myTeam, setMyTeam] = useState(null);
   const [squad, setSquad] = useState([]);
-  const [loadingSquad, setLoadingSquad] = useState(true);
+  const [transferMarket, setTransferMarket] = useState([]);
+  const [matchesCount, setMatchesCount] = useState(0);
 
   // Estados para o motor de partida
   const [matchState, setMatchState] = useState('menu'); // 'menu', 'simulating', 'result'
   const [matchResult, setMatchResult] = useState(null);
   const [liveLog, setLiveLog] = useState([]);
+
+  // Estado para preço personalizado de venda
+  const [sellingPlayer, setSellingPlayer] = useState(null);
+  const [customPrice, setCustomPrice] = useState('');
+
+  // Estado para ADM criar leilão
+  const [admName, setAdmName] = useState('');
+  const [admPos, setAdmPos] = useState('MEI');
+  const [admOvr, setAdmOvr] = useState(80);
 
   useEffect(() => {
     if (currentUser) {
@@ -33,49 +43,135 @@ export default function FutebolDiplomatico() {
     }
   }, [currentUser]);
 
-  const fetchSquad = async (clubName) => {
-    if (!clubName || clubName === "Sem Clube Atribuído") {
-      setLoadingSquad(false);
-      return;
-    }
-    setLoadingSquad(true);
-    try {
-      const { data, error } = await supabase
-        .from('players')
-        .select('*')
-        .eq('current_club', clubName)
-        .order('overall', { ascending: false });
+  const fetchGameData = async (clubName) => {
+    if (!clubName || clubName === "Sem Clube Atribuído") return;
+    
+    // Buscar elenco do clube
+    const { data: playersData } = await supabase
+      .from('players')
+      .select('*')
+      .eq('current_club', clubName)
+      .order('overall', { ascending: false });
 
-      if (!error && data && data.length > 0) {
-        setSquad(data);
-      }
-    } catch (e) { 
-      console.error(e); 
-    }
-    setLoadingSquad(false);
+    if (playersData) setSquad(playersData);
+
+    // Buscar jogadores na Área de Transferências
+    const { data: marketData } = await supabase
+      .from('players')
+      .select('*')
+      .eq('is_listed', true);
+
+    if (marketData) setTransferMarket(marketData);
   };
 
   useEffect(() => {
     if (myTeam) {
-      fetchSquad(myTeam.name);
+      fetchGameData(myTeam.name);
     }
   }, [myTeam]);
 
-  // Função para simular a partida ao clicar em "Entrar em Campo"
+  // Cálculo do valor mínimo baseado no OVR
+  const getMinMarketValue = (overall) => {
+    return overall * 250000; // Ex: OVR 80 = 20 Milhões mínimo
+  };
+
+  // Colocar jogador à venda com preço personalizado
+  const handleListPlayer = async () => {
+    if (!sellingPlayer) return;
+    const minVal = getMinMarketValue(sellingPlayer.overall);
+    const finalPrice = Number(customPrice);
+
+    if (finalPrice < minVal) {
+      alert(`O preço de venda não pode ser inferior ao mínimo de R$ ${minVal.toLocaleString('pt-BR')} para este OVR.`);
+      return;
+    }
+
+    const { error } = await supabase
+      .from('players')
+      .update({ is_listed: true, sale_price: finalPrice })
+      .eq('id', sellingPlayer.id);
+
+    if (!error) {
+      alert(`${sellingPlayer.name} foi colocado na Área de Transferências por R$ ${finalPrice.toLocaleString('pt-BR')}!`);
+      setSellingPlayer(null);
+      setCustomPrice('');
+      fetchGameData(myTeam.name);
+    } else {
+      alert('Erro ao listar jogador.');
+    }
+  };
+
+  // Comprar jogador do mercado (com 15% para a casa)
+  const handleBuyPlayer = async (player) => {
+    const price = player.sale_price || player.market_value;
+    if (balance < price) {
+      alert('Saldo insuficiente na sua conta unificada!');
+      return;
+    }
+
+    const houseCommission = price * 0.15;
+    const sellerRevenue = price * 0.85;
+
+    // Atualizar clube do jogador para o meu time e deslistar
+    const { error } = await supabase
+      .from('players')
+      .update({ current_club: myTeam.name, is_listed: false, sale_price: 0 })
+      .eq('id', player.id);
+
+    if (!error) {
+      const newBalance = balance - price;
+      setBalance(newBalance);
+      localStorage.setItem('pampas_current_user', JSON.stringify({ ...currentUser, balance: newBalance }));
+      alert(`Contratação efetuada com sucesso! 15% (R$ ${houseCommission.toLocaleString('pt-BR')}) retido pela casa.`);
+      fetchGameData(myTeam.name);
+    }
+  };
+
+  // ADM cria jogador para leilão
+  const handleAdmCreateAuction = async (e) => {
+    e.preventDefault();
+    const tier = admOvr >= 85 ? 'Diamante' : admOvr >= 75 ? 'Ouro' : admOvr >= 65 ? 'Prata' : 'Bronze';
+    const { error } = await supabase.from('players').insert([{
+      name: admName,
+      position: admPos,
+      overall: Number(admOvr),
+      class_tier: tier,
+      current_club: 'Leilão ADM',
+      is_listed: true,
+      sale_price: getMinMarketValue(Number(admOvr)),
+      market_value: getMinMarketValue(Number(admOvr))
+    }]);
+
+    if (!error) {
+      alert('Jogador criado e enviado para a Área de Transferências com sucesso!');
+      setAdmName('');
+      fetchGameData(myTeam.name);
+    }
+  };
+
+  // Simulação de Partida e Contratos (A cada 5 partidas)
   const startMatchSimulation = () => {
     setMatchState('simulating');
-    setLiveLog(['Apito inicial! A bola está a rolar...', 'A equipa estuda o adversário no meio-campo...']);
+    setLiveLog(['Apito inicial! A bola está a rolar...', 'A equipa pressiona na saída de bola...']);
 
     setTimeout(() => {
-      setLiveLog(prev => [...prev, 'Boa jogada coletiva pelo flanco e remate perigoso!']);
+      setLiveLog(prev => [...prev, 'Grande jogada de ataque e remate perigoso!']);
     }, 1500);
 
     setTimeout(() => {
-      const teamOverall = myTeam?.overall || 75;
-      const rivalOverall = 74; 
+      const teamOverall = myTeam?.overall || 78;
+      const rivalOverall = 77; 
       
       const myGoals = Math.floor(Math.random() * 3) + (teamOverall >= rivalOverall ? 1 : 0);
       const rivalGoals = Math.floor(Math.random() * 2);
+
+      const newMatchCount = matchesCount + 1;
+      setMatchesCount(newMatchCount);
+
+      // Verificação de Contrato a cada 5 partidas
+      if (newMatchCount % 5 === 0) {
+        alert('⚠️ Ciclo de 5 partidas concluído! Os contratos do plantel precisam de renovação para evitar que atletas saiam para o mercado.');
+      }
 
       setMatchResult({
         homeTeam: myTeam?.name || "Minha Equipa",
@@ -88,228 +184,198 @@ export default function FutebolDiplomatico() {
     }, 3500);
   };
 
-  const mockSquad = [
-    { id: 'm1', name: 'Lucas Velasques', position: 'VOL', overall: 88, class_tier: 'Diamante', age: 26, nationality: 'Brasil' },
-    { id: 'm2', name: 'Tiarles', position: 'ZAG', overall: 81, class_tier: 'Ouro', age: 28, nationality: 'Brasil' },
-    { id: 'm3', name: 'Eduardo', position: 'ATA', overall: 75, class_tier: 'Ouro', age: 24, nationality: 'Brasil' },
-    { id: 'm4', name: 'Alex', position: 'GOL', overall: 68, class_tier: 'Prata', age: 30, nationality: 'Brasil' }
-  ];
-
-  const displaySquad = squad.length > 0 ? squad : mockSquad;
-
   const getClassStyle = (tier, overall) => {
     const t = tier ? tier.toLowerCase() : (overall >= 85 ? 'diamante' : overall >= 70 ? 'ouro' : overall >= 60 ? 'prata' : 'bronze');
     switch(t) {
-      case 'diamante': return 'from-cyan-300 via-blue-500 to-purple-600 text-white border-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.4)]';
-      case 'ouro': return 'from-yellow-300 via-amber-500 to-orange-500 text-black border-yellow-300 shadow-[0_0_15px_rgba(252,211,77,0.4)]';
-      case 'prata': return 'from-gray-100 via-gray-300 to-gray-500 text-black border-gray-300 shadow-[0_0_10px_rgba(209,213,219,0.3)]';
-      case 'bronze': return 'from-orange-300 via-orange-600 to-amber-900 text-white border-orange-400 shadow-[0_0_10px_rgba(251,146,60,0.3)]';
-      default: return 'from-zinc-700 to-zinc-900 text-white border-zinc-500';
+      case 'diamante': return 'from-cyan-300 via-blue-500 to-purple-600 text-white border-cyan-300';
+      case 'ouro': return 'from-yellow-300 via-amber-500 to-orange-500 text-black border-yellow-300';
+      case 'prata': return 'from-gray-100 via-gray-300 to-gray-500 text-black border-gray-300';
+      default: return 'from-orange-300 via-orange-600 to-amber-900 text-white border-orange-400';
     }
   };
 
   return (
     <div className="min-h-screen bg-[#050507] text-white font-sans antialiased pb-24 selection:bg-emerald-500 selection:text-black">
-      <div className="w-full bg-gradient-to-b from-[#0a1210] via-[#050a08] to-[#050507] border-b border-emerald-500/30 px-4 py-6 text-center relative shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
-        <h1 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-green-100 to-emerald-500 drop-shadow-[0_2px_10px_rgba(16,185,129,0.5)]">
+      <div className="w-full bg-gradient-to-b from-[#0a1210] via-[#050a08] to-[#050507] border-b border-emerald-500/30 px-4 py-6 text-center relative shadow-2xl">
+        <h1 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-green-100 to-emerald-500">
           FUTEBOL DIPLOMÁTICO
         </h1>
-        <p className="text-xs text-emerald-500/70 font-bold uppercase mt-1 tracking-widest">Manager Oficial 2026</p>
+        <p className="text-xs text-emerald-500/70 font-bold uppercase mt-1 tracking-widest">Manager & Mercado 2026</p>
         
         {myTeam && (
-          <div className="mt-4 inline-block bg-gradient-to-r from-[#0d1612] via-[#080d0a] to-[#0d1612] border border-emerald-500/40 px-6 py-3 rounded-2xl shadow-lg w-full max-w-[90%]">
-            <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider mb-2">Clube Atual</p>
+          <div className="mt-4 inline-block bg-[#0d1612] border border-emerald-500/40 px-6 py-3 rounded-2xl shadow-lg w-full max-w-[90%]">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="text-4xl drop-shadow-md">🛡️</span>
+                <span className="text-3xl">🛡️</span>
                 <div className="text-left">
-                  <p className="text-white font-black text-xl leading-tight tracking-wide">{myTeam.name}</p>
-                  <p className="text-[11px] text-zinc-400 font-semibold mt-0.5">Téc: <span className="text-emerald-400">{myTeam.manager}</span></p>
+                  <p className="text-white font-black text-lg leading-tight">{myTeam.name}</p>
+                  <p className="text-[10px] text-zinc-400 font-semibold">Técnico: <span className="text-emerald-400">{myTeam.manager}</span></p>
                 </div>
               </div>
-              <div className="text-center bg-black/40 px-3 py-1.5 rounded-xl border border-emerald-500/20">
-                <span className="text-[9px] text-zinc-500 font-black block uppercase">OVR</span>
-                <span className="text-lg text-emerald-400 font-black leading-none">{myTeam.overall}</span>
+              <div className="text-right">
+                <span className="text-[9px] text-zinc-500 font-black block uppercase">Saldo Unificado</span>
+                <span className="text-xs text-emerald-400 font-black">R$ {balance.toLocaleString('pt-BR')}</span>
               </div>
             </div>
           </div>
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#0a0a0e]/95 backdrop-blur-md border-t border-emerald-500/30 p-2.5 z-40 flex justify-between shadow-[0_-10px_30px_rgba(0,0,0,0.9)] pb-safe">
-        <button onClick={() => setActiveTab('dashboard')} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}>
+      {/* Menu Inferior */}
+      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#0a0a0e]/95 backdrop-blur-md border-t border-emerald-500/30 p-2.5 z-40 flex justify-between shadow-2xl">
+        <button onClick={() => setActiveTab('dashboard')} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl ${activeTab === 'dashboard' ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-500'}`}>
           <span className="text-xl mb-1">🏠</span>
-          <span className="text-[9px] font-black uppercase tracking-wider">Clube</span>
+          <span className="text-[9px] font-black uppercase">Clube</span>
         </button>
-        <button onClick={() => setActiveTab('elenco')} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl transition-all ${activeTab === 'elenco' ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}>
+        <button onClick={() => setActiveTab('elenco')} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl ${activeTab === 'elenco' ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-500'}`}>
           <span className="text-xl mb-1">👕</span>
-          <span className="text-[9px] font-black uppercase tracking-wider">Elenco</span>
+          <span className="text-[9px] font-black uppercase">Elenco</span>
         </button>
-        <button onClick={() => setActiveTab('taticas')} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl transition-all ${activeTab === 'taticas' ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}>
-          <span className="text-xl mb-1">📋</span>
-          <span className="text-[9px] font-black uppercase tracking-wider">Táticas</span>
-        </button>
-        <button onClick={() => setActiveTab('mercado')} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl transition-all ${activeTab === 'mercado' ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}>
+        <button onClick={() => setActiveTab('mercado')} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl ${activeTab === 'mercado' ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-500'}`}>
           <span className="text-xl mb-1">🤝</span>
-          <span className="text-[9px] font-black uppercase tracking-wider">Mercado</span>
+          <span className="text-[9px] font-black uppercase">Mercado</span>
+        </button>
+        <button onClick={() => setActiveTab('adm')} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl ${activeTab === 'adm' ? 'bg-emerald-500/15 text-emerald-400' : 'text-zinc-500'}`}>
+          <span className="text-xl mb-1">⚙️</span>
+          <span className="text-[9px] font-black uppercase">Painel ADM</span>
         </button>
       </div>
 
       <main className="max-w-md mx-auto p-4 space-y-4 text-center">
         {activeTab === 'dashboard' && (
-          <div className="space-y-4">
-            <div className="bg-[#0f1412] border border-emerald-900/30 rounded-3xl p-5 shadow-xl text-left">
-              <h3 className="text-emerald-400 font-black text-sm uppercase mb-3 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Próxima Partida
+          <div className="space-y-4 text-left">
+            <div className="bg-[#0f1412] border border-emerald-900/30 rounded-3xl p-5 shadow-xl">
+              <h3 className="text-emerald-400 font-black text-sm uppercase mb-3 flex items-center justify-between">
+                <span>⚽ Próxima Partida</span>
+                <span className="text-[10px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded">Ciclo: {matchesCount % 5}/5 jogos</span>
               </h3>
-              <div className="flex items-center justify-between bg-black/40 p-4 rounded-2xl border border-emerald-900/40">
-                <div className="text-center flex-1">
-                  <span className="text-3xl block mb-2 drop-shadow-md">🛡️</span>
-                  <span className="text-[10px] font-black text-white uppercase tracking-wide leading-tight block">{myTeam?.name}</span>
-                </div>
-                <div className="text-center px-2 flex flex-col items-center">
-                  <span className="text-xs text-zinc-500 font-black block mb-1">VS</span>
-                  <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-1 rounded font-bold">19:00</span>
-                </div>
-                <div className="text-center flex-1">
-                  <span className="text-3xl block mb-2 opacity-80 filter grayscale">🦅</span>
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wide leading-tight block">Rival FC</span>
-                </div>
-              </div>
 
               {matchState === 'menu' && (
                 <button 
                   onClick={startMatchSimulation}
-                  className="w-full mt-4 bg-gradient-to-r from-emerald-600 to-emerald-400 hover:from-emerald-500 hover:to-emerald-300 text-black font-black py-4 rounded-xl text-sm shadow-[0_5px_20px_rgba(16,185,129,0.3)] transition-all uppercase tracking-wider cursor-pointer"
+                  className="w-full mt-2 bg-gradient-to-r from-emerald-600 to-emerald-400 text-black font-black py-4 rounded-xl text-sm shadow-lg uppercase tracking-wider cursor-pointer"
                 >
-                  ⚽ Entrar em Campo
+                  Entrar em Campo
                 </button>
               )}
 
               {matchState === 'simulating' && (
-                <div className="mt-4 bg-black/60 border border-emerald-500/40 p-4 rounded-2xl text-center space-y-3">
+                <div className="bg-black/60 border border-emerald-500/40 p-4 rounded-2xl text-center space-y-2">
                   <div className="inline-block w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
-                  <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest animate-pulse">A simular partida ao vivo...</p>
-                  <div className="space-y-1 pt-2">
-                    {liveLog.map((log, index) => (
-                      <p key={index} className="text-[11px] text-zinc-300 font-medium">{log}</p>
-                    ))}
-                  </div>
+                  <p className="text-xs font-bold text-emerald-400 uppercase">Simulando partida...</p>
+                  {liveLog.map((log, idx) => <p key={idx} className="text-[11px] text-zinc-300">{log}</p>)}
                 </div>
               )}
 
               {matchState === 'result' && matchResult && (
-                <div className="mt-4 bg-[#0d1612] border border-emerald-500/50 p-5 rounded-2xl text-center space-y-4 shadow-2xl">
-                  <h4 className="text-xs font-black uppercase text-emerald-400 tracking-wider">Fim de Partida</h4>
-                  <div className="flex items-center justify-between bg-black/50 p-4 rounded-xl border border-emerald-900/30">
-                    <span className="text-xs font-black text-white flex-1 truncate">{matchResult.homeTeam}</span>
-                    <span className="text-xl font-black text-emerald-400 px-3 bg-emerald-500/10 py-1 rounded-lg border border-emerald-500/20">
-                      {matchResult.homeGoals} - {matchResult.awayGoals}
-                    </span>
-                    <span className="text-xs font-black text-zinc-400 flex-1 truncate">{matchResult.awayTeam}</span>
-                  </div>
-                  <p className="text-[11px] text-zinc-300 font-bold">
-                    {matchResult.points === 3 ? '🎉 Vitória espetacular! 3 pontos somados.' : matchResult.points === 1 ? '🤝 Empate disputado fora de casa.' : '❌ Derrota dura. É preciso ajustar a tática!'}
-                  </p>
-                  <button 
-                    onClick={() => setMatchState('menu')}
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-black font-black py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer"
-                  >
-                    Continuar Temporada ➔
+                <div className="bg-[#0d1612] border border-emerald-500/50 p-4 rounded-2xl text-center space-y-3">
+                  <p className="text-xs font-black text-emerald-400 uppercase">Fim de Jogo</p>
+                  <p className="text-lg font-black text-white">{matchResult.homeGoals} - {matchResult.awayGoals}</p>
+                  <button onClick={() => setMatchState('menu')} className="w-full bg-emerald-600 text-black font-black py-2 rounded-xl text-xs uppercase cursor-pointer">
+                    Continuar Temporada
                   </button>
                 </div>
               )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-[#0f1412] border border-emerald-900/30 rounded-2xl p-4 shadow-xl text-left">
-                <span className="text-emerald-500/70 text-[10px] font-black uppercase tracking-wider mb-1 block">Orçamento Global</span>
-                <span className="text-white font-black text-sm">R$ {balance.toLocaleString('pt-BR')}</span>
-              </div>
-              <div className="bg-[#0f1412] border border-emerald-900/30 rounded-2xl p-4 shadow-xl text-left">
-                <span className="text-emerald-500/70 text-[10px] font-black uppercase tracking-wider mb-1 block">Posição na Liga</span>
-                <span className="text-emerald-400 font-black text-sm">1º Lugar 🏆</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'taticas' && (
-          <div className="bg-[#0f1412] border border-emerald-900/30 rounded-3xl p-5 shadow-xl text-left">
-            <h3 className="text-emerald-400 font-black text-sm uppercase mb-4">Quadro Tático</h3>
-            <div className="bg-green-900/30 border border-emerald-800/35 h-48 rounded-2xl mb-4 relative flex items-center justify-center">
-               <span className="text-green-500/20 text-5xl font-black">4-3-3</span>
             </div>
           </div>
         )}
 
         {activeTab === 'elenco' && (
-          <div className="text-left space-y-4">
-            <div className="flex justify-between items-end px-1">
-              <div>
-                <h3 className="text-emerald-400 font-black text-lg uppercase tracking-wide">Plantel Principal</h3>
-                <p className="text-zinc-400 text-xs mt-0.5">Atletas oficiais carregados do Supabase.</p>
-              </div>
-              <span className="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded font-bold border border-emerald-500/20">
-                {displaySquad.length} Atletas
-              </span>
-            </div>
-
-            <div className="space-y-3 mt-4">
-              {displaySquad.map((player) => (
-                <div key={player.id} className={`relative overflow-hidden flex items-center bg-gradient-to-r ${getClassStyle(player.class_tier, player.overall)} p-0.5 rounded-2xl`}>
-                  <div className="flex items-center w-full bg-[#0a0a0e] rounded-[14px] p-3 gap-3 relative z-10">
-                    <div className={`flex flex-col items-center justify-center min-w-[45px] h-[55px] rounded-lg bg-gradient-to-br ${getClassStyle(player.class_tier, player.overall)}`}>
-                      <span className="text-[10px] font-black opacity-80 uppercase leading-none mt-1">{player.position}</span>
-                      <span className="text-xl font-black leading-none mt-0.5">{player.overall}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-white font-black text-sm truncate uppercase tracking-wide">{player.name}</h4>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[9px] bg-black/50 text-zinc-300 px-1.5 py-0.5 rounded uppercase font-bold">{player.nationality || 'Brasil'}</span>
-                        <span className="text-[9px] bg-black/50 text-zinc-300 px-1.5 py-0.5 rounded font-bold">{player.age ? `${player.age} anos` : 'Idade N/A'}</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[8px] font-black uppercase tracking-widest opacity-60 block mb-0.5">Classe</span>
-                      <span className="text-xs font-black uppercase">{player.class_tier || 'Ouro'}</span>
-                    </div>
-                  </div>
+          <div className="text-left space-y-3">
+            <h3 className="text-emerald-400 font-black text-lg uppercase">Plantel ({squad.length} Atletas)</h3>
+            {squad.map((player) => (
+              <div key={player.id} className="bg-[#0f1412] border border-emerald-900/30 p-3 rounded-2xl flex items-center justify-between">
+                <div>
+                  <p className="text-white font-black text-xs uppercase">{player.name}</p>
+                  <p className="text-[10px] text-zinc-400">OVR: <span className="text-emerald-400 font-bold">{player.overall}</span> | Pos: {player.position} | Mín: R$ {getMinMarketValue(player.overall).toLocaleString('pt-BR')}</p>
                 </div>
-              ))}
+                <button 
+                  onClick={() => setSellingPlayer(player)}
+                  className="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black py-1.5 px-3 rounded-xl hover:bg-emerald-600 hover:text-black cursor-pointer"
+                >
+                  VENDER
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Modal de Preço de Venda */}
+        {sellingPlayer && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-[#0f1412] border border-emerald-500/50 p-5 rounded-3xl w-full max-w-sm text-left space-y-3">
+              <h4 className="text-sm font-black text-emerald-400 uppercase">Vender Atleta: {sellingPlayer.name}</h4>
+              <p className="text-[11px] text-zinc-400">Valor mínimo sugerido: <span className="text-amber-400 font-bold">R$ {getMinMarketValue(sellingPlayer.overall).toLocaleString('pt-BR')}</span></p>
+              <input 
+                type="number" 
+                placeholder="Defina seu preço de venda" 
+                value={customPrice} 
+                onChange={(e) => setCustomPrice(e.target.value)}
+                className="w-full bg-black border border-emerald-900 p-2.5 rounded-xl text-white text-xs"
+              />
+              <div className="flex gap-2 pt-2">
+                <button onClick={() => setSellingPlayer(null)} className="flex-1 bg-zinc-800 text-zinc-300 text-xs py-2 rounded-xl font-bold cursor-pointer">Cancelar</button>
+                <button onClick={handleListPlayer} className="flex-1 bg-emerald-600 text-black text-xs py-2 rounded-xl font-black cursor-pointer">Confirmar Venda</button>
+              </div>
             </div>
           </div>
         )}
 
         {activeTab === 'mercado' && (
-          <div className="space-y-4 text-left">
-            <div className="bg-[#0f1412] border border-emerald-900/30 rounded-3xl p-5 shadow-xl">
-              <h3 className="text-emerald-400 font-black text-sm uppercase mb-1">Mercado de Transferências 🤝</h3>
-              <p className="text-zinc-400 text-xs mb-4">Gerencie os seus atletas e defina o preço de venda. (Taxa da casa: 15%)</p>
-              
-              <div className="space-y-3">
-                {displaySquad.map((player) => (
-                  <div key={player.id} className="bg-black/40 border border-emerald-900/40 p-3 rounded-2xl flex items-center justify-between gap-2">
-                    <div>
-                      <p className="text-white font-black text-xs uppercase">{player.name}</p>
-                      <p className="text-[10px] text-zinc-400">OVR: <span className="text-emerald-400 font-bold">{player.overall}</span> | Pos: {player.position}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-amber-400 font-bold">R$ {(player.market_value || 5000000).toLocaleString('pt-BR')}</span>
-                      <button 
-                        onClick={() => alert(`Colocar ${player.name} à venda no mercado!`)}
-                        className="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black py-1.5 px-3 rounded-xl hover:bg-emerald-600 hover:text-black transition-all cursor-pointer"
-                      >
-                        VENDER
-                      </button>
-                    </div>
+          <div className="text-left space-y-4">
+            <h3 className="text-emerald-400 font-black text-lg uppercase">Área de Transferências 🤝</h3>
+            {transferMarket.length === 0 ? (
+              <p className="text-xs text-zinc-500 py-6">Nenhum jogador listado no mercado de transferências no momento.</p>
+            ) : (
+              transferMarket.map((player) => (
+                <div key={player.id} className="bg-[#0f1412] border border-emerald-900/30 p-3 rounded-2xl flex items-center justify-between">
+                  <div>
+                    <p className="text-white font-black text-xs uppercase">{player.name} <span className="text-[9px] text-amber-400">({player.current_club})</span></p>
+                    <p className="text-[10px] text-zinc-400">OVR: <span className="text-emerald-400 font-bold">{player.overall}</span> | Preço: <span className="text-emerald-400 font-bold">R$ {(player.sale_price || player.market_value).toLocaleString('pt-BR')}</span></p>
                   </div>
-                ))}
+                  <button 
+                    onClick={() => handleBuyPlayer(player)}
+                    className="bg-emerald-600 text-black text-[10px] font-black py-1.5 px-3 rounded-xl hover:bg-emerald-500 cursor-pointer"
+                  >
+                    COMPRAR
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {activeTab === 'adm' && (
+          <div className="text-left space-y-4 bg-[#0f1412] border border-emerald-900/30 p-5 rounded-3xl">
+            <h3 className="text-emerald-400 font-black text-sm uppercase">Painel do Administrador ⚙️</h3>
+            <form onSubmit={handleAdmCreateAuction} className="space-y-3">
+              <div>
+                <label className="text-[10px] text-zinc-400 font-bold uppercase block mb-1">Nome do Jogador</label>
+                <input type="text" value={admName} onChange={(e) => setAdmName(e.target.value)} required placeholder="Ex: Novo Craque" className="w-full bg-black border border-emerald-900 p-2.5 rounded-xl text-xs text-white" />
               </div>
-            </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] text-zinc-400 font-bold uppercase block mb-1">Posição</label>
+                  <select value={admPos} onChange={(e) => setAdmPos(e.target.value)} className="w-full bg-black border border-emerald-900 p-2 rounded-xl text-xs text-white">
+                    <option value="GOL">GOL</option>
+                    <option value="ZAG">ZAG</option>
+                    <option value="VOL">VOL</option>
+                    <option value="MEI">MEI</option>
+                    <option value="ATA">ATA</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] text-zinc-400 font-bold uppercase block mb-1">Overall (OVR)</label>
+                  <input type="number" value={admOvr} onChange={(e) => setAdmOvr(e.target.value)} min="60" max="95" className="w-full bg-black border border-emerald-900 p-2 rounded-xl text-xs text-white" />
+                </div>
+              </div>
+              <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-black font-black py-2.5 rounded-xl text-xs uppercase cursor-pointer">
+                Criar e Enviar para Leilão ➔
+              </button>
+            </form>
           </div>
         )}
       </main>
     </div>
   );
-}
+  }
