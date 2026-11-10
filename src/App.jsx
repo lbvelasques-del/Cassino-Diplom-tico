@@ -9,7 +9,7 @@ import PampasTowers from './PampasTowers';
 import PampasHiLo from './PampasHiLo';
 import PampasDice from './PampasDice';
 import PampasHoldAndWin from './PampasHoldAndWin';
-import FutebolDiplomatico from './Futebol-Diplomatico';
+import FutebolDiplomatico from './FutebolDiplomatico';
 
 export default function App() {
   const [activeGame, setActiveGame] = useState('lobby'); 
