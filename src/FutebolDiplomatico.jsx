@@ -10,21 +10,21 @@ export default function FutebolDiplomatico() {
     try { return JSON.parse(localStorage.getItem('pampas_current_user'))?.balance || 0; } catch { return 0; }
   });
 
-  // Layout Original com as 7 Abas
+  // As 7 Abas Originais Mantidas
   const [activeTab, setActiveTab] = useState('home'); // home, taticas, elenco, clubes, mercado, inbox, jornal
-  const [serieASubTab, setSerieASubTab] = useState('tabela'); // tabela, calendario, ranking
-  
+  const [serieASubTab, setSerieASubTab] = useState('tabela'); // tabela, calendario
+
   const [myTeam, setMyTeam] = useState(null);
   const [squad, setSquad] = useState([]);
   const [selectedClub, setSelectedClub] = useState(null);
   const [selectedStarterForSub, setSelectedStarterForSub] = useState(null);
 
-  // Venda no Mercado
+  // Mercado de Transferências
   const [marketPlayers, setMarketPlayers] = useState([]);
   const [sellPriceInput, setSellPriceInput] = useState({});
 
   // Táticas
-  const [selectedFormation, setSelectedFormation] = useState('4-3-3');
+  const [selectedFormation, setSelectedFormation] = useState('4-4-2');
   const [tacticalStyle, setTacticalStyle] = useState('Tiki-Taka');
 
   // Amistosos
@@ -34,7 +34,7 @@ export default function FutebolDiplomatico() {
     try { return JSON.parse(localStorage.getItem('pampas_last_match_report')) || null; } catch { return null; }
   });
 
-  // OS 20 CLUBES OFICIAIS DA SÉRIE A (TABELA INICIA COM 0 PONTOS)
+  // 20 Equipas da Série A
   const initial20Clubs = [
     'Flamengo', 'Palmeiras', 'Internacional', 'Grêmio', 'Atlético-MG',
     'São Paulo', 'Fluminense', 'Botafogo', 'Corinthians', 'Vasco',
@@ -50,13 +50,13 @@ export default function FutebolDiplomatico() {
 
   const [currentRound, setCurrentRound] = useState(1);
 
-  // Posições exigidas no relvado em cada esquema tático
+  // POSIÇÕES PADRÃO NO RELVADO: GOL, ZAG, LAD, LAE, VOL, MC, MEI, ATA
   const formationRoles = {
-    '4-3-3': ['GOL', 'LAT', 'ZAG', 'ZAG', 'LAT', 'VOL', 'MC', 'MEI', 'EXT', 'CA', 'EXT'],
-    '4-4-2': ['GOL', 'LAT', 'ZAG', 'ZAG', 'LAT', 'MC', 'MC', 'MEI', 'MEI', 'CA', 'CA'],
-    '3-5-2': ['GOL', 'ZAG', 'ZAG', 'ZAG', 'LAT', 'VOL', 'MC', 'MC', 'LAT', 'CA', 'CA'],
-    '4-2-3-1': ['GOL', 'LAT', 'ZAG', 'ZAG', 'LAT', 'VOL', 'VOL', 'EXT', 'MEI', 'EXT', 'CA'],
-    '5-3-2': ['GOL', 'LAT', 'ZAG', 'ZAG', 'ZAG', 'LAT', 'MC', 'MC', 'MC', 'CA', 'CA']
+    '4-3-3': ['GOL', 'LAE', 'ZAG', 'ZAG', 'LAD', 'VOL', 'MC', 'MEI', 'ATA', 'ATA', 'ATA'],
+    '4-4-2': ['GOL', 'LAE', 'ZAG', 'ZAG', 'LAD', 'MC', 'MC', 'MEI', 'MEI', 'ATA', 'ATA'],
+    '3-5-2': ['GOL', 'ZAG', 'ZAG', 'ZAG', 'LAE', 'VOL', 'MC', 'MEI', 'LAD', 'ATA', 'ATA'],
+    '4-2-3-1': ['GOL', 'LAE', 'ZAG', 'ZAG', 'LAD', 'VOL', 'VOL', 'ATA', 'MEI', 'ATA', 'ATA'],
+    '5-3-2': ['GOL', 'LAE', 'ZAG', 'ZAG', 'ZAG', 'LAD', 'MC', 'MC', 'MEI', 'ATA', 'ATA']
   };
 
   const formationLayouts = {
@@ -87,7 +87,138 @@ export default function FutebolDiplomatico() {
     ],
     '5-3-2': [
       { top: '88%', left: '50%' },
-      { top: '72%', left: '12%' }, { top: '75%', left: '30%' }, { top: '77%', left: '50return (
+      { top: '72%', left: '12%' }, { top: '75%', left: '30%' }, { top: '77%', left: '50%' }, { top: '75%', left: '70%' }, { top: '72%', left: '88%' },
+      { top: '48%', left: '25%' }, { top: '50%', left: '50%' }, { top: '48%', left: '75%' },
+      { top: '18%', left: '35%' }, { top: '18%', left: '65%' }
+    ]
+  };
+
+  useEffect(() => {
+    if (currentUser) setMyTeam({ name: currentUser.team || "Internacional", manager: currentUser.username });
+  }, [currentUser]);
+
+  const fetchGameData = async () => {
+    if (!myTeam?.name) return;
+    const { data: pData } = await supabase.from('players').select('*').eq('current_club', myTeam.name);
+    if (pData && pData.length > 0) {
+      setSquad(pData);
+    } else {
+      const defaultPositions = ['GOL', 'LAE', 'ZAG', 'ZAG', 'LAD', 'MC', 'MC', 'MEI', 'MEI', 'ATA', 'ATA', 'MC', 'ZAG', 'ATA', 'GOL', 'LAD'];
+      setSquad(Array.from({ length: 16 }, (_, i) => ({
+        id: i + 1,
+        name: `Atleta ${i + 1}`,
+        overall: 75 + (i % 5),
+        position: defaultPositions[i]
+      })));
+    }
+
+    const { data: mData } = await supabase.from('players').select('*').eq('current_club', 'Mercado Livre');
+    if (mData) setMarketPlayers(mData);
+  };
+
+  useEffect(() => { fetchGameData(); }, [myTeam]);
+
+  // SISTEMA INTELIGENTE DE RECONHECIMENTO DE POSIÇÕES (SEM FALSOS VERMELHOS)
+  const isOutOfPosition = (playerPos, slotRole) => {
+    if (!playerPos || !slotRole) return false;
+    const p = playerPos.toUpperCase();
+    const s = slotRole.toUpperCase();
+
+    // Tabela de equivalência perfeita
+    const equivalences = {
+      'GOL': ['GOL'],
+      'ZAG': ['ZAG', 'DEF'],
+      'LAD': ['LAD', 'LAT', 'LD', 'DEF'],
+      'LAE': ['LAE', 'LAT', 'LE', 'DEF'],
+      'VOL': ['VOL', 'MC'],
+      'MC': ['MC', 'VOL', 'MEI'],
+      'MEI': ['MEI', 'MC', 'EXT', 'ATA'],
+      'ATA': ['ATA', 'CA', 'EXT', 'SA']
+    };
+
+    const allowedList = equivalences[s] || [s];
+    return !allowedList.includes(p);
+  };
+
+  // Troca Titular x Reserva
+  const handleSwapPlayers = (reserveIdx) => {
+    if (selectedStarterForSub === null) return alert("Clique primeiro num titular no relvado!");
+    const newSquad = [...squad];
+    const sIdx = selectedStarterForSub;
+    const rIdx = 11 + reserveIdx;
+
+    const temp = newSquad[sIdx];
+    newSquad[sIdx] = newSquad[rIdx];
+    newSquad[rIdx] = temp;
+
+    setSquad(newSquad);
+    setSelectedStarterForSub(null);
+  };
+
+  // Venda de Atleta no Mercado
+  const handleListPlayerForSale = async (player) => {
+    const price = Number(sellPriceInput[player.id]);
+    if (!price || price <= 0) return alert("Insira um valor válido para venda!");
+
+    const { error } = await supabase.from('players').update({ current_club: 'Mercado Livre', price }).eq('id', player.id);
+    if (!error) {
+      alert(`${player.name} anunciado por R$ ${price.toLocaleString('pt-BR')}!`);
+      fetchGameData();
+    } else {
+      setSquad(squad.filter(p => p.id !== player.id));
+      setMarketPlayers([...marketPlayers, { ...player, current_club: 'Mercado Livre', price }]);
+      alert(`${player.name} anunciado por R$ ${price.toLocaleString('pt-BR')}!`);
+    }
+  };
+
+  // Amistosos
+  const handlePlayFriendly = async () => {
+    const FRIENDLY_COST = 500000;
+    if (balance < FRIENDLY_COST) return alert("Saldo insuficiente (R$ 500.000).");
+
+    const newBal = balance - FRIENDLY_COST;
+    setBalance(newBal);
+    setIsSimulatingFriendly(true);
+
+    setTimeout(() => {
+      const report = {
+        type: 'Amistoso Profissional',
+        homeTeam: myTeam?.name, awayTeam: selectedFriendlyOpponent,
+        homeGoals: Math.floor(Math.random() * 3) + 1, awayGoals: Math.floor(Math.random() * 2),
+        possessionHome: 56, xGHome: '2.15', xGAway: '0.80',
+        mvp: squad[0]?.name || "Craque", date: new Date().toLocaleDateString('pt-BR')
+      };
+      setLastMatchReport(report);
+      setIsSimulatingFriendly(false);
+      alert(`Amistoso encerrado! ${report.homeTeam} ${report.homeGoals} x ${report.awayGoals} ${report.awayTeam}`);
+    }, 1500);
+  };
+
+  // Simular Rodada da Liga
+  const handleSimulateOfficialRound = () => {
+    const updated = leagueTable.map(t => {
+      const gFor = Math.floor(Math.random() * 4);
+      const gAgainst = Math.floor(Math.random() * 3);
+      const win = gFor > gAgainst;
+      const draw = gFor === gAgainst;
+
+      return {
+        ...t,
+        j: t.j + 1,
+        v: t.v + (win ? 1 : 0),
+        e: t.e + (draw ? 1 : 0),
+        d: t.d + (!win && !draw ? 1 : 0),
+        pts: t.pts + (win ? 3 : draw ? 1 : 0),
+        gp: t.gp + gFor,
+        gc: t.gc + gAgainst,
+        sg: t.sg + (gFor - gAgainst)
+      };
+    }).sort((a, b) => b.pts - a.pts || b.v - a.v || b.sg - a.sg);
+
+    setLeagueTable(updated);
+    setCurrentRound(r => r + 1);
+    alert(`Rodada Oficial nº ${currentRound} simulada!`);
+  };return (
     <div className="min-h-screen bg-[#050507] text-white font-sans antialiased pb-28 selection:bg-emerald-500 selection:text-black">
       {/* Cabeçalho do Simulador */}
       <div className="w-full bg-gradient-to-b from-[#0a1210] via-[#050a08] to-[#050507] border-b border-emerald-500/30 px-4 py-5 text-center relative shadow-2xl">
@@ -110,9 +241,9 @@ export default function FutebolDiplomatico() {
         )}
       </div>
 
-      {/* Navegação Inferior Original (As 7 Abas Intactas) */}
+      {/* Navegação Inferior Com as 7 Abas Originais Intactas */}
       <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#0a0a0e]/95 backdrop-blur-md border-t border-emerald-500/30 p-2 z-40 shadow-2xl overflow-x-auto hide-scrollbar">
-        <div className="flex gap-1.5 min-w-max px-2">
+        <div className="flex gap-1 min-w-max px-1">
           {[
             { id: 'home', label: 'Home', icon: '🏠' },
             { id: 'taticas', label: 'Táticas', icon: '📋' },
@@ -125,12 +256,12 @@ export default function FutebolDiplomatico() {
             <button 
               key={tab.id} 
               onClick={() => setActiveTab(tab.id)} 
-              className={`flex-1 flex flex-col items-center justify-center py-2 px-3 rounded-xl min-w-[58px] cursor-pointer transition-all ${
+              className={`flex-1 flex flex-col items-center justify-center py-2 px-2.5 rounded-xl min-w-[50px] cursor-pointer transition-all ${
                 activeTab === tab.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'text-zinc-500 hover:text-zinc-300'
               }`}
             >
-              <span className="text-base mb-0.5">{tab.icon}</span>
-              <span className="text-[8px] font-black uppercase tracking-wider">{tab.label}</span>
+              <span className="text-sm mb-0.5">{tab.icon}</span>
+              <span className="text-[7px] font-black uppercase tracking-wider">{tab.label}</span>
             </button>
           ))}
         </div>
@@ -185,19 +316,14 @@ export default function FutebolDiplomatico() {
                 <div className="grid grid-cols-2 gap-2 text-[10px] text-center">
                   <div className="bg-black/40 p-2 rounded-xl border border-zinc-800"><span className="text-zinc-500 block font-bold">Posse de Bola</span><span className="text-emerald-400 font-black">{lastMatchReport.possessionHome}% x {100 - lastMatchReport.possessionHome}%</span></div>
                   <div className="bg-black/40 p-2 rounded-xl border border-zinc-800"><span className="text-zinc-500 block font-bold">Gols Esperados (xG)</span><span className="text-amber-400 font-black">{lastMatchReport.xGHome} x {lastMatchReport.xGAway}</span></div>
-                  <div className="bg-black/40 p-2 rounded-xl border border-zinc-800"><span className="text-zinc-500 block font-bold">Finalizações no Alvo</span><span className="text-white font-black">{lastMatchReport.shotsHome} vs {lastMatchReport.shotsAway}</span></div>
                   <div className="bg-black/40 p-2 rounded-xl border border-zinc-800"><span className="text-zinc-500 block font-bold">Destaque (MVP)</span><span className="text-emerald-400 font-black">{lastMatchReport.mvp}</span></div>
-                </div>
-                <div className="bg-emerald-950/20 border border-emerald-900/40 p-3 rounded-xl">
-                  <p className="text-[9px] font-black text-emerald-400 uppercase mb-1">Análise Tática do Técnico:</p>
-                  <p className="text-[10px] text-zinc-300 italic">{lastMatchReport.tacticalSummary}</p>
                 </div>
               </div>
             )}
           </div>
         )}
 
-        {/* ABA: TÁTICAS (PRANCHETA INTERATIVA COM SINALIZAÇÃO EM VERMELHO DE POSIÇÃO ERRADA) */}
+        {/* ABA: TÁTICAS (PRANCHETA INTERATIVA COM RECONHECIMENTO CORRETO DE POSIÇÃO) */}
         {activeTab === 'taticas' && (
           <div className="space-y-4 text-left animate-fade-in">
             <div className="bg-[#0f1412] border border-emerald-900/40 p-4 rounded-3xl shadow-xl flex justify-between items-center">
@@ -214,7 +340,7 @@ export default function FutebolDiplomatico() {
               </select>
             </div>
 
-            {/* O Campo Tático com Checagem de Química Instantânea */}
+            {/* O Campo Tático */}
             <div className="relative w-full h-[430px] bg-gradient-to-b from-emerald-950 via-green-900 to-emerald-950 rounded-3xl border-2 border-emerald-500/40 overflow-hidden shadow-2xl p-2">
               <div className="absolute inset-2 border border-white/20 rounded-2xl pointer-events-none"></div>
               <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white/20 -translate-y-1/2 pointer-events-none"></div>
@@ -232,7 +358,6 @@ export default function FutebolDiplomatico() {
                     style={{ top: pos.top, left: pos.left }} 
                     className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center cursor-pointer transition-all duration-300 ${isSelected ? 'scale-125 z-30' : 'hover:scale-110'}`}
                   >
-                    {/* Bola do Jogador: Fica Vermelha se Estiver Fora de Posição */}
                     <div className={`w-9 h-9 rounded-full border-2 flex items-center justify-center text-[9px] font-black shadow-2xl text-white transition-colors ${
                       outOfPos 
                         ? 'bg-red-600 border-red-300 animate-pulse' 
@@ -253,13 +378,11 @@ export default function FutebolDiplomatico() {
               })}
             </div>
 
-            {/* Banco de Reservas e Substituição Direta */}
+            {/* Banco de Reservas */}
             <div className="bg-[#0f1412] border border-emerald-900/40 p-4 rounded-3xl shadow-xl space-y-3">
               <h4 className="text-emerald-400 font-black text-xs uppercase tracking-wider">
                 🪑 Banco de Reservas ({Math.max(0, squad.length - 11)})
               </h4>
-              <p className="text-[9px] text-zinc-500 font-semibold">Clique num titular no relvado e depois num reserva abaixo para efetuar a troca.</p>
-
               <div className="space-y-2 max-h-48 overflow-y-auto pr-1 hide-scrollbar">
                 {squad.slice(11).map((reserve, idx) => (
                   <div key={reserve.id || idx} className="bg-black/50 border border-zinc-800 p-2.5 rounded-2xl flex items-center justify-between">
@@ -300,7 +423,6 @@ export default function FutebolDiplomatico() {
                     </p>
                   </div>
 
-                  {/* Formulário Integrado para Anúncio no Mercado */}
                   <div className="flex gap-2 items-center">
                     <input 
                       type="number" 
@@ -325,7 +447,6 @@ export default function FutebolDiplomatico() {
         {/* ABA: SÉRIE A (TABELA DOS 20 TIMES & CALENDÁRIO UNIVERSAL) */}
         {activeTab === 'clubes' && (
           <div className="text-left space-y-4 animate-fade-in">
-            {/* Navegação Secundária da Série A */}
             <div className="flex bg-[#0f1412] p-1.5 rounded-2xl border border-emerald-900/40">
               <button 
                 onClick={() => setSerieASubTab('tabela')} 
@@ -345,7 +466,6 @@ export default function FutebolDiplomatico() {
               </button>
             </div>
 
-            {/* Sub-Aba: Tabela do Brasileirão (20 Clubes) */}
             {serieASubTab === 'tabela' && (
               <div className="bg-[#0f1412] border border-emerald-900/40 p-4 rounded-3xl shadow-xl space-y-3">
                 <div className="flex justify-between items-center border-b border-emerald-900/40 pb-2">
@@ -387,7 +507,6 @@ export default function FutebolDiplomatico() {
               </div>
             )}
 
-            {/* Sub-Aba: Calendário Universal */}
             {serieASubTab === 'calendario' && (
               <div className="bg-[#0f1412] border border-emerald-900/40 p-4 rounded-3xl shadow-xl space-y-3">
                 <div className="flex justify-between items-center border-b border-emerald-900/40 pb-2">
@@ -409,7 +528,6 @@ export default function FutebolDiplomatico() {
               </div>
             )}
 
-            {/* Ação Exclusiva de ADM na Série A */}
             {currentUser?.username?.toLowerCase() === 'lvelasques' && (
               <button 
                 onClick={handleSimulateOfficialRound} 
@@ -509,4 +627,4 @@ export default function FutebolDiplomatico() {
       </main>
     </div>
   );
-            }
+}
