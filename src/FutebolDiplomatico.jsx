@@ -2,32 +2,34 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 
 export default function FutebolDiplomatico() {
+  // Carregamento de utilizador com bloco try-catch de segurança (evita erros se o cache falhar)
   const [currentUser] = useState(() => {
-    const saved = localStorage.getItem('pampas_current_user');
-    return saved ? JSON.parse(saved) : null;
+    try { return JSON.parse(localStorage.getItem('pampas_current_user')) || null; } 
+    catch { return null; }
   });
 
   const [balance, setBalance] = useState(() => {
-    const saved = localStorage.getItem('pampas_current_user');
-    return saved ? JSON.parse(saved).balance : 0;
+    try { return JSON.parse(localStorage.getItem('pampas_current_user'))?.balance || 0; } 
+    catch { return 0; }
   });
 
-  // Mudança 2: Aba padrão agora é 'home'
+  // Estados Base
   const [activeTab, setActiveTab] = useState('home'); 
   const [myTeam, setMyTeam] = useState(null);
-  const [squad, setSquad] = useState([]);
+  const [squad, setSquad] = useState([]); // Garante que começa sempre como array vazio
   const [allClubs, setAllClubs] = useState([]);
+  const [selectedClub, setSelectedClub] = useState(null);
   
-  // Estados de Partidas e Amistosos
+  // Estados de Amistosos
   const [selectedFriendlyOpponent, setSelectedFriendlyOpponent] = useState('');
   const [isSimulatingFriendly, setIsSimulatingFriendly] = useState(false);
   const [lastMatchReport, setLastMatchReport] = useState(() => {
-    const saved = localStorage.getItem('pampas_last_match_report');
-    return saved ? JSON.parse(saved) : null;
+    try { return JSON.parse(localStorage.getItem('pampas_last_match_report')) || null; } 
+    catch { return null; }
   });
 
-  // Próxima Partida Oficial (Gerida pelo ADM)
-  const [upcomingOfficialMatch, setUpcomingOfficialMatch] = useState({
+  // Partida Oficial Falsa/Aguardando (ADM)
+  const [upcomingOfficialMatch] = useState({
     opponent: "Internacional",
     isHome: true,
     stadium: "Estádio Municipal",
@@ -37,78 +39,92 @@ export default function FutebolDiplomatico() {
   useEffect(() => {
     if (currentUser) {
       setMyTeam({
-        name: currentUser.team || "Flamengo", 
+        name: currentUser.team || "Clube Livre", 
         manager: currentUser.username,
         overall: 75
       });
     }
   }, [currentUser]);
 
+  // Função para buscar dados da liga de forma segura
   const fetchGameData = async (clubName) => {
     if (!clubName) return;
     
-    // Plantel
-    const { data: playersData } = await supabase.from('players').select('*').eq('current_club', clubName).order('overall', { ascending: false });
-    if (playersData) setSquad(playersData);
+    try {
+      const { data: playersData } = await supabase.from('players').select('*').eq('current_club', clubName).order('overall', { ascending: false });
+      if (playersData) setSquad(playersData);
 
-    // Lista de Clubes da Série A
-    const { data: allPlayers } = await supabase.from('players').select('current_club, overall');
-    if (allPlayers) {
-      const clubsMap = {};
-      allPlayers.forEach(p => {
-        if (!clubsMap[p.current_club]) clubsMap[p.current_club] = { name: p.current_club, totalOvr: 0, count: 0 };
-        clubsMap[p.current_club].totalOvr += p.overall;
-        clubsMap[p.current_club].count += 1;
-      });
-      const clubsList = Object.values(clubsMap).map(c => ({
-        ...c, avgOvr: Math.round(c.totalOvr / c.count) || 75
-      })).filter(c => c.name !== clubName);
-      
-      setAllClubs(clubsList);
-      if (clubsList.length > 0 && !selectedFriendlyOpponent) {
-        setSelectedFriendlyOpponent(clubsList[0].name);
+      const { data: allPlayers } = await supabase.from('players').select('current_club, overall');
+      if (allPlayers) {
+        const clubsMap = {};
+        allPlayers.forEach(p => {
+          if (!p.current_club) return;
+          if (!clubsMap[p.current_club]) clubsMap[p.current_club] = { name: p.current_club, totalOvr: 0, count: 0 };
+          clubsMap[p.current_club].totalOvr += p.overall;
+          clubsMap[p.current_club].count += 1;
+        });
+        const clubsList = Object.values(clubsMap).map(c => ({
+          ...c, avgOvr: Math.round(c.totalOvr / c.count) || 75
+        })).filter(c => c.name !== clubName);
+        
+        setAllClubs(clubsList);
+        if (clubsList.length > 0 && !selectedFriendlyOpponent) {
+          setSelectedFriendlyOpponent(clubsList[0].name);
+        }
       }
+    } catch (error) {
+      console.error("Erro no carregamento:", error);
     }
   };
 
   useEffect(() => {
-    if (myTeam) fetchGameData(myTeam.name);
+    if (myTeam?.name) fetchGameData(myTeam.name);
   }, [myTeam]);
 
-  // Motor de Amistosos (Custo: R$ 500.000)
+  // 🔥 A FUNÇÃO SALVA-VIDAS QUE IMPEDE A TELA PRETA 🔥
+  // Se o jogador não existir, retorna um "jogador vazio" em vez de quebrar o jogo
+  const getPlayer = (idx) => {
+    if (squad && squad[idx]) return squad[idx];
+    return { name: "Vazio", overall: 75, position: "N/A" };
+  };
+
+  // Motor de Amistosos (R$ 500k)
   const handlePlayFriendly = async () => {
     const FRIENDLY_COST = 500000;
 
     if (balance < FRIENDLY_COST) {
-      alert("Saldo insuficiente! O custo para organizar um amistoso é de R$ 500.000.");
+      alert("Saldo insuficiente! Custa R$ 500.000 organizar um amistoso.");
       return;
     }
-
     if (!selectedFriendlyOpponent) {
       alert("Selecione um adversário para o amistoso!");
       return;
     }
 
-    // Cobrar os 500k na hora
     const newBalance = balance - FRIENDLY_COST;
     setBalance(newBalance);
-    localStorage.setItem('pampas_current_user', JSON.stringify({ ...currentUser, balance: newBalance }));
-    await supabase.from('users').update({ balance: newBalance }).eq('username', currentUser.username);
+    
+    try {
+      const savedUser = JSON.parse(localStorage.getItem('pampas_current_user')) || currentUser;
+      localStorage.setItem('pampas_current_user', JSON.stringify({ ...savedUser, balance: newBalance }));
+      await supabase.from('users').update({ balance: newBalance }).eq('username', currentUser.username);
+    } catch (e) {
+      console.error(e);
+    }
 
     setIsSimulatingFriendly(true);
 
     setTimeout(() => {
       const opponentClub = allClubs.find(c => c.name === selectedFriendlyOpponent);
-      const opponentOvr = opponentClub ? opponentClub.avgOvr : 75;
+      const opponentOvr = opponentClub?.avgOvr || 75;
       const myOvr = myTeam?.overall || 75;
 
-      // Cálculo de golos baseado no OVR
       const myGoals = Math.floor(Math.random() * 3) + (myOvr >= opponentOvr ? 1 : 0);
       const opponentGoals = Math.floor(Math.random() * 2) + (opponentOvr > myOvr ? 1 : 0);
 
       const report = {
         type: 'Amistoso',
-        homeTeam: myTeam?.name,
+        homeTeam: myTeam?.name || "Meu Clube",
         awayTeam: selectedFriendlyOpponent,
         homeGoals: myGoals,
         awayGoals: opponentGoals,
@@ -116,18 +132,18 @@ export default function FutebolDiplomatico() {
         shotsHome: Math.floor(Math.random() * 8) + myGoals + 2,
         shotsAway: Math.floor(Math.random() * 6) + opponentGoals + 1,
         tacticalSummary: myGoals > opponentGoals 
-          ? "A equipa manteve a posse de bola no meio-campo e explorou com precisão os corredores laterais."
+          ? "A equipe dominou o meio-campo com excelente controle tático."
           : myGoals === opponentGoals 
-          ? "Jogo muito equilibrado no setor tático, com forte marcação em bloco baixo de ambos os lados."
-          : "Faltou cobertura defensiva nas transições rápidas do adversário, gerando lacunas na área.",
+          ? "Partida travada, as duas defesas sobressaíram sobre os ataques."
+          : "Faltou cobertura defensiva, o adversário encontrou muitos espaços.",
         date: new Date().toLocaleDateString('pt-BR')
       };
 
       setLastMatchReport(report);
       localStorage.setItem('pampas_last_match_report', JSON.stringify(report));
       setIsSimulatingFriendly(false);
-      alert(`Fim de Amistoso! ${myTeam?.name} ${myGoals} x ${opponentGoals} ${selectedFriendlyOpponent}. Relatório gerado na Home!`);
-    }, 2500);
+      alert(`Fim de Jogo! ${myTeam?.name} ${myGoals} x ${opponentGoals} ${selectedFriendlyOpponent}`);
+    }, 2000);
   };return (
     <div className="min-h-screen bg-[#050507] text-white font-sans antialiased pb-28 selection:bg-emerald-500 selection:text-black">
       {/* Cabeçalho do Simulador */}
@@ -156,7 +172,7 @@ export default function FutebolDiplomatico() {
         )}
       </div>
 
-      {/* Navegação Inferior Atualizada (Mudança 2: 'Home' em vez de 'Dashboard') */}
+      {/* Navegação Inferior */}
       <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#0a0a0e]/95 backdrop-blur-md border-t border-emerald-500/30 p-2 z-40 shadow-2xl overflow-x-auto hide-scrollbar">
         <div className="flex gap-1.5 min-w-max px-2">
           {[
@@ -171,7 +187,7 @@ export default function FutebolDiplomatico() {
             <button 
               key={tab.id} 
               onClick={() => setActiveTab(tab.id)} 
-              className={`flex-1 flex flex-col items-center justify-center py-2 px-3 rounded-xl min-w-[58px] transition-all ${
+              className={`flex-1 flex flex-col items-center justify-center py-2 px-3 rounded-xl min-w-[58px] transition-all cursor-pointer ${
                 activeTab === tab.id 
                   ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.2)]' 
                   : 'text-zinc-500 hover:text-zinc-300'
@@ -190,7 +206,7 @@ export default function FutebolDiplomatico() {
         {activeTab === 'home' && (
           <div className="space-y-4 text-left animate-fade-in">
             
-            {/* 1. Próxima Partida Oficial */}
+            {/* Próxima Partida Oficial */}
             <div className="bg-[#0f1412] border border-emerald-900/40 rounded-3xl p-5 shadow-xl relative overflow-hidden">
               <div className="flex justify-between items-center mb-3">
                 <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-800/40">
@@ -217,18 +233,18 @@ export default function FutebolDiplomatico() {
               </div>
 
               <p className="text-[9px] text-zinc-500 text-center font-semibold mt-2">
-                Aguardando simulação da rodada oficial pelo Administrador da Liga.
+                Aguardando simulação da rodada oficial pelo Administrador.
               </p>
             </div>
 
-            {/* 2. Central de Amistosos (R$ 500.000) */}
+            {/* Central de Amistosos (R$ 500k) */}
             <div className="bg-[#0f1412] border border-emerald-900/40 rounded-3xl p-5 shadow-xl">
               <h3 className="text-emerald-400 font-black text-xs uppercase tracking-wider mb-2 flex items-center justify-between">
                 <span>⚔️ Organizar Amistoso</span>
                 <span className="text-[9px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded">Custo: R$ 500k</span>
               </h3>
               <p className="text-[10px] text-zinc-400 mb-3 leading-relaxed">
-                Escolha qualquer clube da Série A para realizar um teste tático imediato. O valor da partida é debitado do cofre.
+                Realize testes táticos imediatos contra clubes da Série A. O valor é debitado no ato.
               </p>
 
               <div className="space-y-3">
@@ -237,7 +253,7 @@ export default function FutebolDiplomatico() {
                   <select 
                     value={selectedFriendlyOpponent} 
                     onChange={(e) => setSelectedFriendlyOpponent(e.target.value)}
-                    className="w-full bg-black border border-emerald-900/60 text-white text-xs p-3 rounded-xl outline-none focus:border-emerald-500 font-semibold"
+                    className="w-full bg-black border border-emerald-900/60 text-white text-xs p-3 rounded-xl outline-none focus:border-emerald-500 font-semibold cursor-pointer"
                   >
                     {allClubs.map(c => (
                       <option key={c.name} value={c.name}>{c.name} (Média OVR: {c.avgOvr})</option>
@@ -248,19 +264,19 @@ export default function FutebolDiplomatico() {
                 <button 
                   onClick={handlePlayFriendly} 
                   disabled={isSimulatingFriendly}
-                  className="w-full bg-gradient-to-r from-emerald-600 to-emerald-400 text-black font-black py-3.5 rounded-xl text-xs shadow-lg uppercase tracking-wider hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50"
+                  className="w-full bg-gradient-to-r from-emerald-600 to-emerald-400 text-black font-black py-3.5 rounded-xl text-xs shadow-lg uppercase tracking-wider hover:opacity-95 transition-opacity cursor-pointer disabled:opacity-50"
                 >
                   {isSimulatingFriendly ? "Simulando Amistoso..." : "Jogar Amistoso (R$ 500.000)"}
                 </button>
               </div>
             </div>
 
-            {/* 3. Relatório Avançado da Última Partida */}
+            {/* Relatório Avançado da Última Partida */}
             {lastMatchReport && (
               <div className="bg-[#0f1412] border border-emerald-500/30 rounded-3xl p-5 shadow-xl space-y-3">
                 <div className="flex justify-between items-center border-b border-emerald-900/30 pb-2">
                   <h3 className="text-xs font-black text-white uppercase tracking-wider">
-                    📊 Relatório Avançado • {lastMatchReport.type}
+                    📊 Relatório • {lastMatchReport.type}
                   </h3>
                   <span className="text-[9px] text-zinc-400 font-bold">{lastMatchReport.date}</span>
                 </div>
@@ -274,7 +290,7 @@ export default function FutebolDiplomatico() {
 
                 <div className="grid grid-cols-2 gap-2 text-center text-[10px]">
                   <div className="bg-black/30 p-2 rounded-xl border border-zinc-800">
-                    <span className="text-zinc-500 font-black block uppercase">Posse de Bola</span>
+                    <span className="text-zinc-500 font-black block uppercase">Posse</span>
                     <span className="text-emerald-400 font-bold text-xs">{lastMatchReport.possession}%</span>
                   </div>
                   <div className="bg-black/30 p-2 rounded-xl border border-zinc-800">
@@ -284,7 +300,7 @@ export default function FutebolDiplomatico() {
                 </div>
 
                 <div className="bg-emerald-950/20 border border-emerald-900/40 p-3 rounded-xl">
-                  <p className="text-[9px] font-black uppercase tracking-wider text-emerald-400 mb-1">Análise Tática do Técnico:</p>
+                  <p className="text-[9px] font-black uppercase tracking-wider text-emerald-400 mb-1">Análise do Técnico:</p>
                   <p className="text-[10px] text-zinc-300 leading-relaxed italic">{lastMatchReport.tacticalSummary}</p>
                 </div>
               </div>
@@ -300,7 +316,7 @@ export default function FutebolDiplomatico() {
                 <h3 className="text-emerald-400 font-black text-xs uppercase tracking-wider">Prancheta Tática 📋</h3>
                 <p className="text-[9px] text-zinc-400 font-semibold">Defina o esquema e faça as substituições</p>
               </div>
-              <select className="bg-black border border-emerald-500/40 text-xs text-white p-2 rounded-xl outline-none font-bold">
+              <select className="bg-black border border-emerald-500/40 text-xs text-white p-2 rounded-xl outline-none font-bold cursor-pointer">
                 <option value="4-3-3">4-3-3 Ofensivo</option>
                 <option value="4-4-2">4-4-2 Clássico</option>
                 <option value="3-5-2">3-5-2 Domínio</option>
@@ -308,7 +324,7 @@ export default function FutebolDiplomatico() {
               </select>
             </div>
 
-            {/* O Campo Tático Visual (11 Titulares com OVR) */}
+            {/* O Campo Tático Visual (11 Titulares Protegidos com getPlayer) */}
             <div className="relative w-full h-[420px] bg-gradient-to-b from-emerald-950 via-green-900 to-emerald-950 rounded-3xl border-2 border-emerald-500/40 overflow-hidden shadow-2xl p-2">
               {/* Linhas do Campo */}
               <div className="absolute inset-2 border border-white/20 rounded-2xl pointer-events-none"></div>
@@ -317,93 +333,93 @@ export default function FutebolDiplomatico() {
               <div className="absolute top-2 left-1/2 -translate-x-1/2 w-32 h-16 border-b border-x border-white/20 pointer-events-none"></div>
               <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-16 border-t border-x border-white/20 pointer-events-none"></div>
 
-              {/* 11 Posicionamentos de Titulares no Relvado */}
+              {/* 11 Posicionamentos no Relvado */}
               <div className="relative w-full h-full">
-                {/* Guarda-Redes */}
+                {/* Guarda-Redes (Índice 0) */}
                 <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex flex-col items-center">
                   <div className="w-9 h-9 bg-amber-500/90 border-2 border-white rounded-full flex items-center justify-center text-[9px] font-black shadow-lg text-black">
-                    {squad[0]?.overall || 75}
+                    {getPlayer(0).overall}
                   </div>
                   <span className="text-[8px] font-black text-white bg-black/70 px-1.5 py-0.5 rounded mt-0.5 max-w-[70px] truncate">
-                    {squad[0]?.name || "Goleiro"}
+                    {getPlayer(0).name}
                   </span>
                 </div>
 
-                {/* Linha Defensiva (4) */}
+                {/* Linha Defensiva (Índices 1, 2, 3, 4) */}
                 <div className="absolute bottom-20 left-4 flex flex-col items-center">
                   <div className="w-8 h-8 bg-emerald-600 border border-white rounded-full flex items-center justify-center text-[8px] font-black text-white shadow-md">
-                    {squad[1]?.overall || 75}
+                    {getPlayer(1).overall}
                   </div>
-                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{squad[1]?.name || "LAT"}</span>
+                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{getPlayer(1).name}</span>
                 </div>
                 <div className="absolute bottom-16 left-1/3 -translate-x-1/2 flex flex-col items-center">
                   <div className="w-8 h-8 bg-emerald-600 border border-white rounded-full flex items-center justify-center text-[8px] font-black text-white shadow-md">
-                    {squad[2]?.overall || 75}
+                    {getPlayer(2).overall}
                   </div>
-                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{squad[2]?.name || "ZAG"}</span>
+                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{getPlayer(2).name}</span>
                 </div>
                 <div className="absolute bottom-16 right-1/3 translate-x-1/2 flex flex-col items-center">
                   <div className="w-8 h-8 bg-emerald-600 border border-white rounded-full flex items-center justify-center text-[8px] font-black text-white shadow-md">
-                    {squad[3]?.overall || 75}
+                    {getPlayer(3).overall}
                   </div>
-                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{squad[3]?.name || "ZAG"}</span>
+                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{getPlayer(3).name}</span>
                 </div>
                 <div className="absolute bottom-20 right-4 flex flex-col items-center">
                   <div className="w-8 h-8 bg-emerald-600 border border-white rounded-full flex items-center justify-center text-[8px] font-black text-white shadow-md">
-                    {squad[4]?.overall || 75}
+                    {getPlayer(4).overall}
                   </div>
-                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{squad[4]?.name || "LAT"}</span>
+                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{getPlayer(4).name}</span>
                 </div>
 
-                {/* Meio-Campo (3) */}
+                {/* Meio-Campo (Índices 5, 6, 7) */}
                 <div className="absolute top-1/2 left-8 -translate-y-1/2 flex flex-col items-center">
                   <div className="w-8 h-8 bg-cyan-600 border border-white rounded-full flex items-center justify-center text-[8px] font-black text-white shadow-md">
-                    {squad[5]?.overall || 75}
+                    {getPlayer(5).overall}
                   </div>
-                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{squad[5]?.name || "VOL"}</span>
+                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{getPlayer(5).name}</span>
                 </div>
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
                   <div className="w-8 h-8 bg-cyan-600 border border-white rounded-full flex items-center justify-center text-[8px] font-black text-white shadow-md">
-                    {squad[6]?.overall || 75}
+                    {getPlayer(6).overall}
                   </div>
-                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{squad[6]?.name || "MC"}</span>
+                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{getPlayer(6).name}</span>
                 </div>
                 <div className="absolute top-1/2 right-8 -translate-y-1/2 flex flex-col items-center">
                   <div className="w-8 h-8 bg-cyan-600 border border-white rounded-full flex items-center justify-center text-[8px] font-black text-white shadow-md">
-                    {squad[7]?.overall || 75}
+                    {getPlayer(7).overall}
                   </div>
-                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{squad[7]?.name || "MEI"}</span>
+                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{getPlayer(7).name}</span>
                 </div>
 
-                {/* Ataque (3) */}
+                {/* Ataque (Índices 8, 9, 10) */}
                 <div className="absolute top-16 left-10 flex flex-col items-center">
                   <div className="w-8 h-8 bg-red-600 border border-white rounded-full flex items-center justify-center text-[8px] font-black text-white shadow-md">
-                    {squad[8]?.overall || 75}
+                    {getPlayer(8).overall}
                   </div>
-                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{squad[8]?.name || "EXT"}</span>
+                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{getPlayer(8).name}</span>
                 </div>
                 <div className="absolute top-10 left-1/2 -translate-x-1/2 flex flex-col items-center">
                   <div className="w-9 h-9 bg-red-600 border-2 border-amber-400 rounded-full flex items-center justify-center text-[9px] font-black text-white shadow-lg">
-                    {squad[9]?.overall || 75}
+                    {getPlayer(9).overall}
                   </div>
-                  <span className="text-[8px] font-black text-amber-300 bg-black/80 px-1.5 py-0.5 rounded mt-0.5 max-w-[65px] truncate">{squad[9]?.name || "CA"}</span>
+                  <span className="text-[8px] font-black text-amber-300 bg-black/80 px-1.5 py-0.5 rounded mt-0.5 max-w-[65px] truncate">{getPlayer(9).name}</span>
                 </div>
                 <div className="absolute top-16 right-10 flex flex-col items-center">
                   <div className="w-8 h-8 bg-red-600 border border-white rounded-full flex items-center justify-center text-[8px] font-black text-white shadow-md">
-                    {squad[10]?.overall || 75}
+                    {getPlayer(10).overall}
                   </div>
-                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{squad[10]?.name || "EXT"}</span>
+                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{getPlayer(10).name}</span>
                 </div>
               </div>
             </div>
 
-            {/* Banco de Reservas e Substituição Direta */}
+            {/* Banco de Reservas */}
             <div className="bg-[#0f1412] border border-emerald-900/40 p-4 rounded-3xl shadow-xl space-y-3">
               <div className="flex justify-between items-center">
                 <h4 className="text-emerald-400 font-black text-xs uppercase tracking-wider">
                   🪑 Banco de Reservas ({Math.max(0, squad.length - 11)})
                 </h4>
-                <span className="text-[9px] text-zinc-500 font-bold uppercase">Plantel Total: {squad.length}/16 Mín.</span>
+                <span className="text-[9px] text-zinc-500 font-bold uppercase">Total: {squad.length} Atletas</span>
               </div>
 
               <div className="space-y-2 max-h-52 overflow-y-auto pr-1 hide-scrollbar">
@@ -413,19 +429,19 @@ export default function FutebolDiplomatico() {
                       <span className="text-[9px] bg-zinc-800 text-zinc-400 font-black px-2 py-0.5 rounded">RES</span>
                       <div>
                         <p className="text-xs text-white font-bold uppercase">{reserve.name}</p>
-                        <p className="text-[9px] text-zinc-500">Posição: {reserve.position || "SUBL"} | OVR: <span className="text-emerald-400 font-bold">{reserve.overall}</span></p>
+                        <p className="text-[9px] text-zinc-500">Pos: {reserve.position || "SUBL"} | OVR: <span className="text-emerald-400 font-bold">{reserve.overall}</span></p>
                       </div>
                     </div>
                     <button 
-                      onClick={() => alert(`Substituição efetuada! ${reserve.name} entrou na equipa titular.`)} 
-                      className="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-black px-3 py-1.5 rounded-xl hover:bg-emerald-600 hover:text-black transition-colors"
+                      onClick={() => alert(`Substituição efetuada! ${reserve.name} pronto para entrar.`)} 
+                      className="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-black px-3 py-1.5 rounded-xl hover:bg-emerald-600 hover:text-black transition-colors cursor-pointer"
                     >
                       SUBSTITUIR
                     </button>
                   </div>
                 ))}
                 {squad.length <= 11 && (
-                  <p className="text-[10px] text-zinc-500 text-center py-4">Sem jogadores no banco de reservas. Adquira novos atletas no Mercado!</p>
+                  <p className="text-[10px] text-zinc-500 text-center py-4">Sem reservas no momento. Adquira atletas no Mercado!</p>
                 )}
               </div>
             </div>
@@ -436,7 +452,7 @@ export default function FutebolDiplomatico() {
             <div className="flex justify-between items-center bg-[#0f1412] p-4 rounded-2xl border border-emerald-900/40 shadow-lg">
               <div>
                 <h3 className="text-emerald-400 font-black text-xs uppercase tracking-wider">Plantel Titular e Reservas</h3>
-                <p className="text-[9px] text-zinc-400 font-bold">Média de Equipe Nivelada: <span className="text-emerald-400">75 OVR Base</span></p>
+                <p className="text-[9px] text-zinc-400 font-bold">Base Nivelada: <span className="text-emerald-400">75 OVR</span></p>
               </div>
               <span className="text-xs font-black text-white bg-emerald-950 px-3 py-1.5 rounded-xl border border-emerald-800">
                 {squad.length} Atletas
@@ -465,15 +481,15 @@ export default function FutebolDiplomatico() {
           </div>
         )}
 
-        {/* ABA: SÉRIE A (CLASSIFICAÇÃO E RANKING DE MERCADO - MUDANÇAS 6, 7 E 10) */}
+        {/* ABA: SÉRIE A (CLASSIFICAÇÃO E RANKING DE MERCADO) */}
         {activeTab === 'clubes' && (
           <div className="text-left space-y-4 animate-fade-in">
-            {/* Classificação Oficial do Brasileirão (3 pts Vitória / 1 pt Empate) */}
+            {/* Tabela do Brasileirão */}
             <div className="bg-[#0f1412] border border-emerald-900/40 p-4 rounded-3xl shadow-xl">
               <h3 className="text-emerald-400 font-black text-xs uppercase tracking-wider mb-1">
                 Tabela do Brasileirão 2026 🏆
               </h3>
-              <p className="text-[9px] text-zinc-400 mb-3 font-semibold">Pontuação Oficial: V: 3pts | E: 1pt | D: 0pts</p>
+              <p className="text-[9px] text-zinc-400 mb-3 font-semibold">Regras: V: 3pts | E: 1pt | D: 0pts</p>
 
               <div className="overflow-x-auto hide-scrollbar">
                 <table className="w-full text-[10px] text-left">
@@ -506,7 +522,7 @@ export default function FutebolDiplomatico() {
               </div>
             </div>
 
-            {/* Ranking dos Clubes por Valor Total de Mercado (Mudança 7) */}
+            {/* Ranking de Valor de Mercado */}
             <div className="bg-[#0f1412] border border-amber-900/30 p-4 rounded-3xl shadow-xl space-y-3">
               <h3 className="text-amber-400 font-black text-xs uppercase tracking-wider">
                 Ranking de Valor de Mercado 💰
@@ -516,10 +532,10 @@ export default function FutebolDiplomatico() {
                   <div key={idx} onClick={() => setSelectedClub(club)} className="bg-black/50 border border-zinc-800 p-3 rounded-2xl flex items-center justify-between cursor-pointer hover:border-amber-500/50 transition-all">
                     <div>
                       <p className="text-white font-black text-xs uppercase">{club.name}</p>
-                      <p className="text-[9px] text-zinc-400">Manager: <span className="text-amber-400">{currentUser?.username || "Técnico"}</span></p>
+                      <p className="text-[9px] text-zinc-400">Manager: <span className="text-amber-400">Técnico Oficial</span></p>
                     </div>
                     <div className="text-right">
-                      <span className="text-[8px] text-zinc-500 font-black block uppercase">Valor do Elenco</span>
+                      <span className="text-[8px] text-zinc-500 font-black block uppercase">Valor Elenco</span>
                       <span className="text-xs text-emerald-400 font-black">R$ {((club.avgOvr || 75) * 4500000).toLocaleString('pt-BR')}</span>
                     </div>
                   </div>
@@ -529,33 +545,22 @@ export default function FutebolDiplomatico() {
           </div>
         )}
 
-        {/* PAINEL DE ADM COMPLETO (MUDANÇA 4 E 9 - EXCLUSIVO ADMINISTRADOR) */}
+        {/* PAINEL DE ADM DENTRO DO FUTEBOL */}
         {currentUser?.username?.toLowerCase() === 'lvelasques' && (
           <div className="bg-[#140a0a] border border-red-900/50 p-4 rounded-3xl text-left space-y-3 my-4 shadow-2xl">
             <div className="flex justify-between items-center border-b border-red-900/40 pb-2">
               <h3 className="text-red-500 font-black text-xs uppercase tracking-widest flex items-center gap-1.5">
-                <span>⚡ Painel de Controle ADM</span>
+                <span>⚡ Painel ADM (Futebol)</span>
               </h3>
               <span className="text-[8px] bg-red-950 text-red-400 font-black px-2 py-0.5 rounded border border-red-800">MASTER</span>
             </div>
 
-            <p className="text-[10px] text-zinc-400 leading-relaxed font-semibold">
-              Gerencie a liga oficial, simule as rodadas do campeonato e transfira jogadores entre clubes.
-            </p>
-
             <div className="space-y-2 pt-1">
               <button 
-                onClick={() => alert("Rodada Oficial nº 1 Simulada pelo ADM! Tabela e pontuações atualizadas.")} 
+                onClick={() => alert("Rodada Oficial nº 1 Simulada com sucesso! Tabela de pontos atualizada.")} 
                 className="w-full bg-red-600 hover:bg-red-500 text-black font-black py-3 rounded-xl text-xs uppercase tracking-wider transition-colors shadow-lg cursor-pointer"
               >
-                🎮 Simular Rodada Oficial da Liga (ADM)
-              </button>
-
-              <button 
-                onClick={() => alert("Painel de Transferências ADM: Selecione um atleta no banco para realocar de clube.")} 
-                className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
-              >
-                🔄 Realocar Atletas entre Clubes
+                🎮 Simular Rodada Oficial da Liga
               </button>
             </div>
           </div>
@@ -566,23 +571,23 @@ export default function FutebolDiplomatico() {
           <div className="text-left space-y-4 animate-fade-in">
             <h3 className="text-emerald-400 font-black text-xs uppercase tracking-wider">Mercado de Transferências 🤝</h3>
             <div className="bg-[#0f1412] border border-emerald-900/30 p-4 rounded-3xl text-center space-y-2">
-              <p className="text-xs text-white font-bold">Nenhum jogador na lista de leilão no momento.</p>
-              <p className="text-[10px] text-zinc-400">Acesse a aba "Série A" para fazer propostas diretas aos clubes adversários.</p>
+              <p className="text-xs text-white font-bold">Nenhum jogador listado no leilão no momento.</p>
+              <p className="text-[10px] text-zinc-400">Acesse a aba "Série A" para visualizar os clubes.</p>
             </div>
           </div>
         )}
 
-        {/* ABA: CAIXA DE ENTRADA (INBOX) */}
+        {/* ABA: INBOX */}
         {activeTab === 'inbox' && (
           <div className="text-left space-y-4 animate-fade-in">
             <h3 className="text-emerald-400 font-black text-xs uppercase tracking-wider">Caixa de Entrada 📩</h3>
             <div className="bg-[#0f1412] border border-emerald-900/30 p-4 rounded-3xl text-center">
-              <p className="text-xs text-zinc-500 py-4">Caixa limpa. Nenhuma proposta de transferência pendente.</p>
+              <p className="text-xs text-zinc-500 py-4">Nenhuma mensagem ou proposta pendente.</p>
             </div>
           </div>
         )}
 
-        {/* ABA: GAZETA (JORNAL OFICIAL) */}
+        {/* ABA: GAZETA */}
         {activeTab === 'jornal' && (
           <div className="space-y-4 text-left animate-fade-in">
             <div className="bg-[#e5e5e5] text-black p-5 rounded-sm border-t-8 border-black font-serif shadow-xl relative overflow-hidden">
@@ -591,21 +596,21 @@ export default function FutebolDiplomatico() {
                 <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Edição Oficial da Liga • 2026</p>
               </div>
               <article>
-                <span className="bg-black text-white text-[8px] font-black px-1.5 py-0.5 uppercase tracking-wider mb-1 inline-block">Destaque da Liga</span>
-                <h2 className="text-lg font-black leading-tight mb-1">Equipes aquecem os motores para a rodada decisiva!</h2>
+                <span className="bg-black text-white text-[8px] font-black px-1.5 py-0.5 uppercase tracking-wider mb-1 inline-block">Destaque</span>
+                <h2 className="text-lg font-black leading-tight mb-1">Equipes prontas para o início da temporada!</h2>
                 <p className="text-xs text-zinc-800 leading-relaxed font-medium">
-                  Os dirigentes intensificam os testes táticos nos amistosos enquanto aguardam o comando da organização para a grande rodada do campeonato.
+                  Os clubes movimentam os amistosos enquanto aguardam a simulação da primeira rodada oficial do campeonato.
                 </p>
               </article>
             </div>
           </div>
         )}
 
-        {/* MODAL DE RAIO-X DO CLUBE (MUDANÇA 7: DETALHES, ARTILHEIRO E DESTAQUE) */}
+        {/* MODAL DE RAIO-X DO CLUBE */}
         {selectedClub && (
           <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
             <div className="bg-[#0f1412] border border-emerald-500/40 p-6 rounded-3xl w-full max-w-sm text-left space-y-4 shadow-2xl relative">
-              <button onClick={() => setSelectedClub(null)} className="absolute top-4 right-4 text-zinc-500 hover:text-white text-xl font-black">✕</button>
+              <button onClick={() => setSelectedClub(null)} className="absolute top-4 right-4 text-zinc-500 hover:text-white text-xl font-black cursor-pointer">✕</button>
 
               <div>
                 <h4 className="text-base font-black text-white uppercase">{selectedClub.name}</h4>
@@ -618,19 +623,19 @@ export default function FutebolDiplomatico() {
                   <span className="text-emerald-400 font-black text-sm">{selectedClub.avgOvr || 75}</span>
                 </div>
                 <div className="bg-black/50 p-2.5 rounded-xl border border-zinc-800">
-                  <span className="text-zinc-500 font-black block uppercase">Artilheiro</span>
-                  <span className="text-amber-400 font-bold text-xs">Atacante Star</span>
+                  <span className="text-zinc-500 font-black block uppercase">Destaque</span>
+                  <span className="text-amber-400 font-bold text-xs">Atleta Star</span>
                 </div>
               </div>
 
               <div className="bg-emerald-950/30 border border-emerald-900/40 p-3 rounded-2xl">
-                <p className="text-[9px] font-black uppercase tracking-wider text-emerald-400 mb-1">Pontos Fortes da Equipe:</p>
+                <p className="text-[9px] font-black uppercase tracking-wider text-emerald-400 mb-1">Análise do Plantel:</p>
                 <p className="text-[10px] text-zinc-300 leading-relaxed">
-                  Excelente compactação no setor de meio-campo e alta eficiência em jogadas de bola parada.
+                  Boa consistência defensiva e excelente aproveitamento nas bolas paradas.
                 </p>
               </div>
 
-              <button onClick={() => setSelectedClub(null)} className="w-full bg-emerald-600 text-black text-xs font-black py-3 rounded-xl uppercase tracking-wider">
+              <button onClick={() => setSelectedClub(null)} className="w-full bg-emerald-600 hover:bg-emerald-500 text-black text-xs font-black py-3 rounded-xl uppercase tracking-wider cursor-pointer">
                 Fechar Relatório
               </button>
             </div>
@@ -640,4 +645,4 @@ export default function FutebolDiplomatico() {
       </main>
     </div>
   );
-}
+                }
