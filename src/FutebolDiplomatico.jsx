@@ -10,10 +10,8 @@ export default function FutebolDiplomatico() {
     try { return JSON.parse(localStorage.getItem('pampas_current_user'))?.balance || 0; } catch { return 0; }
   });
 
-  // As 7 Abas Originais Mantidas
-  const [activeTab, setActiveTab] = useState('home'); // home, taticas, elenco, clubes, mercado, inbox, jornal
-  const [serieASubTab, setSerieASubTab] = useState('tabela'); // tabela, calendario
-
+  const [activeTab, setActiveTab] = useState('home');
+  const [serieASubTab, setSerieASubTab] = useState('tabela');
   const [myTeam, setMyTeam] = useState(null);
   const [squad, setSquad] = useState([]);
   const [selectedClub, setSelectedClub] = useState(null);
@@ -23,9 +21,21 @@ export default function FutebolDiplomatico() {
   const [marketPlayers, setMarketPlayers] = useState([]);
   const [sellPriceInput, setSellPriceInput] = useState({});
 
-  // Táticas
-  const [selectedFormation, setSelectedFormation] = useState('4-4-2');
-  const [tacticalStyle, setTacticalStyle] = useState('Tiki-Taka');
+  // Táticas (Salvas em localStorage para persistência imediata)
+  const [selectedFormation, setSelectedFormation] = useState(() => {
+    return localStorage.getItem('pampas_formation') || '4-4-2';
+  });
+  const [tacticalStyle, setTacticalStyle] = useState(() => {
+    return localStorage.getItem('pampas_tactical_style') || 'Tiki-Taka';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('pampas_formation', selectedFormation);
+  }, [selectedFormation]);
+
+  useEffect(() => {
+    localStorage.setItem('pampas_tactical_style', tacticalStyle);
+  }, [tacticalStyle]);
 
   // Amistosos
   const [selectedFriendlyOpponent, setSelectedFriendlyOpponent] = useState('Palmeiras');
@@ -34,7 +44,12 @@ export default function FutebolDiplomatico() {
     try { return JSON.parse(localStorage.getItem('pampas_last_match_report')) || null; } catch { return null; }
   });
 
-  // 20 Equipas da Série A
+  // Relatório e Histórico da Partida Oficial (Persistente)
+  const [lastOfficialReport, setLastOfficialReport] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('pampas_last_official_report')) || null; } catch { return null; }
+  });
+
+  // 20 Clubes da Série A
   const initial20Clubs = [
     'Flamengo', 'Palmeiras', 'Internacional', 'Grêmio', 'Atlético-MG',
     'São Paulo', 'Fluminense', 'Botafogo', 'Corinthians', 'Vasco',
@@ -42,15 +57,42 @@ export default function FutebolDiplomatico() {
     'Juventude', 'Red Bull Bragantino', 'Criciúma', 'Cuiabá', 'Vitória'
   ];
 
+  // Tabela e Rodada Persistentes via localStorage
   const [leagueTable, setLeagueTable] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pampas_league_table');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
     return initial20Clubs.map(name => ({
       club: name, pts: 0, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0
     }));
   });
 
-  const [currentRound, setCurrentRound] = useState(1);
+  const [currentRound, setCurrentRound] = useState(() => {
+    return Number(localStorage.getItem('pampas_current_round')) || 1;
+  });
 
-  // POSIÇÕES PADRÃO NO RELVADO: GOL, ZAG, LAD, LAE, VOL, MC, MEI, ATA
+  const [roundResultsHistory, setRoundResultsHistory] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pampas_round_history');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('pampas_league_table', JSON.stringify(leagueTable));
+  }, [leagueTable]);
+
+  useEffect(() => {
+    localStorage.setItem('pampas_current_round', currentRound);
+  }, [currentRound]);
+
+  useEffect(() => {
+    localStorage.setItem('pampas_round_history', JSON.stringify(roundResultsHistory));
+  }, [roundResultsHistory]);
+
+  // Posições no Relvado
   const formationRoles = {
     '4-3-3': ['GOL', 'LAE', 'ZAG', 'ZAG', 'LAD', 'VOL', 'MC', 'MEI', 'ATA', 'ATA', 'ATA'],
     '4-4-2': ['GOL', 'LAE', 'ZAG', 'ZAG', 'LAD', 'MC', 'MC', 'MEI', 'MEI', 'ATA', 'ATA'],
@@ -118,13 +160,11 @@ export default function FutebolDiplomatico() {
 
   useEffect(() => { fetchGameData(); }, [myTeam]);
 
-  // SISTEMA INTELIGENTE DE RECONHECIMENTO DE POSIÇÕES (SEM FALSOS VERMELHOS)
+  // Validação de Posições
   const isOutOfPosition = (playerPos, slotRole) => {
     if (!playerPos || !slotRole) return false;
     const p = playerPos.toUpperCase();
     const s = slotRole.toUpperCase();
-
-    // Tabela de equivalência perfeita
     const equivalences = {
       'GOL': ['GOL'],
       'ZAG': ['ZAG', 'DEF'],
@@ -135,31 +175,27 @@ export default function FutebolDiplomatico() {
       'MEI': ['MEI', 'MC', 'EXT', 'ATA'],
       'ATA': ['ATA', 'CA', 'EXT', 'SA']
     };
-
     const allowedList = equivalences[s] || [s];
     return !allowedList.includes(p);
   };
 
-  // Troca Titular x Reserva
+  // Substituição
   const handleSwapPlayers = (reserveIdx) => {
     if (selectedStarterForSub === null) return alert("Clique primeiro num titular no relvado!");
     const newSquad = [...squad];
     const sIdx = selectedStarterForSub;
     const rIdx = 11 + reserveIdx;
-
     const temp = newSquad[sIdx];
     newSquad[sIdx] = newSquad[rIdx];
     newSquad[rIdx] = temp;
-
     setSquad(newSquad);
     setSelectedStarterForSub(null);
   };
 
-  // Venda de Atleta no Mercado
+  // Venda Mercado
   const handleListPlayerForSale = async (player) => {
     const price = Number(sellPriceInput[player.id]);
     if (!price || price <= 0) return alert("Insira um valor válido para venda!");
-
     const { error } = await supabase.from('players').update({ current_club: 'Mercado Livre', price }).eq('id', player.id);
     if (!error) {
       alert(`${player.name} anunciado por R$ ${price.toLocaleString('pt-BR')}!`);
@@ -171,11 +207,10 @@ export default function FutebolDiplomatico() {
     }
   };
 
-  // Amistosos
+  // Amistoso
   const handlePlayFriendly = async () => {
     const FRIENDLY_COST = 500000;
     if (balance < FRIENDLY_COST) return alert("Saldo insuficiente (R$ 500.000).");
-
     const newBal = balance - FRIENDLY_COST;
     setBalance(newBal);
     setIsSimulatingFriendly(true);
@@ -189,35 +224,78 @@ export default function FutebolDiplomatico() {
         mvp: squad[0]?.name || "Craque", date: new Date().toLocaleDateString('pt-BR')
       };
       setLastMatchReport(report);
+      localStorage.setItem('pampas_last_match_report', JSON.stringify(report));
       setIsSimulatingFriendly(false);
       alert(`Amistoso encerrado! ${report.homeTeam} ${report.homeGoals} x ${report.awayGoals} ${report.awayTeam}`);
     }, 1500);
   };
 
-  // Simular Rodada da Liga
+  // Simulação Oficial Automatizada (Com Relatório Oficial Profissional e Artigo no Jornal)
   const handleSimulateOfficialRound = () => {
-    const updated = leagueTable.map(t => {
-      const gFor = Math.floor(Math.random() * 4);
-      const gAgainst = Math.floor(Math.random() * 3);
-      const win = gFor > gAgainst;
-      const draw = gFor === gAgainst;
+    const opponentIndex = (currentRound - 1) % (initial20Clubs.length - 1);
+    const opponentName = initial20Clubs.filter(c => c !== myTeam?.name)[opponentIndex] || "Flamengo";
+    
+    const myGoals = Math.floor(Math.random() * 4);
+    const oppGoals = Math.floor(Math.random() * 3);
+    const win = myGoals > oppGoals;
+    const draw = myGoals === oppGoals;
 
-      return {
-        ...t,
-        j: t.j + 1,
-        v: t.v + (win ? 1 : 0),
-        e: t.e + (draw ? 1 : 0),
-        d: t.d + (!win && !draw ? 1 : 0),
-        pts: t.pts + (win ? 3 : draw ? 1 : 0),
-        gp: t.gp + gFor,
-        gc: t.gc + gAgainst,
-        sg: t.sg + (gFor - gAgainst)
-      };
+    // Atualizar Tabela dos 20 Clubes
+    const updated = leagueTable.map(t => {
+      if (t.club === myTeam?.name) {
+        return {
+          ...t, j: t.j + 1, v: t.v + (win ? 1 : 0), e: t.e + (draw ? 1 : 0), d: t.d + (!win && !draw ? 1 : 0),
+          pts: t.pts + (win ? 3 : draw ? 1 : 0), gp: t.gp + myGoals, gc: t.gc + oppGoals, sg: t.sg + (myGoals - oppGoals)
+        };
+      } else if (t.club === opponentName) {
+        const oppWin = oppGoals > myGoals;
+        const oppDraw = oppGoals === myGoals;
+        return {
+          ...t, j: t.j + 1, v: t.v + (oppWin ? 1 : 0), e: t.e + (oppDraw ? 1 : 0), d: t.d + (!oppWin && !oppDraw ? 1 : 0),
+          pts: t.pts + (oppWin ? 3 : oppDraw ? 1 : 0), gp: t.gp + oppGoals, gc: t.gc + myGoals, sg: t.sg + (oppGoals - myGoals)
+        };
+      } else {
+        const gF = Math.floor(Math.random() * 3);
+        const gA = Math.floor(Math.random() * 3);
+        const w = gF > gA; const dr = gF === gA;
+        return {
+          ...t, j: t.j + 1, v: t.v + (w ? 1 : 0), e: t.e + (dr ? 1 : 0), d: t.d + (!w && !dr ? 1 : 0),
+          pts: t.pts + (w ? 3 : dr ? 1 : 0), gp: t.gp + gF, gc: t.gc + gA, sg: t.sg + (gF - gA)
+        };
+      }
     }).sort((a, b) => b.pts - a.pts || b.v - a.v || b.sg - a.sg);
 
     setLeagueTable(updated);
+
+    // Relatório Oficial Profissional
+    const officialReport = {
+      round: currentRound,
+      homeTeam: myTeam?.name,
+      awayTeam: opponentName,
+      homeGoals: myGoals,
+      awayGoals: oppGoals,
+      possession: 54,
+      xG: '1.95',
+      passesCompleted: '88%',
+      stadium: 'Estádio Municipal',
+      mvp: squad[0]?.name || "Atleta Destaque",
+      analysis: win 
+        ? "Atuação soberba! A equipe dominou o setor intermediário e converteu as oportunidades criadas com extrema eficiência tática."
+        : draw 
+        ? "Partida equilibrada e de muita combatividade. As defesas superaram os ataques em um duelo tático intenso."
+        : "Faltou consistência defensiva na retaguarda. O adversário aproveitou as brechas nas transições rápidas.",
+      date: new Date().toLocaleDateString('pt-BR')
+    };
+
+    setLastOfficialReport(officialReport);
+    localStorage.setItem('pampas_last_official_report', JSON.stringify(officialReport));
+
+    // Artigo Automático para a Gazeta
+    const summaryText = `Rodada ${currentRound}: ${myTeam?.name} ${myGoals}x${oppGoals} ${opponentName}. Destaques da jornada com grandes atuações coletivas e forte emoção na tabela da Série A.`;
+    setRoundResultsHistory(prev => [{ round: currentRound, text: summaryText }, ...prev]);
+
     setCurrentRound(r => r + 1);
-    alert(`Rodada Oficial nº ${currentRound} simulada!`);
+    alert(`Rodada Oficial nº ${currentRound} simulada com sucesso! Verifique a aba Home e a Gazeta.`);
   };return (
     <div className="min-h-screen bg-[#050507] text-white font-sans antialiased pb-28 selection:bg-emerald-500 selection:text-black">
       {/* Cabeçalho do Simulador */}
@@ -241,7 +319,7 @@ export default function FutebolDiplomatico() {
         )}
       </div>
 
-      {/* Navegação Inferior Com as 7 Abas Originais Intactas */}
+      {/* Navegação Inferior (As 7 Abas Originais Intactas) */}
       <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#0a0a0e]/95 backdrop-blur-md border-t border-emerald-500/30 p-2 z-40 shadow-2xl overflow-x-auto hide-scrollbar">
         <div className="flex gap-1 min-w-max px-1">
           {[
@@ -269,9 +347,55 @@ export default function FutebolDiplomatico() {
 
       <main className="max-w-md mx-auto p-4 space-y-4 text-center">
         
-        {/* ABA: HOME */}
+        {/* ABA: HOME (COM DESTAQUE PARA O JOGO OFICIAL E RELATÓRIO PROFISSIONAL) */}
         {activeTab === 'home' && (
           <div className="space-y-4 text-left animate-fade-in">
+            
+            {/* Bloco do Jogo Oficial / Relatório da Última Partida */}
+            <div className="bg-[#0f1412] border border-emerald-500/40 rounded-3xl p-5 shadow-2xl space-y-3">
+              <div className="flex justify-between items-center border-b border-emerald-900/40 pb-2">
+                <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-950/80 px-2.5 py-1 rounded-lg border border-emerald-800">
+                  Brasileirão • Rodada {currentRound}
+                </span>
+                <span className="text-[9px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded uppercase">
+                  Partida Oficial
+                </span>
+              </div>
+
+              {lastOfficialReport ? (
+                <div className="space-y-3">
+                  <div className="bg-black/60 p-3.5 rounded-2xl text-center border border-emerald-900/30">
+                    <p className="text-[9px] text-zinc-400 uppercase font-bold mb-1">Resultado Oficial • Rodada {lastOfficialReport.round}</p>
+                    <p className="text-xl font-black text-white">
+                      {lastOfficialReport.homeTeam} <span className="text-emerald-400">{lastOfficialReport.homeGoals}</span> x <span className="text-emerald-400">{lastOfficialReport.awayGoals}</span> {lastOfficialReport.awayTeam}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-[10px] text-center">
+                    <div className="bg-black/40 p-2.5 rounded-xl border border-zinc-800">
+                      <span className="text-zinc-500 block font-bold uppercase">Posse de Bola</span>
+                      <span className="text-emerald-400 font-black">{lastOfficialReport.possession}% x {100 - lastOfficialReport.possession]%</span>
+                    </div>
+                    <div className="bg-black/40 p-2 rounded-xl border border-zinc-800">
+                      <span className="text-zinc-500 block font-bold uppercase">Homem do Jogo (MVP)</span>
+                      <span className="text-amber-400 font-black truncate">{lastOfficialReport.mvp}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-emerald-950/30 border border-emerald-900/40 p-3 rounded-2xl">
+                    <p className="text-[9px] font-black text-emerald-400 uppercase mb-1">Relatório Técnico Oficial:</p>
+                    <p className="text-[10px] text-zinc-300 italic leading-relaxed">{lastOfficialReport.analysis}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-4 text-center space-y-1">
+                  <p className="text-xs font-bold text-white">Nenhuma partida oficial disputada ainda.</p>
+                  <p className="text-[10px] text-zinc-400">O Administrador deve simular a rodada oficial na aba "Série A".</p>
+                </div>
+              )}
+            </div>
+
+            {/* Central de Amistosos (R$ 500k) */}
             <div className="bg-[#0f1412] border border-emerald-900/40 rounded-3xl p-5 shadow-xl">
               <h3 className="text-emerald-400 font-black text-xs uppercase tracking-wider mb-2 flex justify-between items-center">
                 <span>⚔️ Organizar Amistoso</span>
@@ -302,28 +426,10 @@ export default function FutebolDiplomatico() {
               </div>
             </div>
 
-            {lastMatchReport && (
-              <div className="bg-[#0f1412] border border-emerald-500/30 rounded-3xl p-5 shadow-xl space-y-3">
-                <div className="flex justify-between items-center border-b border-emerald-900/30 pb-2">
-                  <h3 className="text-xs font-black text-white uppercase">📊 Relatório Avançado</h3>
-                  <span className="text-[9px] text-zinc-400 font-bold">{lastMatchReport.date}</span>
-                </div>
-                <div className="bg-black/50 p-3 rounded-2xl text-center border border-emerald-900/20">
-                  <p className="text-xl font-black text-white">
-                    {lastMatchReport.homeTeam} <span className="text-emerald-400">{lastMatchReport.homeGoals}</span> x <span className="text-emerald-400">{lastMatchReport.awayGoals}</span> {lastMatchReport.awayTeam}
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-[10px] text-center">
-                  <div className="bg-black/40 p-2 rounded-xl border border-zinc-800"><span className="text-zinc-500 block font-bold">Posse de Bola</span><span className="text-emerald-400 font-black">{lastMatchReport.possessionHome}% x {100 - lastMatchReport.possessionHome}%</span></div>
-                  <div className="bg-black/40 p-2 rounded-xl border border-zinc-800"><span className="text-zinc-500 block font-bold">Gols Esperados (xG)</span><span className="text-amber-400 font-black">{lastMatchReport.xGHome} x {lastMatchReport.xGAway}</span></div>
-                  <div className="bg-black/40 p-2 rounded-xl border border-zinc-800"><span className="text-zinc-500 block font-bold">Destaque (MVP)</span><span className="text-emerald-400 font-black">{lastMatchReport.mvp}</span></div>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
-        {/* ABA: TÁTICAS (PRANCHETA INTERATIVA COM RECONHECIMENTO CORRETO DE POSIÇÃO) */}
+        {/* ABA: TÁTICAS (PRANCHETA INTERATIVA COM SINALIZAÇÃO EM VERMELHO) */}
         {activeTab === 'taticas' && (
           <div className="space-y-4 text-left animate-fade-in">
             <div className="bg-[#0f1412] border border-emerald-900/40 p-4 rounded-3xl shadow-xl flex justify-between items-center">
@@ -576,21 +682,40 @@ export default function FutebolDiplomatico() {
           </div>
         )}
 
-        {/* ABA: GAZETA (JORNAL OFICIAL) */}
+        {/* ABA: GAZETA (JORNAL OFICIAL AUTOMATIZADO COM OS DESTAQUES DA RODADA) */}
         {activeTab === 'jornal' && (
           <div className="space-y-4 text-left animate-fade-in">
             <div className="bg-[#e5e5e5] text-black p-5 rounded-sm border-t-8 border-black font-serif shadow-xl relative overflow-hidden">
               <div className="text-center border-b-2 border-black pb-3 mb-4">
-                <h1 className="text-3xl font-black uppercase tracking-tighter">A Gazeta</h1>
-                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Edição Oficial da Liga • 2026</p>
+                <h1 className="text-3xl font-black uppercase tracking-tighter">A Gazeta Diplomática</h1>
+                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Edição Oficial • 2026</p>
               </div>
-              <article>
-                <span className="bg-black text-white text-[8px] font-black px-1.5 py-0.5 uppercase tracking-wider mb-1 inline-block">Destaque da Temporada</span>
-                <h2 className="text-lg font-black leading-tight mb-1">Equipes disputam palmo a palmo o Brasileirão!</h2>
-                <p className="text-xs text-zinc-800 leading-relaxed font-medium">
-                  Os 20 clubes da Série A intensificam os testes táticos nos amistosos enquanto aguardam os comandos do campeonato.
-                </p>
-              </article>
+
+              <div className="space-y-4">
+                <article className="border-b border-black/30 pb-3">
+                  <span className="bg-black text-white text-[8px] font-black px-1.5 py-0.5 uppercase tracking-wider mb-1 inline-block">Editorial Destaque</span>
+                  <h2 className="text-base font-black leading-tight mb-1">Emoção ao rubro na luta pelo título do Brasileirão!</h2>
+                  <p className="text-[11px] text-zinc-800 leading-relaxed font-medium">
+                    As jornadas decorrem com alta competitividade. Os treinadores ajustam os esquemas táticos e os artilheiros disputam cada lance na tabela de classificação.
+                  </p>
+                </article>
+
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-wide mb-2 text-black">🗞️ Crônicas e Resultados das Rodadas:</h3>
+                  {roundResultsHistory.length > 0 ? (
+                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                      {roundResultsHistory.map((item, index) => (
+                        <div key={index} className="bg-white p-3 rounded border border-zinc-400 text-[11px] font-medium shadow-sm">
+                          <p className="font-black text-emerald-900 mb-0.5">Rodada nº {item.round}:</p>
+                          <p className="text-zinc-800">{item.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-zinc-600 italic">Nenhuma rodada oficial foi simulada ainda. O Administrador deve avançar o campeonato na aba Série A.</p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
