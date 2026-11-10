@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 
@@ -21,8 +20,8 @@ export default function FutebolDiplomatico() {
   useEffect(() => {
     if (currentUser) {
       setMyTeam({
-        name: currentUser.team || "Unidos FC", 
-        stadium: "Campo do São Leopoldo",
+        name: currentUser.team || "Sem Clube Atribuído", 
+        stadium: "Estádio Municipal",
         manager: currentUser.username,
         overall: 78
       });
@@ -30,6 +29,10 @@ export default function FutebolDiplomatico() {
   }, [currentUser]);
 
   const fetchSquad = async (clubName) => {
+    if (!clubName || clubName === "Sem Clube Atribuído") {
+      setLoadingSquad(false);
+      return;
+    }
     setLoadingSquad(true);
     try {
       const { data, error } = await supabase
@@ -97,6 +100,11 @@ export default function FutebolDiplomatico() {
                 <span className="text-lg text-emerald-400 font-black leading-none">{myTeam.overall}</span>
               </div>
             </div>
+            {myTeam.name === "Sem Clube Atribuído" && (
+              <p className="text-[10px] text-amber-400 mt-2 font-bold bg-amber-500/10 p-1.5 rounded-lg border border-amber-500/20">
+                ⚠️ Aguarde o Administrador atribuir o seu clube no painel para iniciar a época.
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -148,11 +156,11 @@ export default function FutebolDiplomatico() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-[#0f1412] border border-emerald-900/30 rounded-2xl p-4 shadow-xl text-left">
-                <span className="text-emerald-500/70 text-[10px] font-black uppercase tracking-wider mb-1 block">Orçamento</span>
+                <span className="text-emerald-500/70 text-[10px] font-black uppercase tracking-wider mb-1 block">Orçamento Global</span>
                 <span className="text-white font-black text-sm">R$ {balance.toLocaleString('pt-BR')}</span>
               </div>
               <div className="bg-[#0f1412] border border-emerald-900/30 rounded-2xl p-4 shadow-xl text-left">
-                <span className="text-emerald-500/70 text-[10px] font-black uppercase tracking-wider mb-1 block">Posição</span>
+                <span className="text-emerald-500/70 text-[10px] font-black uppercase tracking-wider mb-1 block">Posição na Liga</span>
                 <span className="text-emerald-400 font-black text-sm">1º Lugar 🏆</span>
               </div>
             </div>
@@ -209,7 +217,7 @@ export default function FutebolDiplomatico() {
         {activeTab === 'mercado' && (
           <div className="bg-[#0f1412] border border-emerald-900/30 rounded-3xl p-5 shadow-xl text-left">
             <h3 className="text-emerald-400 font-black text-sm uppercase mb-2">Mercado de Transferências</h3>
-            <p className="text-zinc-400 text-xs mb-4">Utilize o seu orçamento para contratar reforços.</p>
+            <p className="text-zinc-400 text-xs mb-4">Utilize o seu orçamento global para contratar reforços.</p>
             <button className="w-full bg-zinc-800 text-emerald-400 font-black py-3 rounded-xl text-xs">
               🔍 PESQUISAR JOGADORES
             </button>
