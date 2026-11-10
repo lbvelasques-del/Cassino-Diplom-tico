@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import FutebolDiplomatico from './FutebolDiplomatico';
 import CassinoCostaRica from './CassinoCostaRica';
 import DiamondStriker from './DiamondStriker';
 import PampasCrash from './PampasCrash';
@@ -210,6 +211,7 @@ export default function App() {
     </div>
   );
 
+  if (activeGame === 'futebol') return <FutebolDiplomatico />;
   if (activeGame === 'costarica') return renderGameRoute(CassinoCostaRica);
   if (activeGame === 'diamond') return renderGameRoute(DiamondStriker);
   if (activeGame === 'crash') return renderGameRoute(PampasCrash);
@@ -218,9 +220,7 @@ export default function App() {
   if (activeGame === 'towers') return renderGameRoute(PampasTowers);
   if (activeGame === 'hilo') return renderGameRoute(PampasHiLo);
   if (activeGame === 'dice') return renderGameRoute(PampasDice);
-  if (activeGame === 'holdandwin') return renderGameRoute(PampasHoldAndWin);
-
-  return (
+  if (activeGame === 'holdandwin') return renderGameRoute(PampasHoldAndWin);return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       <header className="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-zinc-900 px-4 py-3 flex items-center justify-between shadow-2xl">
         <div className="flex items-center py-1 cursor-pointer" onClick={() => setActiveGame('lobby')}>
@@ -256,6 +256,13 @@ export default function App() {
         </div>
 
         <div className="space-y-4 pt-2">
+          {/* BOTÃO DE ACESSO AO FUTEBOL DIPLOMÁTICO */}
+          <div onClick={() => setActiveGame('futebol')} className="bg-gradient-to-b from-[#0a2618] to-[#050f09] border-2 border-emerald-500/80 hover:border-emerald-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
+            <h3 className="text-lg font-black text-emerald-400">⚽ FUTEBOL DIPLOMÁTICO</h3>
+            <p className="text-xs text-zinc-300">Acede ao simulador de clubes, táticas e à Série A oficial.</p>
+            <span className="inline-block bg-emerald-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">ENTRAR NO FUTEBOL</span>
+          </div>
+
           <div onClick={() => setActiveGame('costarica')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
             <h3 className="text-lg font-black text-amber-300">CASSINO COSTA RICA 🌴</h3>
             <p className="text-xs text-zinc-300">O caça-níqueis oficial com multiplicadores e jackpots.</p>
@@ -298,7 +305,7 @@ export default function App() {
             <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA</span>
           </div>
         </div>
-      </main>{/* MODAIS DE SUPORTE (AUTH, PERFIL E ADMIN) */}
+      </main>{/* MODAIS DE SUPORTE */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
@@ -393,4 +400,4 @@ export default function App() {
       )}
     </div>
   );
-}
+              }
