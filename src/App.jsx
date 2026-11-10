@@ -125,7 +125,6 @@ export default function App() {
     }
   };
 
-  // Função exclusiva do Master para promover/remover Co-Admin
   const handleToggleCoAdmin = async (targetUser, currentStatus) => {
     if (currentUser?.username?.toLowerCase() !== 'lvelasques') {
       return alert("Apenas o Administrador Master pode gerir Co-Admins!");
@@ -234,7 +233,6 @@ export default function App() {
       {!activeGame ? (
         <div className="max-w-md mx-auto p-4 space-y-6 pt-6">
           
-          {/* Header Superior */}
           <div className="flex justify-between items-center bg-[#0d1210] p-5 rounded-3xl border border-emerald-900/40 shadow-2xl">
             <div>
               <p className="text-[9px] text-zinc-500 uppercase font-black tracking-widest">Painel Principal</p>
@@ -257,8 +255,6 @@ export default function App() {
           </div>
 
           <div className="space-y-4">
-            
-            {/* Jogo Principal: Futebol Diplomático */}
             <div>
               <h2 className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mb-2 pl-2 border-l-2 border-emerald-500">Simulador Master</h2>
               <button onClick={() => setActiveGame('futebol')} className="w-full text-left group relative overflow-hidden bg-gradient-to-br from-[#0d1612] via-[#09100d] to-[#050907] border-2 border-emerald-500/60 rounded-[2.5rem] p-7 shadow-[0_0_40px_rgba(5,150,105,0.2)] hover:border-emerald-400 transition-all cursor-pointer">
@@ -274,7 +270,6 @@ export default function App() {
               </button>
             </div>
 
-            {/* Portal VIP: Cassino Diplomático */}
             <div>
               <h2 className="text-[10px] text-amber-500 font-black uppercase tracking-widest mb-2 pl-2 border-l-2 border-amber-500">Passatempo VIP</h2>
               <button onClick={() => setActiveGame('cassino')} className="w-full text-left group bg-[#140e0a] border border-amber-900/50 rounded-[2rem] p-6 shadow-xl hover:border-amber-500 transition-all cursor-pointer">
@@ -287,7 +282,6 @@ export default function App() {
                 </div>
               </button>
             </div>
-
           </div>
         </div>
       ) : (
@@ -342,7 +336,6 @@ export default function App() {
               </h3>
             </div>
 
-            {/* 1. Gestão de Saldo e Clube */}
             <div className="bg-black/60 p-4 rounded-2xl border border-red-900/30 space-y-3">
               <h4 className="text-xs font-black text-red-400 uppercase">1. Gestão de Saldo e Clube</h4>
               <input type="text" placeholder="Utilizador Alvo" value={admTargetUser} onChange={(e) => setAdmTargetUser(e.target.value)} className="w-full bg-[#111] border border-zinc-800 text-white text-xs p-2.5 rounded-xl outline-none" />
@@ -356,7 +349,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* 2. Criar Novo Jogador */}
             <form onSubmit={handleAdminCreatePlayer} className="bg-black/60 p-4 rounded-2xl border border-red-900/30 space-y-3">
               <h4 className="text-xs font-black text-amber-400 uppercase">2. Criar Novo Jogador</h4>
               <input type="text" placeholder="Nome do Jogador" value={newPlayerName} onChange={(e) => setNewPlayerName(e.target.value)} className="w-full bg-[#111] border border-zinc-800 text-white text-xs p-2.5 rounded-xl outline-none" required />
@@ -393,7 +385,6 @@ export default function App() {
               </button>
             </form>
 
-            {/* 3. Lista de Utilizadores (Com Controlo de Co-Admin Exclusivo do Master) */}
             <div className="bg-black/60 p-4 rounded-2xl border border-red-900/30 space-y-3">
               <h4 className="text-xs font-black text-zinc-300 uppercase">3. Utilizadores Cadastrados ({userList.length})</h4>
               <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
@@ -410,7 +401,6 @@ export default function App() {
                       </div>
 
                       <div className="flex items-center gap-1.5">
-                        {/* Apenas o Master pode promover/despromover co-admins e excluir contas */}
                         {isMaster && !isUserMaster && (
                           <>
                             <button 
