@@ -1,424 +1,250 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
-import CassinoCostaRica from './CassinoCostaRica';
-import DiamondStriker from './DiamondStriker';
-import PampasCrash from './PampasCrash';
-import RoletaDiplomatica from './RoletaDiplomatica';
-import PampasGoal from './PampasGoal';
-import PampasTowers from './PampasTowers';
-import PampasHiLo from './PampasHiLo';
-import PampasDice from './PampasDice';
-import PampasHoldAndWin from './PampasHoldAndWin';
+
+// Importação dos teus jogos (Podes adicionar outros se tiveres mais)
 import FutebolDiplomatico from './FutebolDiplomatico';
+// import CassinoCostaRica from './CassinoCostaRica'; 
 
 export default function App() {
-  const [activeGame, setActiveGame] = useState('lobby'); 
-  const [usersDb, setUsersDb] = useState(() => {
-    const saved = localStorage.getItem('pampas_users_db');
-    if (saved) { try { return JSON.parse(saved); } catch (e) { } }
-    return [{ id: 1, username: 'LVelasques', password: 'Lucas123!', balance: 99999999, isAdmin: true, team: null }];
-  });
+  // Estados Globais
+  const [currentUser, setCurrentUser] = useState(null);
+  const [activeGame, setActiveGame] = useState(null);
+  const [balance, setBalance] = useState(0);
 
-  const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem('pampas_current_user');
-    return saved ? JSON.parse(saved) : null;
-  });
+  // Estados de Autenticação (Login/Registo)
+  const [isLogin, setIsLogin] = useState(true);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [teamName, setTeamName] = useState('');
 
-  const [balance, setBalance] = useState(() => {
-    const saved = localStorage.getItem('pampas_current_user');
-    return saved ? JSON.parse(saved).balance : 150000;
-  });
-
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [authMode, setAuthMode] = useState('login');
-  const [inputUsername, setInputUsername] = useState('');
-  const [inputPassword, setInputPassword] = useState('');
+  // Estados do NOVO Modal de Perfil
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [authError, setAuthError] = useState('');
+  const [teamPrice, setTeamPrice] = useState('');
 
-  const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
-  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
-  const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [withdrawSuccess, setWithdrawSuccess] = useState(false);
+  // Carregar utilizador ao iniciar
+  useEffect(() => {
+    const savedUser = localStorage.getItem('pampas_current_user');
+    if (savedUser) {
+      const parsedUser = JSON.parse(savedUser);
+      setCurrentUser(parsedUser);
+      fetchBalance(parsedUser.username);
+    }
+  }, []);
 
-  const [adminTab, setAdminTab] = useState('contas');
-  const [adminTargetId, setAdminTargetId] = useState('');
-  const [adminDepositAmount, setAdminDepositAmount] = useState('');
-  const [adminTeamName, setAdminTeamName] = useState('');
-  const [pendingUpdates, setPendingUpdates] = useState([]);
+  // Atualizar saldo sempre que voltar ao lobby
+  useEffect(() => {
+    if (currentUser && !activeGame) {
+      fetchBalance(currentUser.username);
+    }
+  }, [activeGame, currentUser]);
 
-  const fetchUsersDb = async () => {
-    try {
-      const { data, error } = await supabase.from('users').select('*').order('id', { ascending: true });
-      if (!error && data && data.length > 0) {
-        setUsersDb(data);
-        localStorage.setItem('pampas_users_db', JSON.stringify(data));
-        if (currentUser) {
-          const updatedMe = data.find(u => u.id === currentUser.id);
-          if (updatedMe) {
-            setBalance(Number(updatedMe.balance));
-            setCurrentUser(updatedMe);
-          }
-        }
+  const fetchBalance = async (user) => {
+    const { data, error } = await supabase.from('users').select('balance').eq('username', user).single();
+    if (data) {
+      setBalance(data.balance);
+      const savedUser = JSON.parse(localStorage.getItem('pampas_current_user'));
+      if (savedUser) {
+        localStorage.setItem('pampas_current_user', JSON.stringify({ ...savedUser, balance: data.balance }));
+      }
+    }
+  };// Lógicas de Autenticação (Login/Registo)
+  const handleAuth = async (e) => {
+    e.preventDefault();
+    if (isLogin) {
+      const { data, error } = await supabase.from('users').select('*').eq('username', username).eq('password', password).single();
+      if (data) {
+        localStorage.setItem('pampas_current_user', JSON.stringify(data));
+        setCurrentUser(data);
+        setBalance(data.balance);
+      } else {
+        alert("Utilizador ou senha incorretos!");
+      }
+    } else {
+      if (!username || !password || !teamName) {
+        alert("Preencha todos os campos!");
         return;
       }
-    } catch (e) { }
-    const local = localStorage.getItem('pampas_users_db');
-    if (local) setUsersDb(JSON.parse(local));
-  };
-
-  const fetchPendingUpdates = async () => {
-    try {
-      const { data, error } = await supabase.from('squad_updates').select('*').eq('status', 'pending').order('created_at', { ascending: false });
-      if (!error && data) setPendingUpdates(data);
-    } catch (e) { }
-  };
-
-  useEffect(() => {
-    fetchUsersDb();
-    const interval = setInterval(fetchUsersDb, 5000);
-    return () => clearInterval(interval);
-  }, [currentUser]);
-
-  useEffect(() => {
-    if (isAdminPanelOpen && adminTab === 'futebol') fetchPendingUpdates();
-  }, [isAdminPanelOpen, adminTab]);
-
-  useEffect(() => {
-    if (currentUser) localStorage.setItem('pampas_current_user', JSON.stringify(currentUser));
-    else localStorage.removeItem('pampas_current_user');
-  }, [currentUser]);
-
-  const handleAuthSubmit = async (e) => {
-    e.preventDefault();
-    setAuthError('');
-    const trimmedUser = inputUsername.trim();
-
-    if (authMode === 'register') {
-      if (inputPassword !== confirmPassword) return setAuthError('As senhas não coincidem!');
-      if (inputPassword.length < 3) return setAuthError('A senha é muito curta.');
-      if (usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase())) return setAuthError('Utilizador já em uso.');
-
-      const isAdmin = trimmedUser.toLowerCase() === 'lvelasques';
-      const newUser = { id: Date.now(), username: trimmedUser, password: inputPassword, balance: 150000, isAdmin, team: null };
-
-      let registeredOnCloud = false;
-      try {
-        const { data, error } = await supabase.from('users').insert([{ username: trimmedUser, password: inputPassword, balance: 150000, isAdmin, team: null }]).select();
-        if (!error && data && data[0]) {
-          setCurrentUser(data[0]);
-          setBalance(Number(data[0].balance));
-          registeredOnCloud = true;
-        }
-      } catch (err) { }
-
-      if (!registeredOnCloud) {
-        const updated = [...usersDb, newUser];
-        setUsersDb(updated);
-        localStorage.setItem('pampas_users_db', JSON.stringify(updated));
-        setCurrentUser(newUser);
-        setBalance(newUser.balance);
+      const { data: existingUser } = await supabase.from('users').select('username').eq('username', username).single();
+      if (existingUser) {
+        alert("Nome de utilizador já em uso.");
+        return;
       }
-      setIsAuthOpen(false); setAuthError(''); setInputUsername(''); setInputPassword(''); setConfirmPassword(''); fetchUsersDb();
-    } else {
-      let foundUser = null;
-      try {
-        const { data, error } = await supabase.from('users').select('*').ilike('username', trimmedUser).eq('password', inputPassword);
-        if (!error && data && data.length > 0) foundUser = data[0];
-      } catch (e) { }
-      if (!foundUser) foundUser = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase() && u.password === inputPassword);
-
-      if (foundUser) {
-        setCurrentUser(foundUser);
-        setBalance(Number(foundUser.balance));
-        setIsAuthOpen(false); setAuthError(''); setInputUsername(''); setInputPassword('');
-      } else { setAuthError('Utilizador ou senha incorretos.'); }
+      const { data, error } = await supabase.from('users').insert([{ username, password, team: teamName, balance: 1000 }]).select().single();
+      if (!error && data) {
+        localStorage.setItem('pampas_current_user', JSON.stringify(data));
+        setCurrentUser(data);
+        setBalance(data.balance);
+      } else {
+        alert("Erro ao criar conta.");
+      }
     }
   };
 
-  const handleLogout = () => { setCurrentUser(null); localStorage.removeItem('pampas_current_user'); setIsUserPanelOpen(false); setWithdrawSuccess(false); };
-  const handleSelfDelete = async () => {
-    if (!window.confirm(`Deseja realmente excluir a sua conta?`)) return;
-    try { await supabase.from('users').delete().eq('id', currentUser.id); } catch (e) {}
-    const updated = usersDb.filter(u => u.id !== currentUser.id);
-    setUsersDb(updated); localStorage.setItem('pampas_users_db', JSON.stringify(updated));
-    handleLogout();
+  // Funções do Novo Modal de Perfil
+  const handleChangePassword = async () => {
+    if (!newPassword || newPassword !== confirmPassword) {
+      alert("As senhas não coincidem ou estão vazias!");
+      return;
+    }
+    const { error } = await supabase.from('users').update({ password: newPassword }).eq('username', currentUser.username);
+    if (!error) {
+      alert("Senha alterada com sucesso!");
+      setNewPassword('');
+      setConfirmPassword('');
+    } else {
+      alert("Erro ao alterar senha.");
+    }
   };
 
-  const handleWithdrawSubmit = (e) => {
-    e.preventDefault();
-    const amountNum = parseFloat(withdrawAmount);
-    if (isNaN(amountNum) || amountNum <= 0 || amountNum > balance) return alert('Valor inválido ou saldo insuficiente.');
-    const finalBal = balance - amountNum;
-    setBalance(finalBal); if (currentUser) setCurrentUser(prev => ({ ...prev, balance: finalBal }));
-    setWithdrawSuccess(true); setWithdrawAmount('');
+  const handleSellTeam = async () => {
+    const price = Number(teamPrice);
+    if (!price || price <= 0) {
+      alert("Insira um valor válido para vender o time!");
+      return;
+    }
+    const { error } = await supabase.from('users').update({ team_price: price }).eq('username', currentUser.username);
+    if (!error) {
+      alert(`Time colocado à venda por R$ ${price.toLocaleString('pt-BR')}!`);
+      setTeamPrice('');
+    } else {
+      alert("Erro ao anunciar time.");
+    }
   };
 
-  const handleAdminBalanceUpdate = async (type) => {
-    const targetIdVal = adminTargetId.trim(); const amountVal = parseFloat(adminDepositAmount);
-    if (!targetIdVal || isNaN(amountVal) || amountVal <= 0) return alert('Insira ID e valor válidos.');
-    const targetUser = usersDb.find(u => String(u.id) === targetIdVal);
-    if (!targetUser) return alert('Conta não encontrada.');
-
-    let newBal = type === 'add' ? Number(targetUser.balance) + amountVal : Number(targetUser.balance) - amountVal;
-    if (type === 'remove' && newBal < 0) return alert('Saldo insuficiente.');
-
-    try { await supabase.from('users').update({ balance: newBal }).eq('id', targetUser.id); } catch (e) { }
-    setUsersDb(prev => { const updated = prev.map(u => String(u.id) === targetIdVal ? { ...u, balance: newBal } : u); localStorage.setItem('pampas_users_db', JSON.stringify(updated)); return updated; });
-    if (currentUser && String(currentUser.id) === targetIdVal) { setBalance(newBal); setCurrentUser(prev => ({ ...prev, balance: newBal })); }
-    alert('Saldo atualizado!'); setAdminDepositAmount(''); fetchUsersDb();
-  };
-
-  const handleAdminTeamUpdate = async (type) => {
-    const targetIdVal = adminTargetId.trim();
-    if (!targetIdVal) return alert('Insira a ID do utilizador.');
-    const targetUser = usersDb.find(u => String(u.id) === targetIdVal);
-    if (!targetUser) return alert('Conta não encontrada.');
-    
-    const newTeam = type === 'add' ? adminTeamName.trim() : null;
-    if (type === 'add' && !newTeam) return alert('Insira o nome do clube.');
-
-    try { await supabase.from('users').update({ team: newTeam }).eq('id', targetUser.id); } catch (e) { }
-    
-    setUsersDb(prev => { const updated = prev.map(u => String(u.id) === targetIdVal ? { ...u, team: newTeam } : u); localStorage.setItem('pampas_users_db', JSON.stringify(updated)); return updated; });
-    if (currentUser && String(currentUser.id) === targetIdVal) setCurrentUser(prev => ({ ...prev, team: newTeam }));
-    
-    alert(type === 'add' ? `Clube ${newTeam} atribuído!` : `Clube removido.`);
-    setAdminTeamName(''); fetchUsersDb();
-  };
-
-  const handleToggleAdmin = async (userId, currentStatus) => {
-    const isMaster = currentUser && currentUser.username.toLowerCase() === 'lvelasques';
-    if (!isMaster) return alert('Apenas a conta Master pode gerir admins.');
-    const targetUser = usersDb.find(u => u.id === userId);
-    if (!targetUser || targetUser.username.toLowerCase() === 'lvelasques') return;
-    const newStatus = !currentStatus;
-    try { await supabase.from('users').update({ isAdmin: newStatus }).eq('id', userId); } catch (e) { }
-    setUsersDb(prev => { const updated = prev.map(u => u.id === userId ? { ...u, isAdmin: newStatus } : u); localStorage.setItem('pampas_users_db', JSON.stringify(updated)); return updated; });
-    alert(`Estatuto alterado!`);
-  };
-
-  const handleTransferAction = async (updateId, playerId, newClub, action) => {
-    try {
-      if (action === 'approve') {
-        if (playerId) await supabase.from('players').update({ current_club: newClub }).eq('id', playerId);
-        await supabase.from('squad_updates').update({ status: 'approved' }).eq('id', updateId);
-        alert('Transferência Aprovada!');
-      } else {
-        await supabase.from('squad_updates').update({ status: 'rejected' }).eq('id', updateId);
-        alert('Transferência Rejeitada.');
+  const handleDeleteAccount = async () => {
+    const confirmDelete = window.confirm("ATENÇÃO: Tem a certeza que deseja APAGAR a sua conta e perder o seu time? Esta ação não tem volta!");
+    if (confirmDelete) {
+      const { error } = await supabase.from('users').delete().eq('username', currentUser.username);
+      if (!error) {
+        localStorage.removeItem('pampas_current_user');
+        window.location.reload();
       }
-      fetchPendingUpdates();
-    } catch (e) { alert('Erro ao processar.'); }
+    }
   };
 
-  const renderGameRoute = (GameComponent) => (
-    <div>
-      <div className="bg-black px-4 py-2.5 flex items-center justify-between border-b border-zinc-900 sticky top-0 z-50">
-        <button onClick={() => setActiveGame('lobby')} className="bg-zinc-800 hover:bg-zinc-700 text-amber-400 font-bold px-3 py-1.5 rounded-xl text-xs border border-zinc-700 transition-all">
-          🏠 Voltar ao Lobby
-        </button>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-amber-400 font-black">R$ {balance.toLocaleString('pt-BR')}</span>
+  const handleLogout = () => {
+    localStorage.removeItem('pampas_current_user');
+    window.location.reload();
+  };// Se não estiver logado, mostra tela de login ou registo
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-[#050507] flex items-center justify-center p-4 font-sans text-white">
+        <div className="bg-[#0a0a0e] p-6 rounded-3xl border border-amber-500/30 w-full max-w-sm shadow-2xl">
+          <h2 className="text-2xl font-black text-center mb-6 text-amber-500 uppercase tracking-wider">
+            {isLogin ? 'Entrar na Rede' : 'Criar Conta'}
+          </h2>
+          <form onSubmit={handleAuth} className="space-y-4">
+            <input type="text" placeholder="Nome de utilizador" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full bg-black text-white p-3 rounded-xl border border-zinc-700 outline-none focus:border-amber-500" required />
+            <input type="password" placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black text-white p-3 rounded-xl border border-zinc-700 outline-none focus:border-amber-500" required />
+            {!isLogin && (
+              <input type="text" placeholder="Nome do seu Clube" value={teamName} onChange={(e) => setTeamName(e.target.value)} className="w-full bg-black text-white p-3 rounded-xl border border-zinc-700 outline-none focus:border-amber-500" required />
+            )}
+            <button type="submit" className="w-full bg-amber-600 hover:bg-amber-500 text-black font-black p-3 rounded-xl uppercase transition-colors cursor-pointer">
+              {isLogin ? 'Entrar' : 'Registar'}
+            </button>
+          </form>
+          <button onClick={() => setIsLogin(!isLogin)} className="w-full mt-4 text-xs text-zinc-400 hover:text-white cursor-pointer">
+            {isLogin ? 'Não tem conta? Registe-se' : 'Já tem conta? Entre aqui'}
+          </button>
         </div>
       </div>
-      <GameComponent />
-    </div>
-  );
+    );
+  }
 
-  if (activeGame === 'costarica') return renderGameRoute(CassinoCostaRica);
-  if (activeGame === 'diamond') return renderGameRoute(DiamondStriker);
-  if (activeGame === 'crash') return renderGameRoute(PampasCrash);
-  if (activeGame === 'roleta') return renderGameRoute(RoletaDiplomatica);
-  if (activeGame === 'goal') return renderGameRoute(PampasGoal);
-  if (activeGame === 'towers') return renderGameRoute(PampasTowers);
-  if (activeGame === 'hilo') return renderGameRoute(PampasHiLo);
-  if (activeGame === 'dice') return renderGameRoute(PampasDice);
-  if (activeGame === 'holdandwin') return renderGameRoute(PampasHoldAndWin);
-  if (activeGame === 'futebol') return renderGameRoute(FutebolDiplomatico);return (
-    <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
-      <header className="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-zinc-900 px-4 py-3 flex items-center justify-between shadow-2xl">
-        <div className="flex items-center py-1 cursor-pointer" onClick={() => setActiveGame('lobby')}>
-          <img src="/Grupopampas.png" alt="Patrocinador" className="h-12 w-auto max-w-[180px] object-contain" />
-        </div>
-        <div className="flex items-center gap-2">
-          {currentUser ? (
-            <div className="flex items-center gap-2.5 bg-[#0f0f12] border border-zinc-800 px-3 py-1.5 rounded-2xl shadow-inner">
-              <div className="text-right">
-                <div className="flex items-center justify-end gap-1.5">
-                  <span className="text-[11px] text-amber-300 font-bold">{currentUser.username}</span>
-                  {(currentUser.isAdmin || currentUser.username.toLowerCase() === 'lvelasques') && (
-                    <button onClick={() => setIsAdminPanelOpen(true)} className="bg-amber-500 hover:bg-amber-400 text-black text-[9px] font-black px-1.5 py-0.5 rounded shadow transition-all">ADMIN ⚙️</button>
-                  )}
-                </div>
-                <p className="text-amber-400 font-black text-sm">R$ {balance.toLocaleString('pt-BR')}</p>
-              </div>
-              <button onClick={() => setIsUserPanelOpen(true)} className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black text-xs px-3 py-2 rounded-xl transition-all shadow-lg active:scale-95">⚙️ Perfil</button>
+  // LOBBY E JOGOS (Logado)
+  return (
+    <div className="min-h-screen bg-[#050507] text-white font-sans">
+      
+      {!activeGame ? (
+        // --- LOBBY PRINCIPAL ---
+        <div className="max-w-md mx-auto p-4 space-y-6">
+          <div className="flex justify-between items-center bg-[#0a0a0e] p-4 rounded-2xl border border-amber-900/30 shadow-lg">
+            <div>
+              <p className="text-[10px] text-zinc-400 uppercase font-black">Bem-vindo(a)</p>
+              <h1 className="text-xl font-black text-amber-500">{currentUser.username}</h1>
             </div>
-          ) : (
-            <button onClick={() => { setAuthMode('login'); setIsAuthOpen(true); }} className="bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black font-black text-xs px-4 py-2.5 rounded-xl shadow-lg hover:scale-105 transition-all">👤 Criar Conta</button>
-          )}
-        </div>
-      </header>
+            <div className="text-right flex items-center gap-3">
+              <div>
+                <p className="text-[10px] text-zinc-400 uppercase font-black">Saldo Total</p>
+                <p className="text-lg font-black text-emerald-400">R$ {balance.toLocaleString('pt-BR')}</p>
+              </div>
+              <button onClick={() => setShowProfileModal(true)} className="bg-amber-600 w-10 h-10 rounded-full flex items-center justify-center text-black font-black text-xl hover:scale-105 transition-transform shadow-lg cursor-pointer">
+                ⚙️
+              </button>
+            </div>
+          </div>
 
-      <main className="max-w-md mx-auto p-4 space-y-6 pt-6 text-center">
-        <div className="flex flex-col items-center justify-center space-y-3 pt-2">
-          <img src="/CassinaCR.png" alt="Logótipo" className="h-28 w-auto max-w-[320px] object-contain" />
-          <h1 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-500">
-            LOBBY DE ELITE
-          </h1>
-        </div>
-
-        <div className="space-y-4 pt-2">
-          <div onClick={() => setActiveGame('futebol')} className="bg-gradient-to-b from-[#1a1a24] to-[#0a0a0e] border-2 border-emerald-500/60 hover:border-emerald-400 rounded-3xl p-5 cursor-pointer shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all hover:scale-105 space-y-2">
-            <h3 className="text-xl font-black text-emerald-400">⚔️ FUTEBOL DIPLOMÁTICO</h3>
-            <p className="text-xs text-zinc-300">Manager Oficial 2026. Escale a sua equipa, domine o mercado e vença a liga.</p>
-            <span className="inline-block bg-emerald-600 text-white font-black text-xs px-5 py-2 rounded-xl mt-2 shadow-lg">ABRIR PAINEL DE TREINADOR ▶</span>
-          </div>
-          <div onClick={() => setActiveGame('costarica')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
-            <h3 className="text-lg font-black text-amber-300">👑 CAÇA-NÍQUEL DOS PAMPAS</h3>
-            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
-          </div>
-          <div onClick={() => setActiveGame('holdandwin')} className="bg-gradient-to-b from-[#14141a] to-[#260f0f] border-2 border-red-500/60 hover:border-red-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
-            <h3 className="text-lg font-black text-red-400">🪙 O COFRE DO BARÃO</h3>
-            <span className="inline-block bg-red-600 text-white font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
-          </div>
-          <div onClick={() => setActiveGame('crash')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
-            <h3 className="text-lg font-black text-amber-300">🚀 PAMPAS CRASH</h3>
-            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
-          </div>
-          <div onClick={() => setActiveGame('roleta')} className="bg-gradient-to-b from-[#14141a] to-[#0a0a0e] border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-5 cursor-pointer shadow-xl transition-all hover:scale-105 space-y-2">
-            <h3 className="text-lg font-black text-amber-300">🎡 ROLETA DIPLOMÁTICA</h3>
-            <span className="inline-block bg-amber-500 text-black font-black text-xs px-5 py-2 rounded-xl mt-2">JOGAR AGORA ▶</span>
+          <div className="space-y-4">
+            <h2 className="text-emerald-500 font-black text-lg uppercase tracking-wider pl-2 border-l-4 border-emerald-500">
+              Gestão Desportiva
+            </h2>
+            <button onClick={() => setActiveGame('futebol')} className="w-full bg-gradient-to-r from-emerald-900 to-emerald-700 border border-emerald-500/50 p-4 rounded-2xl text-left hover:scale-[1.02] transition-transform shadow-xl relative overflow-hidden cursor-pointer">
+              <span className="text-3xl block mb-2">⚽</span>
+              <h3 className="text-xl font-black text-white">Futebol Diplomático</h3>
+              <p className="text-xs text-emerald-200 font-bold uppercase mt-1">Gerir equipa, mercado e táticas</p>
+            </button>
+            {/* NOTA: Os teus botões do Cassino Costa Rica e Roleta continuariam aqui debaixo se os tiveres! */}
           </div>
         </div>
-      </main>
-
-      {/* Modais */}
-      {isAuthOpen && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
-            <button onClick={() => setIsAuthOpen(false)} className="absolute top-4 right-4 text-zinc-400 text-lg">✕</button>
-            <h2 className="text-amber-400 font-black text-xl mb-4">{authMode === 'login' ? 'Entrar' : 'Criar Conta'}</h2>
-            {authError && <div className="bg-red-500/10 border border-red-500/40 text-red-400 text-xs p-3 rounded-xl mb-4">{authError}</div>}
-            <form onSubmit={handleAuthSubmit} className="space-y-4">
-              <input type="text" placeholder="Utilizador" value={inputUsername} onChange={(e) => setInputUsername(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm" />
-              <input type="password" placeholder="Senha" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm" />
-              {authMode === 'register' && <input type="password" placeholder="Confirmar Senha" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full bg-[#0b0b0e] border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm" />}
-              <button type="submit" className="w-full bg-amber-500 text-black font-black py-3 rounded-xl text-sm">{authMode === 'login' ? 'Entrar' : 'Registar'}</button>
-              <button type="button" onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} className="w-full text-xs text-amber-400 underline mt-2">{authMode === 'login' ? 'Criar conta' : 'Já tenho conta'}</button>
-            </form>
+      ) : (
+        // --- TELA DE JOGO ATIVO ---
+        <div className="relative">
+          <div className="fixed top-2 left-2 z-50">
+            <button onClick={() => { setActiveGame(null); fetchBalance(currentUser.username); }} className="bg-black/80 backdrop-blur-sm text-amber-500 border border-amber-500/30 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase shadow-lg cursor-pointer">
+              ⬅️ Voltar ao Lobby
+            </button>
           </div>
+          
+          {activeGame === 'futebol' && <FutebolDiplomatico />}
         </div>
       )}
 
-      {isUserPanelOpen && currentUser && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl space-y-4">
-            <button onClick={() => setIsUserPanelOpen(false)} className="absolute top-4 right-4 text-zinc-400">✕</button>
-            <h2 className="text-white font-bold text-lg">{currentUser.username} <span className="text-amber-400 text-xs">(#{currentUser.id})</span></h2>
-            {currentUser.team && <div className="bg-emerald-500/10 border border-emerald-500/30 p-2 rounded-lg text-emerald-400 text-xs font-bold text-center">Treinador do {currentUser.team}</div>}
-            <form onSubmit={handleWithdrawSubmit} className="bg-[#0b0b0e] p-4 rounded-2xl space-y-2">
-              <span className="text-xs text-amber-300 font-bold">Saque</span>
-              {withdrawSuccess ? <p className="text-emerald-400 text-xs">✅ Pedido enviado!</p> : (
+      {/* --- O NOVO MODAL DE PERFIL (SEM SAQUE) --- */}
+      {showProfileModal && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#0f1115] border border-amber-900/30 p-6 rounded-3xl w-full max-w-sm relative shadow-2xl overflow-y-auto max-h-[90vh]">
+            <button onClick={() => setShowProfileModal(false)} className="absolute top-4 right-4 text-zinc-500 hover:text-white cursor-pointer text-xl">✕</button>
+
+            <h3 className="text-xl font-black text-white">{currentUser.username} <span className="text-amber-500 text-sm">(#{currentUser.id || 1})</span></h3>
+            <div className="bg-emerald-900/30 border border-emerald-900/50 text-emerald-400 p-2 rounded-lg text-center text-xs font-bold mt-2 uppercase tracking-wider">
+              Treinador do {currentUser.team || "Clube"}
+            </div>
+
+            <div className="space-y-4 mt-5">
+              
+              {/* 1. Vender o Time (Mercado) */}
+              <div className="bg-black/50 p-4 rounded-xl border border-amber-900/30">
+                <h4 className="text-amber-500 font-black text-sm mb-1 uppercase tracking-wider">Mercado de Clubes</h4>
+                <p className="text-[10px] text-zinc-400 mb-3 leading-tight">Anuncie o seu clube. Ele ficará disponível na aba do mercado para outros utilizadores.</p>
                 <div className="flex gap-2">
-                  <input type="number" placeholder="R$" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} className="w-full bg-[#141418] border border-zinc-700 rounded-xl px-3 text-white text-xs" />
-                  <button className="bg-amber-500 text-black font-bold px-4 py-2 rounded-xl text-xs">Pedir</button>
+                  <input type="number" placeholder="Preço (R$)" value={teamPrice} onChange={(e) => setTeamPrice(e.target.value)} className="flex-1 bg-[#1a1a1a] text-white text-xs px-3 py-2 rounded-lg border border-zinc-700 outline-none focus:border-amber-500" />
+                  <button onClick={handleSellTeam} className="bg-amber-600 hover:bg-amber-500 text-black px-4 py-2 rounded-lg text-xs font-black uppercase transition-colors cursor-pointer">Vender</button>
                 </div>
-              )}
-            </form>
-            <button onClick={handleLogout} className="w-full bg-zinc-800 text-white font-bold py-3 rounded-xl text-xs">Sair</button>
-          </div>
-        </div>
-      )}
+              </div>
 
-      {isAdminPanelOpen && currentUser && (currentUser.isAdmin || currentUser.username.toLowerCase() === 'lvelasques') && (
-        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-lg flex items-center justify-center p-2 md:p-4">
-          <div className="bg-[#0b0b0e] border-2 border-amber-500 w-full max-w-2xl rounded-2xl md:rounded-3xl p-4 md:p-6 relative max-h-[95vh] overflow-y-auto">
-            <button onClick={() => setIsAdminPanelOpen(false)} className="absolute top-4 right-4 text-zinc-400 font-bold text-xl bg-black px-2 rounded-md">✕</button>
-            
-            <div className="flex border-b border-zinc-800 mb-4 pt-2">
-              <button onClick={() => setAdminTab('contas')} className={`flex-1 py-3 text-xs font-black uppercase transition-all ${adminTab === 'contas' ? 'border-b-2 border-amber-500 text-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Saldos & Contas</button>
-              <button onClick={() => setAdminTab('futebol')} className={`flex-1 py-3 text-xs font-black uppercase transition-all ${adminTab === 'futebol' ? 'border-b-2 border-emerald-500 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Futebol (Aprovações)</button>
+              {/* 2. Alterar Senha */}
+              <div className="bg-black/50 p-4 rounded-xl border border-zinc-800/50">
+                <h4 className="text-zinc-300 font-black text-sm mb-3 uppercase tracking-wider">Segurança</h4>
+                <div className="space-y-2">
+                  <input type="password" placeholder="Nova senha" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full bg-[#1a1a1a] text-white text-xs px-3 py-2.5 rounded-lg border border-zinc-700 outline-none focus:border-zinc-500" />
+                  <input type="password" placeholder="Repetir nova senha" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full bg-[#1a1a1a] text-white text-xs px-3 py-2.5 rounded-lg border border-zinc-700 outline-none focus:border-zinc-500" />
+                  <button onClick={handleChangePassword} className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2.5 rounded-lg text-xs font-bold transition-colors mt-1 cursor-pointer">Atualizar Senha</button>
+                </div>
+              </div>
+
+              {/* 3. Desligar e Apagar */}
+              <div className="flex flex-col gap-2 pt-2 border-t border-zinc-800">
+                <button onClick={handleLogout} className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-3 rounded-xl text-sm transition-colors uppercase cursor-pointer">
+                  Desligar (Sair da Conta)
+                </button>
+                <button onClick={handleDeleteAccount} className="w-full bg-red-950/40 hover:bg-red-900/60 border border-red-900/50 text-red-500 font-bold py-3 rounded-xl text-sm transition-colors uppercase cursor-pointer">
+                  Apagar Conta Definitivamente
+                </button>
+              </div>
+
             </div>
-
-            {adminTab === 'contas' && (
-              <div className="space-y-4">
-                <div className="bg-[#141418] border border-zinc-800 p-4 rounded-2xl">
-                  <h3 className="text-[10px] text-amber-300 font-bold uppercase mb-2">Ações Rápidas (Use a ID da conta)</h3>
-                  <input type="text" placeholder="ID da Conta Alvo" value={adminTargetId} onChange={(e) => setAdminTargetId(e.target.value)} className="w-full bg-[#0b0b0e] border border-zinc-700 rounded-lg px-3 py-2 text-white text-xs mb-3" />
-                  
-                  <div className="grid grid-cols-2 gap-3 mb-3 border-b border-zinc-800 pb-3">
-                    <input type="number" placeholder="Valor (R$)" value={adminDepositAmount} onChange={(e) => setAdminDepositAmount(e.target.value)} className="bg-[#0b0b0e] border border-zinc-700 rounded-lg px-3 py-2 text-white text-xs" />
-                    <div className="flex gap-1">
-                      <button onClick={() => handleAdminBalanceUpdate('add')} className="flex-1 bg-emerald-500 text-black font-black text-[10px] rounded-lg">➕ Saldo</button>
-                      <button onClick={() => handleAdminBalanceUpdate('remove')} className="flex-1 bg-red-500 text-black font-black text-[10px] rounded-lg">➖ Saldo</button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <input type="text" placeholder="Nome do Clube" value={adminTeamName} onChange={(e) => setAdminTeamName(e.target.value)} className="bg-[#0b0b0e] border border-emerald-900 rounded-lg px-3 py-2 text-white text-xs" />
-                    <div className="flex gap-1">
-                      <button onClick={() => handleAdminTeamUpdate('add')} className="flex-1 bg-emerald-600 text-white font-black text-[10px] rounded-lg">Atribuir Clube</button>
-                      <button onClick={() => handleAdminTeamUpdate('remove')} className="flex-1 bg-zinc-700 text-white font-black text-[10px] rounded-lg">Remover</button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-[#141418] border border-zinc-800 p-4 rounded-2xl">
-                  <h3 className="text-xs text-amber-400 font-bold uppercase mb-2">Utilizadores ({usersDb.length})</h3>
-                  <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
-                    {usersDb.map(u => (
-                      <div key={u.id} className="flex flex-col md:flex-row md:items-center justify-between bg-[#0b0b0e] p-2.5 rounded-lg border border-zinc-800 text-xs gap-2">
-                        <div>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-amber-300 font-bold">{u.username}</span>
-                            {u.isAdmin && <span className="bg-amber-500 text-black text-[8px] font-black px-1 rounded">ADMIN</span>}
-                            {u.team && <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-bold px-1.5 rounded flex items-center gap-1">🛡️ {u.team}</span>}
-                          </div>
-                          <span className="text-[9px] text-zinc-500">ID: {u.id}</span>
-                        </div>
-                        <div className="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto">
-                          <span className="text-emerald-400 font-black">R$ {Number(u.balance || 0).toLocaleString('pt-BR')}</span>
-                          {currentUser?.username?.toLowerCase() === 'lvelasques' && u.username.toLowerCase() !== 'lvelasques' && (
-                            <button onClick={() => handleToggleAdmin(u.id, u.isAdmin)} className={`text-[8px] font-bold px-2 py-1 rounded ${u.isAdmin ? 'bg-red-500/20 text-red-400' : 'bg-zinc-800 text-zinc-300'}`}>
-                              {u.isAdmin ? 'REVOGAR ADMIN' : 'TORNAR ADMIN'}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {adminTab === 'futebol' && (
-              <div className="space-y-4">
-                <div className="bg-[#141418] border border-emerald-900/50 p-4 rounded-2xl">
-                  <h3 className="text-xs text-emerald-400 font-bold uppercase mb-4">Transferências Pendentes (Fila)</h3>
-                  {pendingUpdates.length === 0 ? (
-                     <div className="text-center py-6 text-emerald-500/50 text-xs font-bold border border-dashed border-emerald-900/50 rounded-xl">✅ Nenhuma movimentação detectada nos elencos oficiais.</div>
-                  ) : (
-                    <div className="space-y-3">
-                      {pendingUpdates.map(update => (
-                        <div key={update.id} className="bg-[#0b0b0e] p-3 rounded-xl border border-emerald-900/30 flex flex-col md:flex-row justify-between items-center gap-3">
-                          <div className="text-left w-full">
-                            <p className="text-[10px] text-amber-400 font-black uppercase mb-1">{update.transfer_type}</p>
-                            <p className="text-sm text-white font-black">{update.player_name}</p>
-                            <p className="text-xs text-zinc-400 mt-1"><span className="line-through text-red-400">{update.old_club}</span> ➔ <span className="text-emerald-400 font-bold">{update.new_club}</span></p>
-                          </div>
-                          <div className="flex gap-2 w-full md:w-auto">
-                            <button onClick={() => handleTransferAction(update.id, update.player_id, update.new_club, 'reject')} className="flex-1 bg-red-500/10 text-red-400 border border-red-500/30 text-[10px] font-black py-2 px-3 rounded-lg hover:bg-red-500/20">REJEITAR</button>
-                            <button onClick={() => handleTransferAction(update.id, update.player_id, update.new_club, 'approve')} className="flex-1 bg-emerald-600 text-white text-[10px] font-black py-2 px-4 rounded-lg hover:bg-emerald-500">APROVAR</button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
