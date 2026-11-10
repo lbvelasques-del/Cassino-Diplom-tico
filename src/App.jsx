@@ -220,7 +220,9 @@ export default function App() {
   if (activeGame === 'towers') return renderGameRoute(PampasTowers);
   if (activeGame === 'hilo') return renderGameRoute(PampasHiLo);
   if (activeGame === 'dice') return renderGameRoute(PampasDice);
-  if (activeGame === 'holdandwin') return renderGameRoute(PampasHoldAndWin);return (
+  if (activeGame === 'holdandwin') return renderGameRoute(PampasHoldAndWin);
+
+  return (
     <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
       <header className="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-zinc-900 px-4 py-3 flex items-center justify-between shadow-2xl">
         <div className="flex items-center py-1 cursor-pointer" onClick={() => setActiveGame('lobby')}>
@@ -400,4 +402,4 @@ export default function App() {
       )}
     </div>
   );
-              }
+}
