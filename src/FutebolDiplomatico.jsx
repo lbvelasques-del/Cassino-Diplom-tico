@@ -28,10 +28,6 @@ export default function FutebolDiplomatico() {
   const [matchResult, setMatchResult] = useState(null);
   const [liveLog, setLiveLog] = useState([]);
 
-  // Estado para preço personalizado de venda
-  const [sellingPlayer, setSellingPlayer] = useState(null);
-  const [customPrice, setCustomPrice] = useState('');
-
   // Estado para Proposta Direta a Jogador de outro time
   const [proposingPlayer, setProposingPlayer] = useState(null);
   const [proposalOffer, setProposalOffer] = useState('');
@@ -389,4 +385,4 @@ export default function FutebolDiplomatico() {
       </main>
     </div>
   );
-                    }
+}
