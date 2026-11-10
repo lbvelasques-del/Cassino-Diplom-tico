@@ -132,11 +132,6 @@ export default function FutebolDiplomatico() {
                 <span className="text-lg text-emerald-400 font-black leading-none">{myTeam.overall}</span>
               </div>
             </div>
-            {myTeam.name === "Sem Clube Atribuído" && (
-              <p className="text-[10px] text-amber-400 mt-2 font-bold bg-amber-500/10 p-1.5 rounded-lg border border-amber-500/20">
-                ⚠️ Aguarde o Administrador atribuir o seu clube no painel para iniciar a época.
-              </p>
-            )}
           </div>
         )}
       </div>
@@ -253,7 +248,7 @@ export default function FutebolDiplomatico() {
             <div className="flex justify-between items-end px-1">
               <div>
                 <h3 className="text-emerald-400 font-black text-lg uppercase tracking-wide">Plantel Principal</h3>
-                <p className="text-zinc-400 text-xs mt-0.5">Gerencie os seus atletas do Supabase.</p>
+                <p className="text-zinc-400 text-xs mt-0.5">Atletas oficiais carregados do Supabase.</p>
               </div>
               <span className="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded font-bold border border-emerald-500/20">
                 {displaySquad.length} Atletas
@@ -287,15 +282,34 @@ export default function FutebolDiplomatico() {
         )}
 
         {activeTab === 'mercado' && (
-          <div className="bg-[#0f1412] border border-emerald-900/30 rounded-3xl p-5 shadow-xl text-left">
-            <h3 className="text-emerald-400 font-black text-sm uppercase mb-2">Mercado de Transferências</h3>
-            <p className="text-zinc-400 text-xs mb-4">Utilize o seu orçamento global para contratar reforços.</p>
-            <button className="w-full bg-zinc-800 text-emerald-400 font-black py-3 rounded-xl text-xs cursor-pointer">
-              🔍 PESQUISAR JOGADORES
-            </button>
+          <div className="space-y-4 text-left">
+            <div className="bg-[#0f1412] border border-emerald-900/30 rounded-3xl p-5 shadow-xl">
+              <h3 className="text-emerald-400 font-black text-sm uppercase mb-1">Mercado de Transferências 🤝</h3>
+              <p className="text-zinc-400 text-xs mb-4">Gerencie os seus atletas e defina o preço de venda. (Taxa da casa: 15%)</p>
+              
+              <div className="space-y-3">
+                {displaySquad.map((player) => (
+                  <div key={player.id} className="bg-black/40 border border-emerald-900/40 p-3 rounded-2xl flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-white font-black text-xs uppercase">{player.name}</p>
+                      <p className="text-[10px] text-zinc-400">OVR: <span className="text-emerald-400 font-bold">{player.overall}</span> | Pos: {player.position}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-amber-400 font-bold">R$ {(player.market_value || 5000000).toLocaleString('pt-BR')}</span>
+                      <button 
+                        onClick={() => alert(`Colocar ${player.name} à venda no mercado!`)}
+                        className="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black py-1.5 px-3 rounded-xl hover:bg-emerald-600 hover:text-black transition-all cursor-pointer"
+                      >
+                        VENDER
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </main>
     </div>
   );
-        }
+}
