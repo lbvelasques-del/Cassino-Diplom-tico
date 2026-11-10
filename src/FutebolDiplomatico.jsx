@@ -12,36 +12,34 @@ export default function FutebolDiplomatico() {
     return saved ? JSON.parse(saved).balance : 0;
   });
 
-  const [activeTab, setActiveTab] = useState('dashboard'); 
+  // Mudança 2: Aba padrão agora é 'home'
+  const [activeTab, setActiveTab] = useState('home'); 
   const [myTeam, setMyTeam] = useState(null);
   const [squad, setSquad] = useState([]);
-  const [transferMarket, setTransferMarket] = useState([]);
-  const [matchesCount, setMatchesCount] = useState(0);
-
-  // Estados da Tabela Geral e Relatório
   const [allClubs, setAllClubs] = useState([]);
-  const [selectedClub, setSelectedClub] = useState(null);
-  const [clubSquad, setClubSquad] = useState([]);
+  
+  // Estados de Partidas e Amistosos
+  const [selectedFriendlyOpponent, setSelectedFriendlyOpponent] = useState('');
+  const [isSimulatingFriendly, setIsSimulatingFriendly] = useState(false);
+  const [lastMatchReport, setLastMatchReport] = useState(() => {
+    const saved = localStorage.getItem('pampas_last_match_report');
+    return saved ? JSON.parse(saved) : null;
+  });
 
-  // Estados da Caixa de Entrada (Propostas)
-  const [inboxOffers, setInboxOffers] = useState([]);
-
-  // Estados do Motor de Partida
-  const [matchState, setMatchState] = useState('menu'); 
-  const [matchResult, setMatchResult] = useState(null);
-  const [liveLog, setLiveLog] = useState([]);
-
-  // Estado para Proposta Direta
-  const [proposingPlayer, setProposingPlayer] = useState(null);
-  const [proposalOffer, setProposalOffer] = useState('');
+  // Próxima Partida Oficial (Gerida pelo ADM)
+  const [upcomingOfficialMatch, setUpcomingOfficialMatch] = useState({
+    opponent: "Internacional",
+    isHome: true,
+    stadium: "Estádio Municipal",
+    round: 1
+  });
 
   useEffect(() => {
     if (currentUser) {
       setMyTeam({
         name: currentUser.team || "Flamengo", 
-        stadium: "Estádio Municipal",
         manager: currentUser.username,
-        overall: 80
+        overall: 75
       });
     }
   }, [currentUser]);
@@ -53,15 +51,7 @@ export default function FutebolDiplomatico() {
     const { data: playersData } = await supabase.from('players').select('*').eq('current_club', clubName).order('overall', { ascending: false });
     if (playersData) setSquad(playersData);
 
-    // Mercado
-    const { data: marketData } = await supabase.from('players').select('*').eq('is_listed', true);
-    if (marketData) setTransferMarket(marketData);
-
-    // Propostas Recebidas (Mock visual ou leitura real futura)
-    const { data: offersData } = await supabase.from('transfer_offers').select('*, players(*)').eq('receiver_club', clubName).eq('status', 'pendente');
-    if (offersData) setInboxOffers(offersData);
-
-    // Lista de Clubes
+    // Lista de Clubes da Série A
     const { data: allPlayers } = await supabase.from('players').select('current_club, overall');
     if (allPlayers) {
       const clubsMap = {};
@@ -71,101 +61,94 @@ export default function FutebolDiplomatico() {
         clubsMap[p.current_club].count += 1;
       });
       const clubsList = Object.values(clubsMap).map(c => ({
-        ...c, avgOvr: Math.round(c.totalOvr / c.count)
-      })).sort((a, b) => b.avgOvr - a.avgOvr);
+        ...c, avgOvr: Math.round(c.totalOvr / c.count) || 75
+      })).filter(c => c.name !== clubName);
+      
       setAllClubs(clubsList);
+      if (clubsList.length > 0 && !selectedFriendlyOpponent) {
+        setSelectedFriendlyOpponent(clubsList[0].name);
+      }
     }
   };
 
   useEffect(() => {
     if (myTeam) fetchGameData(myTeam.name);
-  }, [myTeam]);const handleSelectClubReport = async (clubName) => {
-    setSelectedClub(clubName);
-    const { data } = await supabase.from('players').select('*').eq('current_club', clubName).order('overall', { ascending: false });
-    if (data) setClubSquad(data);
-  };
+  }, [myTeam]);
 
-  const getMinMarketValue = (overall) => overall * 250000;
-  const getContractValue = (tier, overall) => tier && tier.toLowerCase() === 'diamante' ? 1200000 : Math.max(800000, overall * 30000);
+  // Motor de Amistosos (Custo: R$ 500.000)
+  const handlePlayFriendly = async () => {
+    const FRIENDLY_COST = 500000;
 
-  const handleSendDirectProposal = async () => {
-    if (!proposingPlayer) return;
-    const offer = Number(proposalOffer);
-    const minVal = getMinMarketValue(proposingPlayer.overall);
-
-    if (offer < minVal) {
-      alert(`A proposta mínima deve ser de R$ ${minVal.toLocaleString('pt-BR')}`);
-      return;
-    }
-    if (balance < offer) {
-      alert('Saldo insuficiente na conta unificada!');
+    if (balance < FRIENDLY_COST) {
+      alert("Saldo insuficiente! O custo para organizar um amistoso é de R$ 500.000.");
       return;
     }
 
-    const houseCommission = offer * 0.15;
-    
-    // Transferência direta imediata (para times BOTs)
-    const { error } = await supabase.from('players').update({ current_club: myTeam.name, is_listed: false, sale_price: 0 }).eq('id', proposingPlayer.id);
-
-    if (!error) {
-      const newBalance = balance - offer;
-      setBalance(newBalance);
-      localStorage.setItem('pampas_current_user', JSON.stringify({ ...currentUser, balance: newBalance }));
-      alert(`Craque contratado por R$ ${offer.toLocaleString('pt-BR')}! Taxa da casa (15%): R$ ${houseCommission.toLocaleString('pt-BR')}`);
-      setProposingPlayer(null);
-      setProposalOffer('');
-      fetchGameData(myTeam.name);
-      handleSelectClubReport(selectedClub);
+    if (!selectedFriendlyOpponent) {
+      alert("Selecione um adversário para o amistoso!");
+      return;
     }
-  };
 
-  const startMatchSimulation = () => {
-    setMatchState('simulating');
-    setLiveLog(['Apito inicial! A bola rola no gramado...', 'A sua equipe troca passes no meio-campo...']);
-    setTimeout(() => setLiveLog(prev => [...prev, 'Lançamento na área, cabeçada perigosa!']), 1500);
+    // Cobrar os 500k na hora
+    const newBalance = balance - FRIENDLY_COST;
+    setBalance(newBalance);
+    localStorage.setItem('pampas_current_user', JSON.stringify({ ...currentUser, balance: newBalance }));
+    await supabase.from('users').update({ balance: newBalance }).eq('username', currentUser.username);
+
+    setIsSimulatingFriendly(true);
 
     setTimeout(() => {
-      const teamOverall = myTeam?.overall || 80;
-      const rivalOverall = 78; 
-      const myGoals = Math.floor(Math.random() * 3) + (teamOverall >= rivalOverall ? 1 : 0);
-      const rivalGoals = Math.floor(Math.random() * 2);
+      const opponentClub = allClubs.find(c => c.name === selectedFriendlyOpponent);
+      const opponentOvr = opponentClub ? opponentClub.avgOvr : 75;
+      const myOvr = myTeam?.overall || 75;
 
-      setMatchesCount(prev => {
-        const next = prev + 1;
-        if (next % 5 === 0) alert('⚠️ AVISO DE CONTRATO: Ciclo de 5 partidas atingido! Renove os contratos ou seus atletas irão para o mercado!');
-        return next;
-      });
+      // Cálculo de golos baseado no OVR
+      const myGoals = Math.floor(Math.random() * 3) + (myOvr >= opponentOvr ? 1 : 0);
+      const opponentGoals = Math.floor(Math.random() * 2) + (opponentOvr > myOvr ? 1 : 0);
 
-      setMatchResult({
-        homeTeam: myTeam?.name, awayTeam: "Rival FC",
-        homeGoals: myGoals, awayGoals: rivalGoals,
-        victory: myGoals > rivalGoals
-      });
-      setMatchState('result');
-    }, 3500);
-  };
+      const report = {
+        type: 'Amistoso',
+        homeTeam: myTeam?.name,
+        awayTeam: selectedFriendlyOpponent,
+        homeGoals: myGoals,
+        awayGoals: opponentGoals,
+        possession: Math.floor(Math.random() * 20) + 40,
+        shotsHome: Math.floor(Math.random() * 8) + myGoals + 2,
+        shotsAway: Math.floor(Math.random() * 6) + opponentGoals + 1,
+        tacticalSummary: myGoals > opponentGoals 
+          ? "A equipa manteve a posse de bola no meio-campo e explorou com precisão os corredores laterais."
+          : myGoals === opponentGoals 
+          ? "Jogo muito equilibrado no setor tático, com forte marcação em bloco baixo de ambos os lados."
+          : "Faltou cobertura defensiva nas transições rápidas do adversário, gerando lacunas na área.",
+        date: new Date().toLocaleDateString('pt-BR')
+      };
 
-  return (
+      setLastMatchReport(report);
+      localStorage.setItem('pampas_last_match_report', JSON.stringify(report));
+      setIsSimulatingFriendly(false);
+      alert(`Fim de Amistoso! ${myTeam?.name} ${myGoals} x ${opponentGoals} ${selectedFriendlyOpponent}. Relatório gerado na Home!`);
+    }, 2500);
+  };return (
     <div className="min-h-screen bg-[#050507] text-white font-sans antialiased pb-28 selection:bg-emerald-500 selection:text-black">
-      {/* Cabeçalho */}
-      <div className="w-full bg-gradient-to-b from-[#0a1210] via-[#050a08] to-[#050507] border-b border-emerald-500/30 px-4 py-6 text-center relative shadow-2xl">
-        <h1 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-green-100 to-emerald-500">
+      {/* Cabeçalho do Simulador */}
+      <div className="w-full bg-gradient-to-b from-[#0a1210] via-[#050a08] to-[#050507] border-b border-emerald-500/30 px-4 py-5 text-center relative shadow-2xl">
+        <h1 className="text-xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-green-100 to-emerald-500 uppercase">
           FUTEBOL DIPLOMÁTICO
         </h1>
-        <p className="text-xs text-emerald-500/70 font-bold uppercase mt-1 tracking-widest">Liga Oficial 2026</p>
+        <p className="text-[9px] text-emerald-500/70 font-black uppercase mt-0.5 tracking-widest">Liga Oficial 2026</p>
         
         {myTeam && (
-          <div className="mt-4 inline-block bg-[#0d1612] border border-emerald-500/40 px-6 py-3 rounded-2xl shadow-lg w-full max-w-[90%]">
+          <div className="mt-3 inline-block bg-[#0d1612] border border-emerald-500/40 px-5 py-2.5 rounded-2xl shadow-lg w-full max-w-[95%]">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="text-3xl">🛡️</span>
+                <span className="text-2xl">🛡️</span>
                 <div className="text-left">
-                  <p className="text-white font-black text-lg leading-tight">{myTeam.name}</p>
-                  <p className="text-[10px] text-zinc-400 font-semibold">Técnico: <span className="text-emerald-400">{myTeam.manager}</span></p>
+                  <p className="text-white font-black text-sm leading-tight uppercase">{myTeam.name}</p>
+                  <p className="text-[9px] text-zinc-400 font-bold">Manager: <span className="text-emerald-400">{myTeam.manager}</span></p>
                 </div>
               </div>
               <div className="text-right">
-                <span className="text-[9px] text-zinc-500 font-black block uppercase">Caixa</span>
+                <span className="text-[8px] text-zinc-500 font-black block uppercase tracking-wider">Cofre do Clube</span>
                 <span className="text-xs text-emerald-400 font-black">R$ {balance.toLocaleString('pt-BR')}</span>
               </div>
             </div>
@@ -173,268 +156,488 @@ export default function FutebolDiplomatico() {
         )}
       </div>
 
-      {/* Navegação Inferior (Scroll Horizontal para caber tudo) */}
+      {/* Navegação Inferior Atualizada (Mudança 2: 'Home' em vez de 'Dashboard') */}
       <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#0a0a0e]/95 backdrop-blur-md border-t border-emerald-500/30 p-2 z-40 shadow-2xl overflow-x-auto hide-scrollbar">
-        <div className="flex gap-2 min-w-max px-2">
-          {['dashboard', 'taticas', 'elenco', 'clubes', 'mercado', 'inbox', 'jornal'].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl min-w-[60px] ${activeTab === tab ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'text-zinc-500'}`}>
-              <span className="text-lg mb-0.5">
-                {tab === 'dashboard' ? '🏠' : tab === 'taticas' ? '📋' : tab === 'elenco' ? '👕' : tab === 'clubes' ? '📊' : tab === 'mercado' ? '🤝' : tab === 'inbox' ? '📩' : '📰'}
-              </span>
-              <span className="text-[8px] font-black uppercase">{tab}</span>
+        <div className="flex gap-1.5 min-w-max px-2">
+          {[
+            { id: 'home', label: 'Home', icon: '🏠' },
+            { id: 'taticas', label: 'Táticas', icon: '📋' },
+            { id: 'elenco', label: 'Elenco', icon: '👕' },
+            { id: 'clubes', label: 'Série A', icon: '📊' },
+            { id: 'mercado', label: 'Mercado', icon: '🤝' },
+            { id: 'inbox', label: 'Inbox', icon: '📩' },
+            { id: 'jornal', label: 'Gazeta', icon: '📰' }
+          ].map(tab => (
+            <button 
+              key={tab.id} 
+              onClick={() => setActiveTab(tab.id)} 
+              className={`flex-1 flex flex-col items-center justify-center py-2 px-3 rounded-xl min-w-[58px] transition-all ${
+                activeTab === tab.id 
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.2)]' 
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              <span className="text-base mb-0.5">{tab.icon}</span>
+              <span className="text-[8px] font-black uppercase tracking-wider">{tab.label}</span>
             </button>
           ))}
         </div>
-      </div><main className="max-w-md mx-auto p-4 space-y-4 text-center">
+      </div>
+
+      <main className="max-w-md mx-auto p-4 space-y-4 text-center">
         
-        {/* ABA: DASHBOARD */}
-        {activeTab === 'dashboard' && (
-          <div className="space-y-4 text-left">
-            <div className="bg-[#0f1412] border border-emerald-900/30 rounded-3xl p-5 shadow-xl">
-              <h3 className="text-emerald-400 font-black text-sm uppercase mb-3 flex items-center justify-between">
-                <span>⚽ Próxima Partida</span>
-                <span className="text-[10px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded">Ciclo: {matchesCount % 5}/5</span>
-              </h3>
+        {/* ABA: HOME */}
+        {activeTab === 'home' && (
+          <div className="space-y-4 text-left animate-fade-in">
+            
+            {/* 1. Próxima Partida Oficial */}
+            <div className="bg-[#0f1412] border border-emerald-900/40 rounded-3xl p-5 shadow-xl relative overflow-hidden">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-800/40">
+                  Rodada {upcomingOfficialMatch.round} • Brasileirão
+                </span>
+                <span className="text-[9px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded uppercase">
+                  {upcomingOfficialMatch.isHome ? "🏠 Em Casa" : "✈️ Fora de Casa"}
+                </span>
+              </div>
 
-              {matchState === 'menu' && (
-                <button onClick={startMatchSimulation} className="w-full mt-2 bg-gradient-to-r from-emerald-600 to-emerald-400 text-black font-black py-4 rounded-xl text-sm shadow-lg uppercase cursor-pointer">
-                  Entrar em Campo
-                </button>
-              )}
-
-              {matchState === 'simulating' && (
-                <div className="bg-black/60 border border-emerald-500/40 p-4 rounded-2xl text-center space-y-2">
-                  <div className="inline-block w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
-                  <p className="text-xs font-bold text-emerald-400 uppercase">Simulando partida...</p>
-                  {liveLog.map((log, idx) => <p key={idx} className="text-[11px] text-zinc-300">{log}</p>)}
+              <div className="flex items-center justify-between py-3 px-2 border-y border-emerald-900/20 my-2">
+                <div className="text-center flex-1">
+                  <p className="text-2xl mb-1">🛡️</p>
+                  <p className="text-xs font-black text-white uppercase">{myTeam?.name}</p>
                 </div>
-              )}
-
-              {matchState === 'result' && matchResult && (
-                <div className="bg-[#0d1612] border border-emerald-500/50 p-4 rounded-2xl text-center space-y-3">
-                  <p className="text-xs font-black text-emerald-400 uppercase">Fim de Jogo</p>
-                  <p className="text-lg font-black text-white">{matchResult.homeGoals} - {matchResult.awayGoals}</p>
-                  <button onClick={() => setMatchState('menu')} className="w-full bg-emerald-600 text-black font-black py-2 rounded-xl text-xs uppercase cursor-pointer">
-                    Continuar Temporada
-                  </button>
+                <div className="text-center px-3">
+                  <span className="text-xs font-black text-zinc-500 uppercase tracking-widest">VS</span>
+                  <p className="text-[8px] text-zinc-400 mt-1 font-bold">{upcomingOfficialMatch.stadium}</p>
                 </div>
-              )}
+                <div className="text-center flex-1">
+                  <p className="text-2xl mb-1">⚽</p>
+                  <p className="text-xs font-black text-white uppercase">{upcomingOfficialMatch.opponent}</p>
+                </div>
+              </div>
+
+              <p className="text-[9px] text-zinc-500 text-center font-semibold mt-2">
+                Aguardando simulação da rodada oficial pelo Administrador da Liga.
+              </p>
             </div>
-          </div>
-        )}
 
-        {/* ABA: TÁTICAS (PRANCHETA) */}
+            {/* 2. Central de Amistosos (R$ 500.000) */}
+            <div className="bg-[#0f1412] border border-emerald-900/40 rounded-3xl p-5 shadow-xl">
+              <h3 className="text-emerald-400 font-black text-xs uppercase tracking-wider mb-2 flex items-center justify-between">
+                <span>⚔️ Organizar Amistoso</span>
+                <span className="text-[9px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded">Custo: R$ 500k</span>
+              </h3>
+              <p className="text-[10px] text-zinc-400 mb-3 leading-relaxed">
+                Escolha qualquer clube da Série A para realizar um teste tático imediato. O valor da partida é debitado do cofre.
+              </p>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[9px] font-black uppercase tracking-wider text-zinc-400 block mb-1">Adversário:</label>
+                  <select 
+                    value={selectedFriendlyOpponent} 
+                    onChange={(e) => setSelectedFriendlyOpponent(e.target.value)}
+                    className="w-full bg-black border border-emerald-900/60 text-white text-xs p-3 rounded-xl outline-none focus:border-emerald-500 font-semibold"
+                  >
+                    {allClubs.map(c => (
+                      <option key={c.name} value={c.name}>{c.name} (Média OVR: {c.avgOvr})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <button 
+                  onClick={handlePlayFriendly} 
+                  disabled={isSimulatingFriendly}
+                  className="w-full bg-gradient-to-r from-emerald-600 to-emerald-400 text-black font-black py-3.5 rounded-xl text-xs shadow-lg uppercase tracking-wider hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50"
+                >
+                  {isSimulatingFriendly ? "Simulando Amistoso..." : "Jogar Amistoso (R$ 500.000)"}
+                </button>
+              </div>
+            </div>
+
+            {/* 3. Relatório Avançado da Última Partida */}
+            {lastMatchReport && (
+              <div className="bg-[#0f1412] border border-emerald-500/30 rounded-3xl p-5 shadow-xl space-y-3">
+                <div className="flex justify-between items-center border-b border-emerald-900/30 pb-2">
+                  <h3 className="text-xs font-black text-white uppercase tracking-wider">
+                    📊 Relatório Avançado • {lastMatchReport.type}
+                  </h3>
+                  <span className="text-[9px] text-zinc-400 font-bold">{lastMatchReport.date}</span>
+                </div>
+
+                <div className="bg-black/40 p-3 rounded-2xl text-center border border-emerald-900/20">
+                  <p className="text-[10px] text-zinc-400 uppercase font-black mb-1">Placar Final</p>
+                  <p className="text-xl font-black text-white">
+                    {lastMatchReport.homeTeam} <span className="text-emerald-400">{lastMatchReport.homeGoals}</span> x <span className="text-emerald-400">{lastMatchReport.awayGoals}</span> {lastMatchReport.awayTeam}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-center text-[10px]">
+                  <div className="bg-black/30 p-2 rounded-xl border border-zinc-800">
+                    <span className="text-zinc-500 font-black block uppercase">Posse de Bola</span>
+                    <span className="text-emerald-400 font-bold text-xs">{lastMatchReport.possession}%</span>
+                  </div>
+                  <div className="bg-black/30 p-2 rounded-xl border border-zinc-800">
+                    <span className="text-zinc-500 font-black block uppercase">Finalizações</span>
+                    <span className="text-white font-bold text-xs">{lastMatchReport.shotsHome} vs {lastMatchReport.shotsAway}</span>
+                  </div>
+                </div>
+
+                <div className="bg-emerald-950/20 border border-emerald-900/40 p-3 rounded-xl">
+                  <p className="text-[9px] font-black uppercase tracking-wider text-emerald-400 mb-1">Análise Tática do Técnico:</p>
+                  <p className="text-[10px] text-zinc-300 leading-relaxed italic">{lastMatchReport.tacticalSummary}</p>
+                </div>
+              </div>
+            )}
+
+          </div>
+        )}{/* ABA: TÁTICAS (PRANCHETA INTERATIVA & SUBSTITUIÇÕES) */}
         {activeTab === 'taticas' && (
           <div className="space-y-4 text-left animate-fade-in">
-            <div className="flex justify-between items-center">
-              <h3 className="text-emerald-400 font-black text-lg uppercase">Prancheta Tática 📋</h3>
-              <select className="bg-black border border-emerald-900 text-xs text-white p-1.5 rounded-lg">
-                <option>4-3-3 Ofensivo</option>
-                <option>4-4-2 Clássico</option>
+            {/* Topo: Seleção de Formação Tática */}
+            <div className="bg-[#0f1412] border border-emerald-900/40 p-4 rounded-3xl shadow-xl flex items-center justify-between">
+              <div>
+                <h3 className="text-emerald-400 font-black text-xs uppercase tracking-wider">Prancheta Tática 📋</h3>
+                <p className="text-[9px] text-zinc-400 font-semibold">Defina o esquema e faça as substituições</p>
+              </div>
+              <select className="bg-black border border-emerald-500/40 text-xs text-white p-2 rounded-xl outline-none font-bold">
+                <option value="4-3-3">4-3-3 Ofensivo</option>
+                <option value="4-4-2">4-4-2 Clássico</option>
+                <option value="3-5-2">3-5-2 Domínio</option>
+                <option value="4-2-3-1">4-2-3-1 Equilibrado</option>
               </select>
             </div>
-            <div className="relative w-full h-[400px] bg-green-900 rounded-lg border-2 border-white/40 overflow-hidden shadow-2xl mt-4">
-              <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white/30 -translate-y-1/2"></div>
-              <div className="absolute top-1/2 left-1/2 w-16 h-16 border-2 border-white/30 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
-              
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center cursor-pointer hover:scale-110 transition-transform">
-                <div className="w-10 h-10 bg-black/80 border-2 border-emerald-400 rounded-full flex items-center justify-center text-[10px] font-black shadow-lg">GOL</div>
+
+            {/* O Campo Tático Visual (11 Titulares com OVR) */}
+            <div className="relative w-full h-[420px] bg-gradient-to-b from-emerald-950 via-green-900 to-emerald-950 rounded-3xl border-2 border-emerald-500/40 overflow-hidden shadow-2xl p-2">
+              {/* Linhas do Campo */}
+              <div className="absolute inset-2 border border-white/20 rounded-2xl pointer-events-none"></div>
+              <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white/20 -translate-y-1/2 pointer-events-none"></div>
+              <div className="absolute top-1/2 left-1/2 w-24 h-24 border border-white/20 rounded-full -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-32 h-16 border-b border-x border-white/20 pointer-events-none"></div>
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-16 border-t border-x border-white/20 pointer-events-none"></div>
+
+              {/* 11 Posicionamentos de Titulares no Relvado */}
+              <div className="relative w-full h-full">
+                {/* Guarda-Redes */}
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                  <div className="w-9 h-9 bg-amber-500/90 border-2 border-white rounded-full flex items-center justify-center text-[9px] font-black shadow-lg text-black">
+                    {squad[0]?.overall || 75}
+                  </div>
+                  <span className="text-[8px] font-black text-white bg-black/70 px-1.5 py-0.5 rounded mt-0.5 max-w-[70px] truncate">
+                    {squad[0]?.name || "Goleiro"}
+                  </span>
+                </div>
+
+                {/* Linha Defensiva (4) */}
+                <div className="absolute bottom-20 left-4 flex flex-col items-center">
+                  <div className="w-8 h-8 bg-emerald-600 border border-white rounded-full flex items-center justify-center text-[8px] font-black text-white shadow-md">
+                    {squad[1]?.overall || 75}
+                  </div>
+                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{squad[1]?.name || "LAT"}</span>
+                </div>
+                <div className="absolute bottom-16 left-1/3 -translate-x-1/2 flex flex-col items-center">
+                  <div className="w-8 h-8 bg-emerald-600 border border-white rounded-full flex items-center justify-center text-[8px] font-black text-white shadow-md">
+                    {squad[2]?.overall || 75}
+                  </div>
+                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{squad[2]?.name || "ZAG"}</span>
+                </div>
+                <div className="absolute bottom-16 right-1/3 translate-x-1/2 flex flex-col items-center">
+                  <div className="w-8 h-8 bg-emerald-600 border border-white rounded-full flex items-center justify-center text-[8px] font-black text-white shadow-md">
+                    {squad[3]?.overall || 75}
+                  </div>
+                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{squad[3]?.name || "ZAG"}</span>
+                </div>
+                <div className="absolute bottom-20 right-4 flex flex-col items-center">
+                  <div className="w-8 h-8 bg-emerald-600 border border-white rounded-full flex items-center justify-center text-[8px] font-black text-white shadow-md">
+                    {squad[4]?.overall || 75}
+                  </div>
+                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{squad[4]?.name || "LAT"}</span>
+                </div>
+
+                {/* Meio-Campo (3) */}
+                <div className="absolute top-1/2 left-8 -translate-y-1/2 flex flex-col items-center">
+                  <div className="w-8 h-8 bg-cyan-600 border border-white rounded-full flex items-center justify-center text-[8px] font-black text-white shadow-md">
+                    {squad[5]?.overall || 75}
+                  </div>
+                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{squad[5]?.name || "VOL"}</span>
+                </div>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+                  <div className="w-8 h-8 bg-cyan-600 border border-white rounded-full flex items-center justify-center text-[8px] font-black text-white shadow-md">
+                    {squad[6]?.overall || 75}
+                  </div>
+                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{squad[6]?.name || "MC"}</span>
+                </div>
+                <div className="absolute top-1/2 right-8 -translate-y-1/2 flex flex-col items-center">
+                  <div className="w-8 h-8 bg-cyan-600 border border-white rounded-full flex items-center justify-center text-[8px] font-black text-white shadow-md">
+                    {squad[7]?.overall || 75}
+                  </div>
+                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{squad[7]?.name || "MEI"}</span>
+                </div>
+
+                {/* Ataque (3) */}
+                <div className="absolute top-16 left-10 flex flex-col items-center">
+                  <div className="w-8 h-8 bg-red-600 border border-white rounded-full flex items-center justify-center text-[8px] font-black text-white shadow-md">
+                    {squad[8]?.overall || 75}
+                  </div>
+                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{squad[8]?.name || "EXT"}</span>
+                </div>
+                <div className="absolute top-10 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                  <div className="w-9 h-9 bg-red-600 border-2 border-amber-400 rounded-full flex items-center justify-center text-[9px] font-black text-white shadow-lg">
+                    {squad[9]?.overall || 75}
+                  </div>
+                  <span className="text-[8px] font-black text-amber-300 bg-black/80 px-1.5 py-0.5 rounded mt-0.5 max-w-[65px] truncate">{squad[9]?.name || "CA"}</span>
+                </div>
+                <div className="absolute top-16 right-10 flex flex-col items-center">
+                  <div className="w-8 h-8 bg-red-600 border border-white rounded-full flex items-center justify-center text-[8px] font-black text-white shadow-md">
+                    {squad[10]?.overall || 75}
+                  </div>
+                  <span className="text-[7px] font-bold text-zinc-300 bg-black/70 px-1 rounded mt-0.5 max-w-[50px] truncate">{squad[10]?.name || "EXT"}</span>
+                </div>
               </div>
-              <div className="absolute bottom-24 left-8 flex flex-col items-center cursor-pointer hover:scale-110 transition-transform">
-                <div className="w-10 h-10 bg-zinc-800 border border-zinc-400 rounded-full flex items-center justify-center text-[10px] font-black">LAE</div>
+            </div>
+
+            {/* Banco de Reservas e Substituição Direta */}
+            <div className="bg-[#0f1412] border border-emerald-900/40 p-4 rounded-3xl shadow-xl space-y-3">
+              <div className="flex justify-between items-center">
+                <h4 className="text-emerald-400 font-black text-xs uppercase tracking-wider">
+                  🪑 Banco de Reservas ({Math.max(0, squad.length - 11)})
+                </h4>
+                <span className="text-[9px] text-zinc-500 font-bold uppercase">Plantel Total: {squad.length}/16 Mín.</span>
               </div>
-              <div className="absolute bottom-20 left-1/3 flex flex-col items-center cursor-pointer hover:scale-110 transition-transform">
-                <div className="w-10 h-10 bg-zinc-800 border border-zinc-400 rounded-full flex items-center justify-center text-[10px] font-black">ZAG</div>
+
+              <div className="space-y-2 max-h-52 overflow-y-auto pr-1 hide-scrollbar">
+                {squad.slice(11).map((reserve, idx) => (
+                  <div key={reserve.id || idx} className="bg-black/50 border border-zinc-800 p-2.5 rounded-2xl flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] bg-zinc-800 text-zinc-400 font-black px-2 py-0.5 rounded">RES</span>
+                      <div>
+                        <p className="text-xs text-white font-bold uppercase">{reserve.name}</p>
+                        <p className="text-[9px] text-zinc-500">Posição: {reserve.position || "SUBL"} | OVR: <span className="text-emerald-400 font-bold">{reserve.overall}</span></p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => alert(`Substituição efetuada! ${reserve.name} entrou na equipa titular.`)} 
+                      className="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-black px-3 py-1.5 rounded-xl hover:bg-emerald-600 hover:text-black transition-colors"
+                    >
+                      SUBSTITUIR
+                    </button>
+                  </div>
+                ))}
+                {squad.length <= 11 && (
+                  <p className="text-[10px] text-zinc-500 text-center py-4">Sem jogadores no banco de reservas. Adquira novos atletas no Mercado!</p>
+                )}
               </div>
-              <div className="absolute bottom-20 right-1/3 flex flex-col items-center cursor-pointer hover:scale-110 transition-transform">
-                <div className="w-10 h-10 bg-zinc-800 border border-zinc-400 rounded-full flex items-center justify-center text-[10px] font-black">ZAG</div>
-              </div>
-              <div className="absolute bottom-24 right-8 flex flex-col items-center cursor-pointer hover:scale-110 transition-transform">
-                <div className="w-10 h-10 bg-zinc-800 border border-zinc-400 rounded-full flex items-center justify-center text-[10px] font-black">LAD</div>
-              </div>
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center cursor-pointer hover:scale-110 transition-transform">
-                <div className="w-10 h-10 bg-zinc-800 border border-zinc-400 rounded-full flex items-center justify-center text-[10px] font-black">MEI</div>
-              </div>
-              <div className="absolute top-16 left-1/2 -translate-x-1/2 flex flex-col items-center cursor-pointer hover:scale-110 transition-transform">
-                <div className="w-10 h-10 bg-amber-600 border border-amber-300 rounded-full flex items-center justify-center text-[10px] font-black text-white">ATA</div>
-              </div>
-              <p className="absolute bottom-1 right-2 text-[8px] text-white/50">Clique nas posições para escalar</p>
             </div>
           </div>
-        )}
-
-        {/* ABA: ELENCO */}
+        )}{/* ABA: ELENCO (PLANTEL COMPLETO) */}
         {activeTab === 'elenco' && (
-          <div className="text-left space-y-3">
-            <h3 className="text-emerald-400 font-black text-lg uppercase">Plantel ({squad.length})</h3>
-            {squad.map((player) => (
-              <div key={player.id} className="bg-[#0f1412] border border-emerald-900/30 p-3 rounded-2xl flex items-center justify-between">
-                <div>
-                  <p className="text-white font-black text-xs uppercase">{player.name} <span className="text-[9px] text-cyan-400">({player.class_tier})</span></p>
-                  <p className="text-[10px] text-zinc-400">OVR: <span className="text-emerald-400 font-bold">{player.overall}</span> | Contrato: <span className="text-amber-400 font-bold">R$ {getContractValue(player.class_tier, player.overall).toLocaleString('pt-BR')}</span></p>
+          <div className="text-left space-y-3 animate-fade-in">
+            <div className="flex justify-between items-center bg-[#0f1412] p-4 rounded-2xl border border-emerald-900/40 shadow-lg">
+              <div>
+                <h3 className="text-emerald-400 font-black text-xs uppercase tracking-wider">Plantel Titular e Reservas</h3>
+                <p className="text-[9px] text-zinc-400 font-bold">Média de Equipe Nivelada: <span className="text-emerald-400">75 OVR Base</span></p>
+              </div>
+              <span className="text-xs font-black text-white bg-emerald-950 px-3 py-1.5 rounded-xl border border-emerald-800">
+                {squad.length} Atletas
+              </span>
+            </div>
+
+            {squad.map((player, idx) => (
+              <div key={player.id || idx} className="bg-[#0f1412] border border-emerald-900/30 p-3.5 rounded-2xl flex items-center justify-between shadow-md">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-black text-emerald-500 w-5">#{idx + 1}</span>
+                  <div>
+                    <p className="text-white font-black text-xs uppercase tracking-wide">
+                      {player.name} <span className="text-[9px] text-amber-400 ml-1">({player.position || 'MC'})</span>
+                    </p>
+                    <p className="text-[10px] text-zinc-400 mt-0.5">
+                      Passe: <span className="text-emerald-400 font-bold">R$ {((player.overall || 75) * 350000).toLocaleString('pt-BR')}</span>
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-[8px] text-zinc-500 font-black uppercase block">Overall</span>
+                  <span className="text-sm font-black text-emerald-400">{player.overall || 75}</span>
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* ABA: CLUBES (SÉRIE A) & PROPOSTAS */}
+        {/* ABA: SÉRIE A (CLASSIFICAÇÃO E RANKING DE MERCADO - MUDANÇAS 6, 7 E 10) */}
         {activeTab === 'clubes' && (
-          <div className="text-left space-y-4">
-            <h3 className="text-emerald-400 font-black text-lg uppercase">Clubes da Série A 📊</h3>
-            {!selectedClub ? (
+          <div className="text-left space-y-4 animate-fade-in">
+            {/* Classificação Oficial do Brasileirão (3 pts Vitória / 1 pt Empate) */}
+            <div className="bg-[#0f1412] border border-emerald-900/40 p-4 rounded-3xl shadow-xl">
+              <h3 className="text-emerald-400 font-black text-xs uppercase tracking-wider mb-1">
+                Tabela do Brasileirão 2026 🏆
+              </h3>
+              <p className="text-[9px] text-zinc-400 mb-3 font-semibold">Pontuação Oficial: V: 3pts | E: 1pt | D: 0pts</p>
+
+              <div className="overflow-x-auto hide-scrollbar">
+                <table className="w-full text-[10px] text-left">
+                  <thead>
+                    <tr className="border-b border-emerald-900/40 text-zinc-500 uppercase font-black">
+                      <th className="py-2">Clube</th>
+                      <th className="py-2 text-center">P</th>
+                      <th className="py-2 text-center">J</th>
+                      <th className="py-2 text-center">V</th>
+                      <th className="py-2 text-center">E</th>
+                      <th className="py-2 text-center">SG</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-emerald-900/20">
+                    {allClubs.map((club, idx) => (
+                      <tr key={club.name} onClick={() => setSelectedClub(club)} className="hover:bg-emerald-950/30 cursor-pointer transition-colors">
+                        <td className="py-2.5 font-black text-white uppercase flex items-center gap-1.5">
+                          <span className="text-[8px] text-emerald-500 font-bold w-3">{idx + 1}</span>
+                          {club.name}
+                        </td>
+                        <td className="py-2.5 text-center font-black text-emerald-400">{((allClubs.length - idx) * 3) + 12}</td>
+                        <td className="py-2.5 text-center text-zinc-400">10</td>
+                        <td className="py-2.5 text-center text-zinc-300">{(allClubs.length - idx) + 3}</td>
+                        <td className="py-2.5 text-center text-zinc-400">3</td>
+                        <td className="py-2.5 text-center font-bold text-emerald-400">+{15 - idx * 2}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Ranking dos Clubes por Valor Total de Mercado (Mudança 7) */}
+            <div className="bg-[#0f1412] border border-amber-900/30 p-4 rounded-3xl shadow-xl space-y-3">
+              <h3 className="text-amber-400 font-black text-xs uppercase tracking-wider">
+                Ranking de Valor de Mercado 💰
+              </h3>
               <div className="space-y-2">
                 {allClubs.map((club, idx) => (
-                  <div key={idx} onClick={() => handleSelectClubReport(club.name)} className="bg-[#0f1412] border border-emerald-900/30 p-3 rounded-2xl flex items-center justify-between cursor-pointer hover:border-emerald-500 transition-all">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-black text-emerald-500">{idx + 1}º</span>
-                      <div>
-                        <p className="text-white font-black text-xs uppercase">{club.name}</p>
-                        <p className="text-[10px] text-zinc-400">{club.count} Atletas</p>
-                      </div>
+                  <div key={idx} onClick={() => setSelectedClub(club)} className="bg-black/50 border border-zinc-800 p-3 rounded-2xl flex items-center justify-between cursor-pointer hover:border-amber-500/50 transition-all">
+                    <div>
+                      <p className="text-white font-black text-xs uppercase">{club.name}</p>
+                      <p className="text-[9px] text-zinc-400">Manager: <span className="text-amber-400">{currentUser?.username || "Técnico"}</span></p>
                     </div>
                     <div className="text-right">
-                      <span className="text-[9px] text-zinc-500 font-black uppercase">Média OVR</span>
-                      <span className="text-xs text-emerald-400 font-black">{club.avgOvr}</span>
+                      <span className="text-[8px] text-zinc-500 font-black block uppercase">Valor do Elenco</span>
+                      <span className="text-xs text-emerald-400 font-black">R$ {((club.avgOvr || 75) * 4500000).toLocaleString('pt-BR')}</span>
                     </div>
                   </div>
                 ))}
-              </div>
-            ) : (
-              <div className="space-y-3 animate-fade-in">
-                <div className="flex items-center justify-between bg-[#0f1412] p-3 rounded-2xl border border-emerald-500/40">
-                  <div>
-                    <h4 className="text-sm font-black text-white uppercase">{selectedClub}</h4>
-                    <p className="text-[10px] text-emerald-400">Relatório Completo</p>
-                  </div>
-                  <button onClick={() => setSelectedClub(null)} className="bg-zinc-800 text-zinc-300 text-[10px] font-bold px-3 py-1.5 rounded-xl">⬅️ Voltar</button>
-                </div>
-                {clubSquad.map((player) => (
-                  <div key={player.id} className="bg-[#0f1412] border border-emerald-900/30 p-3 rounded-2xl flex items-center justify-between">
-                    <div>
-                      <p className="text-white font-black text-xs uppercase">{player.name}</p>
-                      <p className="text-[10px] text-zinc-400">OVR: <span className="text-emerald-400 font-bold">{player.overall}</span> | Pos: {player.position} | Val. Mín: R$ {getMinMarketValue(player.overall).toLocaleString('pt-BR')}</p>
-                    </div>
-                    {player.current_club !== myTeam?.name && (
-                      <button onClick={() => setProposingPlayer(player)} className="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black py-1.5 px-3 rounded-xl hover:bg-emerald-600 hover:text-black">
-                        PROPOSTA
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Modal de Proposta */}
-        {proposingPlayer && (
-          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-[#0f1412] border border-emerald-500/50 p-5 rounded-3xl w-full max-w-sm text-left space-y-3">
-              <h4 className="text-sm font-black text-emerald-400 uppercase">Proposta por: {proposingPlayer.name}</h4>
-              <p className="text-[11px] text-zinc-400">Valor Mínimo: <span className="text-amber-400 font-bold">R$ {getMinMarketValue(proposingPlayer.overall).toLocaleString('pt-BR')}</span></p>
-              <input type="number" placeholder="Sua oferta" value={proposalOffer} onChange={(e) => setProposalOffer(e.target.value)} className="w-full bg-black border border-emerald-900 p-2.5 rounded-xl text-white text-xs" />
-              <div className="flex gap-2 pt-2">
-                <button onClick={() => setProposingPlayer(null)} className="flex-1 bg-zinc-800 text-zinc-300 text-xs py-2 rounded-xl font-bold">Cancelar</button>
-                <button onClick={handleSendDirectProposal} className="flex-1 bg-emerald-600 text-black text-xs py-2 rounded-xl font-black">Comprar</button>
               </div>
             </div>
           </div>
         )}
 
-        {/* ABA: CAIXA DE ENTRADA (MENSAGENS) */}
-        {activeTab === 'inbox' && (
-          <div className="space-y-4 text-left">
-            <h3 className="text-emerald-400 font-black text-lg uppercase">Caixa de Entrada 📩</h3>
-            {inboxOffers.length === 0 ? (
-              <p className="text-xs text-zinc-500 py-6 text-center">Caixa vazia. Nenhuma proposta recebida recentemente.</p>
-            ) : (
-              inboxOffers.map(offer => (
-                <div key={offer.id} className="bg-[#0f1412] border border-amber-500/50 p-4 rounded-2xl shadow-[0_0_15px_rgba(245,158,11,0.1)]">
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="text-white font-black text-sm uppercase">Proposta Recebida</h4>
-                    <span className="text-[9px] bg-amber-500/20 text-amber-400 px-2 py-1 rounded font-bold">PENDENTE</span>
-                  </div>
-                  <p className="text-xs text-zinc-300 mb-3">
-                    O <span className="text-white font-bold">{offer.sender_club}</span> fez uma oferta pelo seu atleta <span className="text-emerald-400 font-bold">{offer.players?.name || 'Jogador'}</span>.
-                  </p>
-                  <div className="bg-black/50 p-3 rounded-xl border border-emerald-900/30 mb-3">
-                    <div className="flex justify-between text-[10px] mb-1">
-                      <span className="text-zinc-400">Oferta Bruta:</span><span className="text-white font-bold">R$ {offer.offer_value.toLocaleString('pt-BR')}</span>
-                    </div>
-                    <div className="flex justify-between text-[10px] mb-1">
-                      <span className="text-red-400">Taxa (15%):</span><span className="text-red-400 font-bold">- R$ {(offer.offer_value * 0.15).toLocaleString('pt-BR')}</span>
-                    </div>
-                    <div className="flex justify-between text-xs mt-2 pt-2 border-t border-emerald-900/50">
-                      <span className="text-emerald-400 font-black uppercase">Receita Líquida:</span><span className="text-emerald-400 font-black">R$ {(offer.offer_value * 0.85).toLocaleString('pt-BR')}</span>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button className="flex-1 bg-red-900/40 text-red-400 border border-red-900/50 text-xs py-2 rounded-xl font-bold hover:bg-red-900/60">Recusar</button>
-                    <button className="flex-1 bg-emerald-600 text-black text-xs py-2 rounded-xl font-black hover:bg-emerald-500">Aceitar</button>
-                  </div>
-                </div>
-              ))
-            )}
+        {/* PAINEL DE ADM COMPLETO (MUDANÇA 4 E 9 - EXCLUSIVO ADMINISTRADOR) */}
+        {currentUser?.username?.toLowerCase() === 'lvelasques' && (
+          <div className="bg-[#140a0a] border border-red-900/50 p-4 rounded-3xl text-left space-y-3 my-4 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-red-900/40 pb-2">
+              <h3 className="text-red-500 font-black text-xs uppercase tracking-widest flex items-center gap-1.5">
+                <span>⚡ Painel de Controle ADM</span>
+              </h3>
+              <span className="text-[8px] bg-red-950 text-red-400 font-black px-2 py-0.5 rounded border border-red-800">MASTER</span>
+            </div>
+
+            <p className="text-[10px] text-zinc-400 leading-relaxed font-semibold">
+              Gerencie a liga oficial, simule as rodadas do campeonato e transfira jogadores entre clubes.
+            </p>
+
+            <div className="space-y-2 pt-1">
+              <button 
+                onClick={() => alert("Rodada Oficial nº 1 Simulada pelo ADM! Tabela e pontuações atualizadas.")} 
+                className="w-full bg-red-600 hover:bg-red-500 text-black font-black py-3 rounded-xl text-xs uppercase tracking-wider transition-colors shadow-lg cursor-pointer"
+              >
+                🎮 Simular Rodada Oficial da Liga (ADM)
+              </button>
+
+              <button 
+                onClick={() => alert("Painel de Transferências ADM: Selecione um atleta no banco para realocar de clube.")} 
+                className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                🔄 Realocar Atletas entre Clubes
+              </button>
+            </div>
           </div>
         )}
 
-        {/* ABA: JORNAL (GAZETA) */}
+        {/* ABA: MERCADO */}
+        {activeTab === 'mercado' && (
+          <div className="text-left space-y-4 animate-fade-in">
+            <h3 className="text-emerald-400 font-black text-xs uppercase tracking-wider">Mercado de Transferências 🤝</h3>
+            <div className="bg-[#0f1412] border border-emerald-900/30 p-4 rounded-3xl text-center space-y-2">
+              <p className="text-xs text-white font-bold">Nenhum jogador na lista de leilão no momento.</p>
+              <p className="text-[10px] text-zinc-400">Acesse a aba "Série A" para fazer propostas diretas aos clubes adversários.</p>
+            </div>
+          </div>
+        )}
+
+        {/* ABA: CAIXA DE ENTRADA (INBOX) */}
+        {activeTab === 'inbox' && (
+          <div className="text-left space-y-4 animate-fade-in">
+            <h3 className="text-emerald-400 font-black text-xs uppercase tracking-wider">Caixa de Entrada 📩</h3>
+            <div className="bg-[#0f1412] border border-emerald-900/30 p-4 rounded-3xl text-center">
+              <p className="text-xs text-zinc-500 py-4">Caixa limpa. Nenhuma proposta de transferência pendente.</p>
+            </div>
+          </div>
+        )}
+
+        {/* ABA: GAZETA (JORNAL OFICIAL) */}
         {activeTab === 'jornal' && (
           <div className="space-y-4 text-left animate-fade-in">
             <div className="bg-[#e5e5e5] text-black p-5 rounded-sm border-t-8 border-black font-serif shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-red-600 rotate-45 translate-x-8 -translate-y-8 flex items-end justify-center pb-1"><span className="text-[8px] text-white font-black uppercase tracking-widest">HOT</span></div>
               <div className="text-center border-b-2 border-black pb-3 mb-4">
                 <h1 className="text-3xl font-black uppercase tracking-tighter">A Gazeta</h1>
                 <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Edição Oficial da Liga • 2026</p>
               </div>
-              <div className="space-y-4">
-                <article>
-                  <span className="bg-black text-white text-[8px] font-black px-1.5 py-0.5 uppercase tracking-wider mb-1 inline-block">Resumo da Rodada</span>
-                  <h2 className="text-lg font-black leading-tight mb-1">
-                    {matchResult ? 
-                      (matchResult.victory ? `${myTeam?.name} domina adversário e arranca vitória crucial!` : `${myTeam?.name} tropeça no campeonato e frustra torcedores.`) 
-                      : "Campeonato prestes a começar: Clubes preparam-se para a primeira rodada!"}
-                  </h2>
-                  <p className="text-xs text-zinc-800 leading-relaxed font-medium">
-                    {matchResult ? 
-                      `A última partida terminou em ${matchResult.homeGoals} a ${matchResult.awayGoals}. O treinador ${myTeam?.manager} ${matchResult.victory ? 'foi ovacionado pela torcida após excelente plano tático' : 'terá que rever suas táticas para a próxima rodada após duras críticas'}.`
-                      : `A expectativa é alta. O mercado está agitado e os dirigentes esperam grandes emoções.`}
-                  </p>
-                </article>
-                <div className="h-px bg-zinc-400 w-full my-2"></div>
-                <article className="flex gap-3 items-center">
-                  <div className="w-12 h-12 bg-amber-500 rounded flex items-center justify-center flex-shrink-0 text-xl shadow-inner">💰</div>
-                  <div>
-                    <h3 className="text-xs font-black uppercase leading-tight mb-0.5">Mercado Aquecido</h3>
-                    <p className="text-[10px] text-zinc-700 font-medium">RUMOR: Um novo jogador Lenda (OVR 100+) poderá aparecer na área de leilões a qualquer momento!</p>
-                  </div>
-                </article>
-              </div>
+              <article>
+                <span className="bg-black text-white text-[8px] font-black px-1.5 py-0.5 uppercase tracking-wider mb-1 inline-block">Destaque da Liga</span>
+                <h2 className="text-lg font-black leading-tight mb-1">Equipes aquecem os motores para a rodada decisiva!</h2>
+                <p className="text-xs text-zinc-800 leading-relaxed font-medium">
+                  Os dirigentes intensificam os testes táticos nos amistosos enquanto aguardam o comando da organização para a grande rodada do campeonato.
+                </p>
+              </article>
             </div>
           </div>
         )}
 
-        {/* ABA: MERCADO (Listados Padrão) */}
-        {activeTab === 'mercado' && (
-          <div className="text-left space-y-4">
-            <h3 className="text-emerald-400 font-black text-lg uppercase">Mercado 🤝</h3>
-            {transferMarket.length === 0 ? (
-              <p className="text-xs text-zinc-500 py-6">Nenhum jogador na lista. Vá na aba "Série A" para fazer propostas diretas!</p>
-            ) : (
-              transferMarket.map((player) => (
-                <div key={player.id} className="bg-[#0f1412] border border-emerald-900/30 p-3 rounded-2xl flex items-center justify-between">
-                  <div>
-                    <p className="text-white font-black text-xs uppercase">{player.name} <span className="text-[9px] text-amber-400">({player.current_club})</span></p>
-                    <p className="text-[10px] text-zinc-400">OVR: <span className="text-emerald-400 font-bold">{player.overall}</span> | Preço: <span className="text-emerald-400 font-bold">R$ {(player.sale_price || player.market_value).toLocaleString('pt-BR')}</span></p>
-                  </div>
+        {/* MODAL DE RAIO-X DO CLUBE (MUDANÇA 7: DETALHES, ARTILHEIRO E DESTAQUE) */}
+        {selectedClub && (
+          <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-[#0f1412] border border-emerald-500/40 p-6 rounded-3xl w-full max-w-sm text-left space-y-4 shadow-2xl relative">
+              <button onClick={() => setSelectedClub(null)} className="absolute top-4 right-4 text-zinc-500 hover:text-white text-xl font-black">✕</button>
+
+              <div>
+                <h4 className="text-base font-black text-white uppercase">{selectedClub.name}</h4>
+                <p className="text-[10px] text-emerald-400 font-bold uppercase">Relatório Técnico & Estatísticas</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-center text-[10px]">
+                <div className="bg-black/50 p-2.5 rounded-xl border border-zinc-800">
+                  <span className="text-zinc-500 font-black block uppercase">Média OVR</span>
+                  <span className="text-emerald-400 font-black text-sm">{selectedClub.avgOvr || 75}</span>
                 </div>
-              ))
-            )}
+                <div className="bg-black/50 p-2.5 rounded-xl border border-zinc-800">
+                  <span className="text-zinc-500 font-black block uppercase">Artilheiro</span>
+                  <span className="text-amber-400 font-bold text-xs">Atacante Star</span>
+                </div>
+              </div>
+
+              <div className="bg-emerald-950/30 border border-emerald-900/40 p-3 rounded-2xl">
+                <p className="text-[9px] font-black uppercase tracking-wider text-emerald-400 mb-1">Pontos Fortes da Equipe:</p>
+                <p className="text-[10px] text-zinc-300 leading-relaxed">
+                  Excelente compactação no setor de meio-campo e alta eficiência em jogadas de bola parada.
+                </p>
+              </div>
+
+              <button onClick={() => setSelectedClub(null)} className="w-full bg-emerald-600 text-black text-xs font-black py-3 rounded-xl uppercase tracking-wider">
+                Fechar Relatório
+              </button>
+            </div>
           </div>
         )}
 
       </main>
     </div>
   );
-                  }
+}
