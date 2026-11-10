@@ -1,451 +1,109 @@
-import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import React, { useState } from 'react';
 
-const SUPABASE_URL = 'https://tieduoyppbigsaxxjhfl.supabase.co'; 
-const SUPABASE_ANON_KEY = 'sb_publishable_EvhGbTRSSqDK426spZx1sw_uRhXIJX2';
-
-const isSupabaseConfigured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20 && SUPABASE_ANON_KEY.startsWith('sb_');
-const supabase = isSupabaseConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
-
-export default function CassinoCostaRica() {
-  const [usersDb, setUsersDb] = useState(() => {
-    const saved = localStorage.getItem('pampas_users_db');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { }
-    }
-    return [{ id: 1, username: 'LVelasques', password: 'Lucas123!', balance: 99999999, isAdmin: true }];
-  });
-
-  const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem('pampas_current_user');
-    return saved ? JSON.parse(saved) : null;
-  });
-
-  const [balance, setBalance] = useState(() => {
-    const saved = localStorage.getItem('pampas_current_user');
-    return saved ? JSON.parse(saved).balance : 150000;
-  });
-
+export default function CassinoCostaRica({ balance, setBalance, currentUser }) {
+  const [selectedGame, setSelectedGame] = useState(null); // Null = Abre o Lobby do Cassino Diplomático
   const [betAmount, setBetAmount] = useState(30000);
-  const [turbo, setTurbo] = useState(false);
-  const [spinning, setSpinning] = useState(false);
-  const [winningLines, setWinningLines] = useState([]);
-  const [lastWin, setLastWin] = useState(0);
-  
-  const [bonusWheelActive, setBonusWheelActive] = useState(false);
-  const [wheelMultiplier, setWheelMultiplier] = useState(null);
-  const [spinningWheel, setSpinningWheel] = useState(false);
-  
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [authMode, setAuthMode] = useState('login');
-  const [inputUsername, setInputUsername] = useState('');
-  const [inputPassword, setInputPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [authError, setAuthError] = useState('');
+  const [gameResult, setGameResult] = useState('');
 
-  const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
-  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
-  const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [withdrawSuccess, setWithdrawSuccess] = useState(false);
-  const [newPassword, setNewPassword] = useState(''); 
-  const [passwordSuccess, setPasswordSuccess] = useState(false);
-
-  const [adminTargetId, setAdminTargetId] = useState('');
-  const [adminDepositAmount, setAdminDepositAmount] = useState('');
-
-  const fetchUsersDb = async () => {
-    if (isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase.from('users').select('*').order('id', { ascending: true });
-        if (!error && data && data.length > 0) {
-          setUsersDb(data);
-          localStorage.setItem('pampas_users_db', JSON.stringify(data));
-          if (currentUser) {
-            const updatedMe = data.find(u => u.id === currentUser.id);
-            if (updatedMe) setBalance(Number(updatedMe.balance));
-          }
-          return;
-        }
-      } catch (e) { console.warn("Supabase falhou, usando local"); }
-    }
-    const local = localStorage.getItem('pampas_users_db');
-    if (local) setUsersDb(JSON.parse(local));
-  };
-
-  useEffect(() => {
-    fetchUsersDb();
-    const interval = setInterval(fetchUsersDb, 3000);
-    return () => clearInterval(interval);
-  }, [currentUser]);
-
-  useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('pampas_current_user', JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem('pampas_current_user');
-    }
-  }, [currentUser]);
-const symbols = [
-    { id: 'pampas', icon: '/pampas.png', name: 'Pampas', mult: 0.5, weight: 25, isBonus: false },
-    { id: 'alquimia', icon: '/alquimia.png', name: 'Alquimia', mult: 0.8, weight: 24, isBonus: false },
-    { id: 'petroleo', icon: '/petroleo.png', name: 'Petróleo', mult: 1.0, weight: 22, isBonus: false },
-    { id: 'brasil', icon: '/brasil.png', name: 'Brasil', mult: 2.0, weight: 20, isBonus: false },
-    { id: 'moeda', icon: '/moeda.png', name: 'Moeda', mult: 1.5, weight: 19, isBonus: false },
-    { id: 'costarica', icon: '/costarica.png', name: 'Costa Rica', mult: 3.0, weight: 16, isBonus: false },
-    { id: 'diamante', icon: '/diamante.png', name: 'Diamante', mult: 5.0, weight: 10, isBonus: true }
+  // Jogos alojados dentro do Cassino Diplomático (incluindo o Cassino Costa Rica)
+  const gamesList = [
+    { id: 'costarica', name: 'Cassino Costa Rica', icon: '🎰', highlight: false },
+    { id: 'crash', name: 'Pampas Crash', icon: '🚀', highlight: false },
+    { id: 'towers', name: 'Pampas Towers', icon: '🏰', highlight: false },
+    { id: 'diamond', name: 'Diamond Striker', icon: '💎', highlight: false },
+    { id: 'holdwin', name: 'Hold & Win', icon: '🫎', highlight: false },
+    { id: 'dice', name: 'Pampas Dice', icon: '🎲', highlight: false },
+    { id: 'goal', name: 'Pampas Goal', icon: '⚽', highlight: false },
+    { id: 'hilo', name: 'Pampas HiLo', icon: '🃏', highlight: false },
+    { id: 'roleta', name: 'Roleta Diplomática', icon: '🎡', highlight: false },
+    { id: 'guerra', name: 'Guerra das Américas', icon: '⚔️', highlight: true },
   ];
 
-  const totalWeight = symbols.reduce((acc, s) => acc + s.weight, 0);
-
-  const [grid, setGrid] = useState([symbols[0], symbols[1], symbols[2], symbols[3], symbols[4], symbols[5], symbols[6], symbols[0], symbols[1]]);
-  const bets = [30000, 60000, 100000, 300000, 500000, 1000000, 3000000, 5000000];
-
-  const getDetailedWinningLines = (currentGrid) => {
-    let winningLinesList = [];
-    if (currentGrid[0].id === currentGrid[1].id && currentGrid[1].id === currentGrid[2].id) {
-      winningLinesList.push({ indices: [0, 1, 2], symbol: currentGrid[0] });
-    }
-    if (currentGrid[3].id === currentGrid[4].id && currentGrid[4].id === currentGrid[5].id) {
-      winningLinesList.push({ indices: [3, 4, 5], symbol: currentGrid[3] });
-    }
-    if (currentGrid[6].id === currentGrid[7].id && currentGrid[7].id === currentGrid[8].id) {
-      winningLinesList.push({ indices: [6, 7, 8], symbol: currentGrid[6] });
-    }
-    if (currentGrid[0].id === currentGrid[4].id && currentGrid[4].id === currentGrid[8].id) {
-      winningLinesList.push({ indices: [0, 4, 8], symbol: currentGrid[0] });
-    }
-    if (currentGrid[2].id === currentGrid[4].id && currentGrid[4].id === currentGrid[6].id) {
-      winningLinesList.push({ indices: [2, 4, 6], symbol: currentGrid[2] });
-    }
-    return winningLinesList;
-  };
-
-  const getRandomSymbolByWeight = () => {
-    let randomNum = Math.random() * totalWeight;
-    for (let sym of symbols) {
-      if (randomNum < sym.weight) return sym;
-      randomNum -= sym.weight;
-    }
-    return symbols[0];
-  };
-
-  const updateBalanceOnDb = async (userId, newBal) => {
+  const handleSimulateGame = (multiplier) => {
+    if (balance < betAmount) return alert("Saldo insuficiente no cofre!");
+    const win = Math.random() > 0.45;
+    const change = win ? Math.floor(betAmount * multiplier) : -betAmount;
+    const newBal = balance + change;
     setBalance(newBal);
-    setCurrentUser(prev => prev ? { ...prev, balance: newBal } : null);
-    
-    if (isSupabaseConfigured) {
-      try { await supabase.from('users').update({ balance: newBal }).eq('id', userId); } catch (e) { }
-    }
-    setUsersDb(prev => {
-      const updated = prev.map(u => u.id === userId ? { ...u, balance: newBal } : u);
-      localStorage.setItem('pampas_users_db', JSON.stringify(updated));
-      return updated;
-    });
+    setGameResult(win ? `🎉 Vitória! Ganhou R$ ${change.toLocaleString('pt-BR')}` : `❌ Derrota! Perdeu R$ ${betAmount.toLocaleString('pt-BR')}`);
   };
 
-  const spin = () => {
-    if (!currentUser) return setIsAuthOpen(true);
-    if (balance < betAmount || spinning || bonusWheelActive) return;
-    
-    const newBal = balance - betAmount;
-    updateBalanceOnDb(currentUser.id, newBal);
-
-    setSpinning(true);
-    setWinningLines([]);
-    setLastWin(0);
-
-    setTimeout(() => {
-      const globalWinChance = 0.34; 
-      let newGrid = Array.from({ length: 9 }, () => getRandomSymbolByWeight());
-
-      if (Math.random() < globalWinChance) {
-        const chosenSym = getRandomSymbolByWeight();
-        const winLinesMatrix = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 4, 8], [2, 4, 6]];
-        const primaryLine = winLinesMatrix[Math.floor(Math.random() * winLinesMatrix.length)];
-        primaryLine.forEach(idx => { newGrid[idx] = chosenSym; });
-
-        if (Math.random() < 0.35) {
-          const secondaryLine = winLinesMatrix[Math.floor(Math.random() * winLinesMatrix.length)];
-          secondaryLine.forEach(idx => { newGrid[idx] = chosenSym; });
-        }
-      } else {
-        while (getDetailedWinningLines(newGrid).length > 0) {
-          newGrid = Array.from({ length: 9 }, () => getRandomSymbolByWeight());
-        }
-      }
-
-      setGrid(newGrid);
-      setSpinning(false);
-
-      const detailedWins = getDetailedWinningLines(newGrid);
-      if (detailedWins.length > 0) {
-        let totalPrize = 0;
-        let allWinningIndices = [];
-
-        detailedWins.forEach(win => {
-          allWinningIndices.push(...win.indices);
-          if (win.symbol.isBonus) {
-            setBonusWheelActive(true);
-          } else {
-            totalPrize += betAmount * win.symbol.mult;
-          }
-        });
-
-        setWinningLines([...new Set(allWinningIndices)]);
-
-        if (totalPrize > 0) {
-          const finalBal = balance - betAmount + totalPrize;
-          updateBalanceOnDb(currentUser.id, finalBal);
-          setLastWin(totalPrize);
-        }
-      }
-    }, turbo ? 180 : 550);
-  };
-
-  const triggerBonusWheel = () => {
-    setSpinningWheel(true);
-    setTimeout(() => {
-      const randomMult = Math.floor(Math.random() * 10) + 1; 
-      const prize = betAmount * randomMult;
-      const finalBal = balance + prize;
-      updateBalanceOnDb(currentUser.id, finalBal);
-      setLastWin(prize);
-      setSpinningWheel(false);
-      setBonusWheelActive(false);
-    }, 1500);
-  };
-
-  const handleAuthSubmit = async (e) => {
-    e.preventDefault();
-    setAuthError('');
-    const trimmedUser = inputUsername.trim();
-
-    if (authMode === 'register') {
-      if (inputPassword !== confirmPassword) return setAuthError('As senhas não coincidem!');
-      if (inputPassword.length < 3) return setAuthError('A senha é muito curta.');
-
-      const existing = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase());
-      if (existing) return setAuthError('Este nome de utilizador já está em uso.');
-
-      const isAdmin = trimmedUser.toLowerCase() === 'lvelasques';
-      const newUser = { id: Date.now(), username: trimmedUser, password: inputPassword, balance: 150000, isAdmin };
-
-      let registeredOnCloud = false;
-      if (isSupabaseConfigured) {
-        try {
-          const { data, error } = await supabase.from('users').insert([{ username: trimmedUser, password: inputPassword, balance: 150000, isAdmin }]).select();
-          if (!error && data && data[0]) {
-            setCurrentUser(data[0]);
-            setBalance(Number(data[0].balance));
-            registeredOnCloud = true;
-          }
-        } catch (err) { }
-      }
-
-      if (!registeredOnCloud) {
-        const updated = [...usersDb, newUser];
-        setUsersDb(updated);
-        localStorage.setItem('pampas_users_db', JSON.stringify(updated));
-        setCurrentUser(newUser);
-        setBalance(newUser.balance);
-      }
-
-      setIsAuthOpen(false);
-      resetAuthForm();
-      fetchUsersDb();
-    } else {
-      let foundUser = null;
-      if (isSupabaseConfigured) {
-        try {
-          const { data, error } = await supabase.from('users').select('*').ilike('username', trimmedUser).eq('password', inputPassword);
-          if (!error && data && data.length > 0) foundUser = data[0];
-        } catch (e) { }
-      }
-
-      if (!foundUser) {
-        foundUser = usersDb.find(u => u.username.toLowerCase() === trimmedUser.toLowerCase() && u.password === inputPassword);
-      }
-
-      if (foundUser) {
-        setCurrentUser(foundUser);
-        setBalance(Number(foundUser.balance));
-        setIsAuthOpen(false);
-        resetAuthForm();
-      } else {
-        setAuthError('Utilizador ou senha incorretos.');
-      }
-    }
-  };
-
-  const resetAuthForm = () => {
-    setInputUsername('');
-    setInputPassword('');
-    setConfirmPassword('');
-    setAuthError('');
-  };
-
-  const handleLogout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('pampas_current_user');
-    setIsUserPanelOpen(false);
-    setWithdrawSuccess(false);
-    setPasswordSuccess(false);
-  };
-
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
-    if (newPassword.length < 3) return alert('Senha muito curta.');
-    
-    if (isSupabaseConfigured) {
-      try { await supabase.from('users').update({ password: newPassword }).eq('id', currentUser.id); } catch (e) {}
-    }
-    
-    setUsersDb(prev => {
-      const updated = prev.map(u => u.id === currentUser.id ? { ...u, password: newPassword } : u);
-      localStorage.setItem('pampas_users_db', JSON.stringify(updated));
-      return updated;
-    });
-    
-    setCurrentUser(prev => ({ ...prev, password: newPassword }));
-    setPasswordSuccess(true);
-    setNewPassword('');
-    setTimeout(() => setPasswordSuccess(false), 3000);
-  };
-
-  const handleSelfDelete = async () => {
-    const confirmar = window.confirm(`ATENÇÃO! Deseja realmente excluir a sua conta de forma permanente?`);
-    if (!confirmar) return;
-
-    if (isSupabaseConfigured) {
-      try { await supabase.from('users').delete().eq('id', currentUser.id); } catch (e) {}
-    }
-
-    const updatedList = usersDb.filter(u => u.id !== currentUser.id);
-    setUsersDb(updatedList);
-    localStorage.setItem('pampas_users_db', JSON.stringify(updatedList));
-    handleLogout();
-    alert('A sua conta foi excluída com sucesso.');
-  };
-
-  const handleWithdrawSubmit = (e) => {
-    e.preventDefault();
-    const amountNum = parseFloat(withdrawAmount);
-    if (isNaN(amountNum) || amountNum <= 0) return alert('Insira um valor válido.');
-    if (amountNum > balance) return alert('Saldo insuficiente.');
-    
-    const finalBal = balance - amountNum;
-    updateBalanceOnDb(currentUser.id, finalBal);
-    setWithdrawSuccess(true);
-    setWithdrawAmount('');
-  };
-
-  const handleAdminBalanceUpdate = async (e, type) => {
-    e.preventDefault();
-    const targetIdVal = adminTargetId.trim();
-    const amountVal = parseFloat(adminDepositAmount);
-
-    if (!targetIdVal || isNaN(amountVal) || amountVal <= 0) return alert('Insira ID válida e valor > 0.');
-    const targetUser = usersDb.find(u => String(u.id) === targetIdVal);
-    if (!targetUser) return alert('Conta não encontrada.');
-
-    let newBal = type === 'add' ? Number(targetUser.balance) + amountVal : Number(targetUser.balance) - amountVal;
-    if (type === 'remove' && newBal < 0) return alert('Saldo insuficiente na conta alvo.');
-
-    if (isSupabaseConfigured) {
-      try { await supabase.from('users').update({ balance: newBal }).eq('id', targetUser.id); } catch (e) { }
-    }
-
-    setUsersDb(prev => {
-      const updated = prev.map(u => String(u.id) === targetIdVal ? { ...u, balance: newBal } : u);
-      localStorage.setItem('pampas_users_db', JSON.stringify(updated));
-      return updated;
-    });
-
-    if (currentUser && String(currentUser.id) === targetIdVal) {
-      setBalance(newBal);
-      setCurrentUser(prev => ({ ...prev, balance: newBal }));
-    }
-
-    alert(`Sucesso! Saldo atualizado.`);
-    setAdminTargetId('');
-    setAdminDepositAmount('');
-  };
-
-  const handleDeleteUser = async (id, username) => {
-    if (!window.confirm(`Excluir ${username} (#${id})?`)) return;
-    if (isSupabaseConfigured) {
-      try { await supabase.from('users').delete().eq('id', id); } catch (e) { }
-    }
-    const updatedList = usersDb.filter(u => u.id !== id);
-    setUsersDb(updatedList);
-    localStorage.setItem('pampas_users_db', JSON.stringify(updatedList));
-    if (currentUser && currentUser.id === id) handleLogout();
-  };return (
-    <div className="min-h-screen bg-black text-white font-sans antialiased pb-12 selection:bg-amber-500 selection:text-black">
-      {/* Removemos o Header superior daqui, pois ele agora vai ficar no Lobby (App.jsx) */}
-
-      <div className="py-6 px-4 text-center bg-black border-b border-zinc-900 flex items-center justify-center pt-8">
-        <img 
-          src="/CassinaCR.png" 
-          alt="Cassino da Costa Rica" 
-          className="h-24 w-auto max-w-[380px] object-contain" 
-        />
-      </div>
-
-      <main className="max-w-md mx-auto p-4 space-y-4 pt-5">
-        {bonusWheelActive && (
-          <div className="bg-gradient-to-r from-yellow-500/20 via-amber-500/30 to-yellow-500/20 border-2 border-amber-400 rounded-3xl p-5 text-center shadow-[0_0_30px_rgba(245,158,11,0.5)] animate-pulse space-y-3">
-            <p className="text-xs text-amber-300 font-black uppercase tracking-wider">💎 LINHA DE DIAMANTE ATIVA! 💎</p>
-            <p className="text-white font-bold text-sm">Gire a Roleta de Bônus (1x a 10x a aposta)</p>
-            {wheelMultiplier && <p className="text-2xl text-amber-400 font-black">🎉 Multiplicador: {wheelMultiplier}x (+R$ {(betAmount * wheelMultiplier).toLocaleString('pt-BR')})</p>}
-            <button disabled={spinningWheel} onClick={triggerBonusWheel} className="w-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black py-3 rounded-2xl shadow-lg text-sm hover:scale-105 transition-all">{spinningWheel ? '🔄 A RODAR A ROLETA...' : '🎰 RODAR ROLETA DE BÔNUS'}</button>
+  return (
+    <div className="min-h-screen bg-black text-white font-sans p-4 pt-16 flex flex-col items-center">
+      
+      {/* LOBBY DO CASSINO DIPLOMÁTICO (Menu em 2 Colunas) */}
+      {!selectedGame ? (
+        <div className="w-full max-w-md space-y-6 text-center animate-fade-in">
+          
+          {/* Logo / Header do Cassino Diplomático */}
+          <div className="bg-[#111] p-6 rounded-3xl border border-amber-500/30 shadow-[0_0_30px_rgba(245,158,11,0.15)] flex flex-col items-center">
+            <div className="w-16 h-16 bg-gradient-to-tr from-amber-600 via-yellow-400 to-amber-700 rounded-2xl flex items-center justify-center font-black text-2xl text-black shadow-lg mb-2">
+              RP
+            </div>
+            <p className="text-[10px] text-amber-500 font-black uppercase tracking-widest">REDE PAMPAS</p>
+            <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-600 uppercase tracking-wider mt-1">
+              CASSINO DIPLOMÁTICO
+            </h1>
+            <div className="mt-3 bg-black/80 px-5 py-2 rounded-xl border border-amber-500/40">
+              <span className="text-[10px] text-zinc-400 uppercase font-black block">Saldo Disponível</span>
+              <span className="text-lg font-black text-emerald-400">R$ {balance.toLocaleString('pt-BR')}</span>
+            </div>
           </div>
-        )}
 
-        <div className="relative bg-[#0a0a0e] border-2 border-amber-500/40 rounded-3xl p-4 shadow-2xl mt-2">
-          <div className="grid grid-cols-3 gap-3 my-2">
-            {grid.map((sym, idx) => {
-              const isWinningCell = winningLines.includes(idx);
-              return (
-                <div key={idx} className={`h-24 rounded-2xl bg-[#0b0b0e] border flex flex-col items-center justify-center shadow-inner transition-all duration-300 ${spinning ? 'animate-pulse opacity-50 scale-95 border-zinc-800' : ''} ${isWinningCell ? 'border-amber-400 bg-amber-500/20 scale-105 shadow-[0_0_20px_rgba(245,158,11,0.6)] animate-bounce' : 'border-zinc-800/80 hover:border-amber-500/40'}`}>
-                  <img 
-                    src={sym.icon} 
-                    alt={sym.name} 
-                    className="w-14 h-14 object-contain" 
-                  />
-                  <span className="text-[10px] text-zinc-400 mt-1 font-bold tracking-wider">{sym.name}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="bg-[#0f0f12] border border-zinc-800 rounded-2xl p-4 shadow-xl">
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-xs text-zinc-400 font-bold uppercase tracking-wide">Valor da Aposta</span>
-            <span className="text-amber-400 font-black text-sm">R$ {betAmount.toLocaleString('pt-BR')}</span>
-          </div>
-          <div className="grid grid-cols-4 gap-2">
-            {bets.map((val) => (
-              <button key={val} disabled={spinning} onClick={() => setBetAmount(val)} className={`py-2.5 rounded-xl font-bold text-xs transition-all border ${betAmount === val ? 'bg-amber-500 text-black border-amber-300 shadow-lg scale-105 font-black' : 'bg-[#18181e] text-zinc-300 border-zinc-800 hover:border-amber-500/30'}`}>
-                {val >= 1000000 ? `${val / 1000000}M` : `${val / 1000}k`}
+          {/* Grelha de Mini-Jogos em 2 Colunas */}
+          <div className="grid grid-cols-2 gap-3">
+            {gamesList.map((g) => (
+              <button
+                key={g.id}
+                onClick={() => setSelectedGame(g)}
+                className={`p-4 rounded-2xl border transition-all flex items-center justify-center gap-2 font-black text-xs uppercase tracking-wider shadow-lg cursor-pointer ${
+                  g.highlight
+                    ? 'col-span-2 bg-gradient-to-r from-amber-600 to-amber-500 text-black border-amber-300 hover:scale-[1.02] py-4 shadow-[0_0_20px_rgba(245,158,11,0.4)]'
+                    : 'bg-[#12100d] border-amber-900/40 text-amber-400 hover:border-amber-500 hover:bg-[#1a140f]'
+                }`}
+              >
+                <span className="text-base">{g.icon}</span>
+                <span>{g.name}</span>
               </button>
             ))}
           </div>
         </div>
+      ) : (
+        /* MESA DE JOGO SELECIONADA (Ex: Cassino Costa Rica / Pampas Crash / Guerra das Américas) */
+        <div className="w-full max-w-md bg-[#0e0c0a] border border-amber-500/40 p-6 rounded-3xl space-y-5 text-center shadow-2xl relative">
+          <button onClick={() => { setSelectedGame(null); setGameResult(''); }} className="absolute top-4 right-4 text-zinc-500 hover:text-white text-xl font-black cursor-pointer">
+            ✕
+          </button>
 
-        {lastWin > 0 && (
-          <div className="bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-amber-500/20 border border-amber-500/60 rounded-2xl p-3 text-center shadow-[0_0_20px_rgba(245,158,11,0.3)] animate-pulse">
-            <p className="text-xs text-amber-300 font-extrabold uppercase tracking-widest">🎉 MÚLTIPLAS LINHAS / VITÓRIA ACUMULADA!</p>
-            <p className="text-amber-400 font-black text-xl drop-shadow-md">+ R$ {lastWin.toLocaleString('pt-BR')}</p>
+          <div className="flex items-center justify-center gap-2">
+            <span className="text-3xl">{selectedGame.icon}</span>
+            <h2 className="text-xl font-black text-amber-400 uppercase">{selectedGame.name}</h2>
           </div>
-        )}
 
-        <div className="flex gap-3 pt-2">
-          <button onClick={() => setTurbo(!turbo)} className={`py-4 px-5 rounded-2xl font-bold text-xs border transition-all shadow-md ${turbo ? 'bg-amber-500/20 text-amber-400 border-amber-500/60 shadow-[0_0_15px_rgba(245,158,11,0.2)]' : 'bg-[#141418] text-zinc-400 border-zinc-800'}`}>⚡ TURBO {turbo ? 'ON' : 'OFF'}</button>
-          <button disabled={spinning || (currentUser && balance < betAmount) || bonusWheelActive} onClick={spin} className="flex-1 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-black font-black text-lg py-4 rounded-2xl shadow-xl shadow-amber-500/30 flex items-center justify-center gap-2 active:scale-95 transition-all border border-amber-200/50">▶️ {spinning ? 'A GIRAR...' : 'GIRAR'}</button>
+          <div className="bg-black/80 p-4 rounded-2xl border border-amber-900/30">
+            <p className="text-xs text-zinc-400 font-bold uppercase mb-1">Aposta Selecionada</p>
+            <p className="text-2xl font-black text-emerald-400">R$ {betAmount.toLocaleString('pt-BR')}</p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            {[30000, 60000, 100000, 300000, 500000, 1000000].map((v) => (
+              <button key={v} onClick={() => setBetAmount(v)} className={`py-2 rounded-xl text-[10px] font-black uppercase border cursor-pointer ${betAmount === v ? 'bg-amber-500 text-black border-amber-300' : 'bg-black text-zinc-400 border-zinc-800'}`}>
+                R$ {(v / 1000)}k
+              </button>
+            ))}
+          </div>
+
+          <button onClick={() => handleSimulateGame(2.5)} className="w-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-black py-4 rounded-2xl uppercase tracking-wider text-sm shadow-lg hover:scale-[1.01] cursor-pointer">
+            ▶️ JOGAR AGORA
+          </button>
+
+          {gameResult && (
+            <div className="p-3 bg-black/60 rounded-xl border border-amber-500/30 text-xs font-black">
+              {gameResult}
+            </div>
+          )}
         </div>
-      </main>
+      )}
     </div>
   );
 }
