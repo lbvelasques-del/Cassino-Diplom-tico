@@ -9,7 +9,7 @@ import PampasTowers from './PampasTowers';
 import PampasHiLo from './PampasHiLo';
 import PampasDice from './PampasDice';
 import PampasHoldAndWin from './PampasHoldAndWin';
-import FutebolDiplomatico from './FutebolDiplomatico';
+import FutebolDiplomatico from './Futebol-Diplomatico';
 
 export default function App() {
   const [activeGame, setActiveGame] = useState('lobby'); 
@@ -45,9 +45,7 @@ export default function App() {
   const [adminTargetId, setAdminTargetId] = useState('');
   const [adminDepositAmount, setAdminDepositAmount] = useState('');
   const [adminTeamName, setAdminTeamName] = useState('');
-  const [pendingUpdates, setPendingUpdates] = useState([]);
-
-  const fetchUsersDb = async () => {
+  const [pendingUpdates, setPendingUpdates] = useState([]);const fetchUsersDb = async () => {
     try {
       const { data, error } = await supabase.from('users').select('*').order('id', { ascending: true });
       if (!error && data && data.length > 0) {
@@ -425,4 +423,4 @@ export default function App() {
       )}
     </div>
   );
-            }
+}
