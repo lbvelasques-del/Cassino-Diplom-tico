@@ -133,9 +133,7 @@ export default function FutebolDiplomatico() {
       { top: '48%', left: '25%' }, { top: '50%', left: '50%' }, { top: '48%', left: '75%' },
       { top: '18%', left: '35%' }, { top: '18%', left: '65%' }
     ]
-  };
-
-  useEffect(() => {
+  };useEffect(() => {
     if (currentUser) setMyTeam({ name: currentUser.team || "Internacional", manager: currentUser.username });
   }, [currentUser]);
 
@@ -310,7 +308,7 @@ export default function FutebolDiplomatico() {
         )}
       </div>
 
-      {/* Navegação Inferior (As 7 Abas Originais Intactas) */}
+      {/* Navegação Inferior (As 7 Abas Originais) */}
       <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#0a0a0e]/95 backdrop-blur-md border-t border-emerald-500/30 p-2 z-40 shadow-2xl overflow-x-auto hide-scrollbar">
         <div className="flex gap-1 min-w-max px-1">
           {[
@@ -673,7 +671,7 @@ export default function FutebolDiplomatico() {
           </div>
         )}
 
-        {/* ABA: GAZETA (JORNAL AUTOMATIZADO COM OS DESTAQUES DA RODADA) */}
+        {/* ABA: GAZETA (JORNAL AUTOMATIZADO) */}
         {activeTab === 'jornal' && (
           <div className="space-y-4 text-left animate-fade-in">
             <div className="bg-[#e5e5e5] text-black p-5 rounded-sm border-t-8 border-black font-serif shadow-xl relative overflow-hidden">
