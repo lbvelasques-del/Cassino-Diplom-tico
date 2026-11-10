@@ -45,7 +45,9 @@ export default function App() {
   const [adminTargetId, setAdminTargetId] = useState('');
   const [adminDepositAmount, setAdminDepositAmount] = useState('');
   const [adminTeamName, setAdminTeamName] = useState('');
-  const [pendingUpdates, setPendingUpdates] = useState([]);const fetchUsersDb = async () => {
+  const [pendingUpdates, setPendingUpdates] = useState([]);
+
+  const fetchUsersDb = async () => {
     try {
       const { data, error } = await supabase.from('users').select('*').order('id', { ascending: true });
       if (!error && data && data.length > 0) {
@@ -135,7 +137,6 @@ export default function App() {
   };
 
   const handleLogout = () => { setCurrentUser(null); localStorage.removeItem('pampas_current_user'); setIsUserPanelOpen(false); setWithdrawSuccess(false); };
-  
   const handleSelfDelete = async () => {
     if (!window.confirm(`Deseja realmente excluir a sua conta?`)) return;
     try { await supabase.from('users').delete().eq('id', currentUser.id); } catch (e) {}
