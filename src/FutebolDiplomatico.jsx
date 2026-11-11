@@ -4,17 +4,11 @@ export default function FutebolDiplomatico({ currentUser, balance, setBalance })
   const isAdmin = currentUser?.isAdmin || currentUser?.username?.toLowerCase() === 'lvelasques';
   const [activeTab, setActiveTab] = useState('taticas');
 
-  // ==========================================
-  // ESTADOS DO PAINEL TÁTICO AVANÇADO
-  // ==========================================
   const [tatica, setTatica] = useState(() => localStorage.getItem('pampas_tatica_futebol') || '4-3-3');
   const [estiloJogo, setEstiloJogo] = useState(() => localStorage.getItem('pampas_estilo_futebol') || 'Equilibrado');
   const [mentalidade, setMentalidade] = useState(() => localStorage.getItem('pampas_mentalidade_futebol') || 'Normal');
   const [isSaved, setIsSaved] = useState(false);
 
-  // ==========================================
-  // BANCO DE DADOS LOCAL (CLUBES, JOGADORES E TABELA)
-  // ==========================================
   const [clubes, setClubes] = useState(() => {
     const saved = localStorage.getItem('pampas_futebol_clubes');
     return saved ? JSON.parse(saved) : [
@@ -41,15 +35,11 @@ export default function FutebolDiplomatico({ currentUser, balance, setBalance })
     }));
   });
 
-  // Salvar alterações no LocalStorage automaticamente
   useEffect(() => { localStorage.setItem('pampas_futebol_clubes', JSON.stringify(clubes)); }, [clubes]);
   useEffect(() => { localStorage.setItem('pampas_futebol_jogadores', JSON.stringify(jogadores)); }, [jogadores]);
   useEffect(() => { localStorage.setItem('pampas_futebol_partidas', JSON.stringify(partidas)); }, [partidas]);
   useEffect(() => { localStorage.setItem('pampas_futebol_classificacao', JSON.stringify(classificacao)); }, [classificacao]);
 
-  // ==========================================
-  // ESTADOS DO PAINEL ADMIN (FORMULÁRIOS)
-  // ==========================================
   const [novoJogadorNome, setNovoJogadorNome] = useState('');
   const [novoJogadorPosicao, setNovoJogadorPosicao] = useState('ATA');
   const [novoJogadorOverall, setNovoJogadorOverall] = useState(75);
@@ -59,25 +49,19 @@ export default function FutebolDiplomatico({ currentUser, balance, setBalance })
   const [transfNovoClubeId, setTransfNovoClubeId] = useState('');
 
   const [partidaClubeCasa, setPartidaClubeCasa] = useState(clubes[0]?.id || '');
-  const [partidaClubeFora, setPartidaClubeFora] = useState(clubes[1]?.id || '');// ==========================================
-  // LÓGICA DO PAINEL TÁTICO
-  // ==========================================
+  const [partidaClubeFora, setPartidaClubeFora] = useState(clubes[1]?.id || '');
+
   const salvarTatidaInstantanea = () => {
     localStorage.setItem('pampas_tatica_futebol', tatica);
     localStorage.setItem('pampas_estilo_futebol', estiloJogo);
     localStorage.setItem('pampas_mentalidade_futebol', mentalidade);
-    
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 2000);
   };
 
-  // ==========================================
-  // LÓGICA DO PAINEL ADMIN AVANÇADO
-  // ==========================================
   const handleCriarJogador = (e) => {
     e.preventDefault();
     if (!novoJogadorNome.trim() || !novoJogadorClubeId) return alert('Preencha os dados do jogador e escolha um clube.');
-    
     const novoJogador = {
       id: Date.now(),
       nome: novoJogadorNome,
@@ -85,7 +69,6 @@ export default function FutebolDiplomatico({ currentUser, balance, setBalance })
       overall: Number(novoJogadorOverall),
       clubeId: Number(novoJogadorClubeId)
     };
-    
     setJogadores([...jogadores, novoJogador]);
     setNovoJogadorNome('');
     alert(`Jogador ${novoJogadorNome} criado e adicionado ao clube!`);
@@ -94,37 +77,27 @@ export default function FutebolDiplomatico({ currentUser, balance, setBalance })
   const handleTransferencia = (e) => {
     e.preventDefault();
     if (!transfJogadorId || !transfNovoClubeId) return alert('Selecione o jogador e o novo clube.');
-    
     const atualizados = jogadores.map(j => 
       j.id === Number(transfJogadorId) ? { ...j, clubeId: Number(transfNovoClubeId) } : j
     );
-    
     setJogadores(atualizados);
     setTransfJogadorId('');
     alert('Transferência realizada com sucesso!');
   };
 
-  // ==========================================
-  // MOTOR DE SIMULAÇÃO DE PARTIDAS OFICIAIS
-  // ==========================================
   const simularPartida = (e) => {
     e.preventDefault();
     if (partidaClubeCasa === partidaClubeFora) return alert('O clube não pode jogar contra si mesmo.');
-    
     const clubeCasa = clubes.find(c => c.id === Number(partidaClubeCasa));
     const clubeFora = clubes.find(c => c.id === Number(partidaClubeFora));
-    
     if (!clubeCasa || !clubeFora) return alert('Clubes inválidos.');
 
-    // Cálculo baseado em probabilidade (força das equipas)
-    // O painel tático afeta a simulação para a equipa da casa de forma subtil (exemplo avançado)
     let bonusCasa = 0;
     if (estiloJogo === 'PressaoAlta') bonusCasa += 1;
     if (mentalidade === 'Ofensiva' || mentalidade === 'TudoOuNada') bonusCasa += 1.5;
 
     const baseCasa = Math.random() * (clubeCasa.forca / 15) + bonusCasa;
     const baseFora = Math.random() * (clubeFora.forca / 15);
-    
     const golsCasa = Math.floor(Math.max(0, baseCasa));
     const golsFora = Math.floor(Math.max(0, baseFora));
 
@@ -139,10 +112,8 @@ export default function FutebolDiplomatico({ currentUser, balance, setBalance })
 
     setPartidas([novaPartida, ...partidas]);
 
-    // Atualiza Tabela da Série A Instantaneamente
     setClassificacao(prevClassificacao => {
       const novaClassificacao = prevClassificacao.map(c => ({ ...c }));
-      
       const indexCasa = novaClassificacao.findIndex(c => c.clubeId === clubeCasa.id);
       const indexFora = novaClassificacao.findIndex(c => c.clubeId === clubeFora.id);
       
@@ -170,15 +141,12 @@ export default function FutebolDiplomatico({ currentUser, balance, setBalance })
         novaClassificacao[indexFora].empates += 1;
         novaClassificacao[indexFora].pontos += 1;
       }
-
-      // Ordenar por pontos, vitória e saldo de golos
       return novaClassificacao.sort((a, b) => b.pontos - a.pontos || b.vitorias - a.vitorias || b.saldo - a.saldo);
     });
 
     alert(`Fim de Jogo! ${clubeCasa.sigla} ${golsCasa} x ${golsFora} ${clubeFora.sigla}`);
   };return (
     <div className="min-h-screen bg-black text-white p-4 max-w-4xl mx-auto space-y-6">
-      {/* CABEÇALHO DO SIMULADOR */}
       <div className="bg-gradient-to-r from-emerald-950 via-[#0b1f14] to-black border border-emerald-500/40 p-6 rounded-3xl shadow-2xl flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
           <h1 className="text-2xl font-black text-emerald-400 tracking-wider">⚽ FUTEBOL DIPLOMÁTICO</h1>
@@ -193,10 +161,8 @@ export default function FutebolDiplomatico({ currentUser, balance, setBalance })
         </div>
       </div>
 
-      {/* CONTEÚDO: ABA TÁTICAS & PLANTEL */}
       {activeTab === 'taticas' && (
         <div className="space-y-6">
-          {/* PAINEL TÁTICO AVANÇADO COM BOTÃO SALVAR INSTANTÂNEO */}
           <div className="bg-[#0f0f12] border-2 border-emerald-500/50 p-6 rounded-3xl shadow-xl space-y-4">
             <h3 className="text-emerald-400 font-black text-base uppercase tracking-wide">🛠️ Painel Tático & Estilo de Jogo</h3>
             
@@ -243,7 +209,6 @@ export default function FutebolDiplomatico({ currentUser, balance, setBalance })
             </button>
           </div>
 
-          {/* LISTA DE JOGADORES REGISTADOS */}
           <div className="bg-[#0f0f12] border border-zinc-800 p-6 rounded-3xl shadow-xl space-y-4">
             <h3 className="text-white font-black text-base uppercase">📋 Plantel de Jogadores</h3>
             {jogadores.length === 0 ? (
@@ -268,7 +233,6 @@ export default function FutebolDiplomatico({ currentUser, balance, setBalance })
         </div>
       )}
 
-      {/* CONTEÚDO: TABELA DA SÉRIE A & PARTIDAS */}
       {activeTab === 'tabela' && (
         <div className="space-y-6">
           <div className="bg-[#0f0f12] border border-emerald-500/30 p-6 rounded-3xl shadow-xl space-y-4">
@@ -306,3 +270,86 @@ export default function FutebolDiplomatico({ currentUser, balance, setBalance })
           </div>
         </div>
       )}
+
+      {activeTab === 'admin' && isAdmin && (
+        <div className="space-y-6">
+          <div className="bg-[#0f0f12] border-2 border-amber-500/50 p-6 rounded-3xl shadow-xl space-y-4">
+            <h3 className="text-amber-400 font-black text-base uppercase">⚡ Criar Novo Jogador</h3>
+            <form onSubmit={handleCriarJogador} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-zinc-400 font-bold block mb-1">Nome do Jogador</label>
+                <input type="text" value={novoJogadorNome} onChange={(e) => setNovoJogadorNome(e.target.value)} placeholder="Ex: Cristiano Silva" required className="w-full bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-amber-500" />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 font-bold block mb-1">Posição</label>
+                <select value={novoJogadorPosicao} onChange={(e) => setNovoJogadorPosicao(e.target.value)} className="w-full bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-amber-500">
+                  <option value="ATA">Atacante (ATA)</option>
+                  <option value="MEI">Médio (MEI)</option>
+                  <option value="DEF">Defesa (DEF)</option>
+                  <option value="GR">Guarda-Redes (GR)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 font-bold block mb-1">Overall (OVR: {novoJogadorOverall})</label>
+                <input type="number" min="50" max="99" value={novoJogadorOverall} onChange={(e) => setNovoJogadorOverall(e.target.value)} className="w-full bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-amber-500" />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 font-bold block mb-1">Atribuir ao Clube</label>
+                <select value={novoJogadorClubeId} onChange={(e) => setNovoJogadorClubeId(e.target.value)} className="w-full bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-amber-500">
+                  {clubes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              </div>
+              <div className="md:col-span-2 pt-2">
+                <button type="submit" className="w-full bg-amber-500 hover:bg-amber-400 text-black font-black py-3 rounded-xl text-xs transition-all shadow-lg cursor-pointer">Adicionar Jogador ao Plantel</button>
+              </div>
+            </form>
+          </div>
+
+          <div className="bg-[#0f0f12] border border-zinc-800 p-6 rounded-3xl shadow-xl space-y-4">
+            <h3 className="text-amber-400 font-black text-base uppercase">🔄 Gerir Transferências de Jogadores</h3>
+            <form onSubmit={handleTransferencia} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-zinc-400 font-bold block mb-1">Selecionar Jogador</label>
+                <select value={transfJogadorId} onChange={(e) => setTransfJogadorId(e.target.value)} className="w-full bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-amber-500">
+                  <option value="">-- Escolher Jogador --</option>
+                  {jogadores.map(j => <option key={j.id} value={j.id}>{j.nome} (OVR {j.overall})</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 font-bold block mb-1">Novo Clube Destino</label>
+                <select value={transfNovoClubeId} onChange={(e) => setTransfNovoClubeId(e.target.value)} className="w-full bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-amber-500">
+                  <option value="">-- Escolher Clube --</option>
+                  {clubes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              </div>
+              <div className="md:col-span-2 pt-2">
+                <button type="submit" className="w-full bg-amber-500 hover:bg-amber-400 text-black font-black py-3 rounded-xl text-xs transition-all shadow-lg cursor-pointer">Concluir Transferência</button>
+              </div>
+            </form>
+          </div>
+
+          <div className="bg-[#0f0f12] border border-emerald-500/50 p-6 rounded-3xl shadow-xl space-y-4">
+            <h3 className="text-emerald-400 font-black text-base uppercase">⚡ Simular Partida Oficial da Série A</h3>
+            <form onSubmit={simularPartida} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-zinc-400 font-bold block mb-1">Clube da Casa</label>
+                <select value={partidaClubeCasa} onChange={(e) => setPartidaClubeCasa(e.target.value)} className="w-full bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-emerald-500">
+                  {clubes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 font-bold block mb-1">Clube de Fora</label>
+                <select value={partidaClubeFora} onChange={(e) => setPartidaClubeFora(e.target.value)} className="w-full bg-[#141418] border border-zinc-700 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-emerald-500">
+                  {clubes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              </div>
+              <div className="md:col-span-2 pt-2">
+                <button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-black py-3.5 rounded-xl text-xs transition-all shadow-lg cursor-pointer">Simular Partida e Atualizar Tabela</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
