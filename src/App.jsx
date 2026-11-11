@@ -80,7 +80,9 @@ export default function App() {
   useEffect(() => {
     if (currentUser) localStorage.setItem('pampas_current_user', JSON.stringify(currentUser));
     else localStorage.removeItem('pampas_current_user');
-  }, [currentUser]);const handleAuthSubmit = async (e) => {
+  }, [currentUser]);
+
+  const handleAuthSubmit = async (e) => {
     e.preventDefault();
     setAuthError('');
     const trimmedUser = inputUsername.trim();
@@ -200,7 +202,6 @@ export default function App() {
     </header>
   );
 
-  // NOVO: Renderizador que injeta a barra superior com o botão Voltar (inclusive para o Futebol)
   const renderGameRoute = (GameComponent, isFootball = false) => (
     <div className="min-h-screen bg-black text-white flex flex-col">
       <div className="bg-[#0b0b0e] px-4 py-2.5 flex items-center justify-between border-b border-zinc-900 sticky top-0 z-50 shadow-md">
@@ -284,7 +285,9 @@ export default function App() {
             ))}
           </div>
         </main>
-      )}{/* MODAL AUTH */}
+      )}
+
+      {/* MODAL AUTH */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-[60] bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#141418] border border-amber-500/40 w-full max-w-md rounded-3xl p-6 relative shadow-2xl">
@@ -385,4 +388,4 @@ export default function App() {
       )}
     </div>
   );
-}
+            }
