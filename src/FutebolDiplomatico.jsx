@@ -352,4 +352,4 @@ export default function FutebolDiplomatico({ currentUser, balance, setBalance })
       )}
     </div>
   );
-}
+                  }
